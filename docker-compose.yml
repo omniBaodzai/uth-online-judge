@@ -33,6 +33,29 @@ services:
       - frontend_node_modules:/app/node_modules
     command: npm run dev -- --host 0.0.0.0
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: uth-online-judge-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   frontend_node_modules:
+  backend_node_modules:

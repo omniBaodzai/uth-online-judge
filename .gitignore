@@ -41,3 +41,9 @@ Thumbs.db
 .github/
 # Temporary frontend experiment
 /frontend-temp/
+# Temporary generated backend scaffold
+/backend-generated/
+
+# Root npm files are currently unused
+/package.json
+/package-lock.json
