@@ -1,0 +1,43 @@
+
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Node.js dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Local IDE and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Test and temporary files
+.tmp/
+.temp/
+# Local AI assistant configuration - do not upload
+.claude/
+.github/
+# Temporary frontend experiment
+/frontend-temp/
