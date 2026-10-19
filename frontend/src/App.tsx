@@ -1,13 +1,10 @@
 
+import HomePage from './features/home/pages/HomePage'
 import './App.css'
 
+// Trang chủ
 function App() {
-  return (
-    <main>
-      <h1>UTH Online Judge</h1>
-      <p>Docker frontend is running!</p>
-    </main>
-  )
+  return <HomePage />
 }
 
 export default App

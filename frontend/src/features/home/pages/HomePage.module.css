@@ -1,0 +1,105 @@
+.heroShell {
+  position: relative;
+  display: flex;
+  min-height: clamp(620px, 78svh, 760px);
+  flex-direction: column;
+  background: #087f82;
+}
+
+.heroShell > header {
+  position: absolute;
+  inset: 0 0 auto;
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 10;
+  top: 12px;
+  left: 12px;
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.main {
+  padding: clamp(42px, 6vw, 76px) 0;
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
+    url('../../../assets/uth_background.jpg');
+  background-position:
+    center,
+    center,
+    center top;
+  background-repeat: no-repeat;
+  background-size:
+    auto,
+    cover,
+    cover;
+}
+
+.contentGrid {
+  display: grid;
+  width: min(1240px, calc(100% - 64px));
+  grid-template-columns: minmax(0, 7fr) minmax(285px, 3fr);
+  align-items: start;
+  gap: 24px;
+  margin-inline: auto;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (max-width: 980px) {
+  .heroShell {
+    min-height: clamp(620px, 78svh, 760px);
+  }
+
+  .contentGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .sidebar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 700px) {
+  .heroShell {
+    min-height: clamp(600px, 82svh, 720px);
+  }
+
+  .main {
+    padding-block: 34px;
+  }
+
+  .contentGrid {
+    width: calc(100% - 40px);
+    gap: 18px;
+  }
+
+  .sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .contentGrid {
+    width: calc(100% - 32px);
+  }
+}
