@@ -7,7 +7,7 @@
 }
 
 .heroShell > header {
-  position: absolute;
+  position: fixed;
   inset: 0 0 auto;
 }
 
