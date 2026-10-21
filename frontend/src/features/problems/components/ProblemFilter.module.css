@@ -1,0 +1,214 @@
+.filterPanel {
+  padding: 22px;
+  border: 1px solid #dfeaea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(24, 51, 55, 0.06);
+}
+
+.panelHeading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 22px;
+}
+
+.headingIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: #eaf7f6;
+  color: #007b7e;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.panelHeading h2 {
+  margin: 0 0 4px;
+  color: #183337;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.panelHeading p {
+  margin: 0;
+  color: #718285;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.fieldLabel,
+.scoreFieldset legend {
+  display: block;
+  margin: 16px 0 7px;
+  color: #385458;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.searchField {
+  display: flex;
+  height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid #dce7e7;
+  border-radius: 8px;
+  background: #fbfdfd;
+  color: #7c9294;
+}
+
+.searchField span {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.searchField input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #183337;
+  font-size: 12px;
+}
+
+.searchField:focus-within,
+.select:focus-visible {
+  border-color: #008689;
+  outline: 3px solid rgba(0, 134, 137, 0.12);
+}
+
+.searchField input::placeholder {
+  color: #99a9aa;
+}
+
+.select {
+  width: 100%;
+  height: 42px;
+  padding: 0 11px;
+  border: 1px solid #dce7e7;
+  border-radius: 8px;
+  background: #fbfdfd;
+  color: #385458;
+  font-size: 12px;
+}
+
+.scoreFieldset {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.scoreFieldset legend {
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.scoreValues {
+  display: flex;
+  justify-content: space-between;
+  color: #007b7e;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rangeLabel {
+  display: block;
+  margin-top: 9px;
+  color: #819193;
+  font-size: 10px;
+}
+
+.range {
+  display: block;
+  width: 100%;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #008689;
+  cursor: pointer;
+}
+
+.checkOptions {
+  display: grid;
+  gap: 11px;
+  margin-top: 18px;
+  padding: 15px 0;
+  border-top: 1px solid #edf2f2;
+  border-bottom: 1px solid #edf2f2;
+}
+
+.checkOption {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #52696c;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.checkOption input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: #008689;
+}
+
+.actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 17px;
+}
+
+.searchButton,
+.randomButton {
+  min-height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.searchButton {
+  border: 1px solid #008689;
+  background: #008689;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(0, 134, 137, 0.16);
+}
+
+.searchButton:hover {
+  transform: translateY(-1px);
+  background: #006d70;
+  box-shadow: 0 9px 18px rgba(0, 109, 112, 0.2);
+}
+
+.randomButton {
+  border: 1px solid #dce8e8;
+  background: #fff;
+  color: #28676a;
+}
+
+.randomButton:hover {
+  transform: translateY(-1px);
+  background: #f1f9f8;
+}
+
+.randomButton span {
+  margin-right: 5px;
+  font-size: 16px;
+  vertical-align: -1px;
+}
+
+@media (max-width: 600px) {
+  .filterPanel {
+    padding: 18px;
+  }
+}

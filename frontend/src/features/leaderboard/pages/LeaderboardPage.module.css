@@ -1,0 +1,146 @@
+.page {
+  min-height: 100svh;
+  padding-top: 96px;
+  background:
+    radial-gradient(ellipse at 10% 0%, rgba(0, 134, 137, 0.08), transparent 32%),
+    #f3f7f7;
+}
+
+.main {
+  width: min(1240px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 35px 0 72px;
+}
+
+.pageIntro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 25px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #008689;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.pageIntro h1 {
+  margin: 0;
+  color: #183337;
+  font-size: 30px;
+  font-weight: 780;
+  line-height: 1.2;
+}
+
+.introText {
+  margin: 8px 0 0;
+  color: #64777a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.memberCount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 9px 13px;
+  border: 1px solid #d9e9e8;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #5c7477;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.memberCount strong {
+  color: #007b7e;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.board {
+  overflow: hidden;
+  padding: 20px 22px 0;
+  border: 1px solid #e0eaea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(24, 51, 55, 0.055);
+}
+
+.tableFooter {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  color: #819193;
+  font-size: 10px;
+}
+
+.tableFooter {
+  border-top: 1px solid #edf2f2;
+}
+
+.tableFooter nav {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.tableFooter :global(button) {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+@media (max-width: 1020px) {
+  .main {
+    width: min(100% - 40px, 900px);
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding-top: 88px;
+  }
+
+  .main {
+    width: calc(100% - 32px);
+    padding-top: 26px;
+  }
+}
+
+@media (max-width: 560px) {
+  .pageIntro {
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+
+  .pageIntro h1 {
+    font-size: 24px;
+  }
+
+  .introText {
+    max-width: 290px;
+    font-size: 11px;
+  }
+
+  .memberCount {
+    gap: 4px;
+    padding: 7px 9px;
+    font-size: 9px;
+  }
+
+  .memberCount strong {
+    font-size: 12px;
+  }
+
+  .board {
+    padding: 14px 13px 0;
+  }
+}

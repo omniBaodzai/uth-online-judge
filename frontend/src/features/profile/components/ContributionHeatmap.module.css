@@ -1,0 +1,108 @@
+.panel {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #dfe9e8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(24, 51, 55, 0.045);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.panelHeader p {
+  margin: 0 0 4px;
+  color: #008689;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  color: #183337;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.panelHeader > strong {
+  color: #638083;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.heatmapScroll {
+  overflow-x: auto;
+  padding-bottom: 3px;
+  scrollbar-color: #c7dada transparent;
+  scrollbar-width: thin;
+}
+
+.monthLabels,
+.heatmap {
+  display: grid;
+  width: max-content;
+  grid-template-columns: repeat(52, 10px);
+  gap: 3px;
+}
+
+.monthLabels {
+  margin-bottom: 6px;
+}
+
+.monthLabels span {
+  grid-column: span 4;
+  color: #849698;
+  font-size: 8px;
+}
+
+.heatmap {
+  grid-template-rows: repeat(7, 10px);
+  grid-auto-flow: column;
+}
+
+.day,
+.legend i {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.level0 { background: #edf2f2; }
+.level1 { background: #ccebe0; }
+.level2 { background: #91d3b8; }
+.level3 { background: #47ad85; }
+.level4 { background: #147b62; }
+
+.heatmapFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: #829395;
+  font-size: 9px;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend i {
+  width: 9px;
+  height: 9px;
+}
+
+@media (max-width: 520px) {
+  .panel { padding: 15px; }
+  .panelHeader { align-items: flex-start; flex-direction: column; gap: 7px; }
+}

@@ -1,0 +1,85 @@
+.example {
+  margin-top: 22px;
+}
+
+.example h3 {
+  margin: 0 0 10px;
+  color: #2b4c4f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.sampleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.samplePanel {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #dfe9e9;
+  border-radius: 8px;
+  background: #f8fbfb;
+}
+
+.sampleHeader {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 11px;
+  border-bottom: 1px solid #e6eeee;
+  background: #f1f7f6;
+}
+
+.sampleHeader h4 {
+  margin: 0;
+  color: #526c6f;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.sampleHeader button {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #668083;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.sampleHeader button:hover {
+  background: #e4f1ef;
+  color: #006d70;
+}
+
+.samplePanel pre {
+  min-height: 59px;
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  color: #28474a;
+  font-size: 11px;
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+.samplePanel code {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  white-space: pre;
+}
+
+@media (max-width: 620px) {
+  .sampleGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}

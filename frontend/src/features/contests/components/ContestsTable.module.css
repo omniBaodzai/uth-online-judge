@@ -1,0 +1,198 @@
+.tableScroll {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-color: #c7dada transparent;
+  scrollbar-width: thin;
+}
+
+.contestsTable {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.contestsTable th {
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid #e7eeee;
+  background: #f8fbfb;
+  color: #718487;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.contestsTable th:first-child,
+.contestsTable td:first-child {
+  padding-left: 19px;
+}
+
+.contestsTable td {
+  padding: 16px;
+  border-bottom: 1px solid #edf2f2;
+  color: #52696c;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.contestsTable tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.contestsTable tbody tr:hover {
+  background: #f7fbfa;
+}
+
+.contestCell {
+  min-width: 330px;
+}
+
+.contestTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.contestTitle {
+  color: #244649;
+  font-size: 14px;
+  font-weight: 740;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.contestTitle:hover {
+  color: #007b7e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.kindBadge,
+.privateBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.rated {
+  background: #fff0dc;
+  color: #ad6e17;
+}
+
+.practice {
+  background: #e7f4f1;
+  color: #287d68;
+}
+
+.unrated {
+  background: #edf1f5;
+  color: #607487;
+}
+
+.privateBadge {
+  background: #f2edfa;
+  color: #735b9e;
+}
+
+.date,
+.duration {
+  display: block;
+  margin-top: 7px;
+  color: #708386;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.duration {
+  margin-top: 3px;
+  color: #8a999b;
+  font-size: 10px;
+}
+
+.memberCell {
+  min-width: 125px;
+  white-space: nowrap;
+}
+
+.memberCell strong {
+  color: #38575a;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.memberCell span {
+  margin-left: 5px;
+  color: #8a999b;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.actionHeading {
+  display: block;
+  text-align: right;
+}
+
+.actionCell {
+  min-width: 145px;
+  text-align: right;
+}
+
+.actionCell button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d3e6e4;
+  border-radius: 7px;
+  background: #f4faf9;
+  color: #087579;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
+}
+
+.actionCell button:hover {
+  transform: translateY(-1px);
+  border-color: #9acbc8;
+  background: #e8f5f3;
+}
+
+.actionCell button span {
+  margin-right: 4px;
+  font-size: 13px;
+}
+
+.emptyState {
+  display: grid;
+  min-height: 240px;
+  place-content: center;
+  justify-items: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.emptyState > span {
+  color: #008689;
+  font-size: 34px;
+}
+
+.emptyState h3 {
+  margin: 10px 0 5px;
+  color: #183337;
+  font-size: 15px;
+}
+
+.emptyState p {
+  margin: 0;
+  color: #718285;
+  font-size: 12px;
+}

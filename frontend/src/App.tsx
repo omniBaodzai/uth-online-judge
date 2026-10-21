@@ -1,6 +1,13 @@
 
 import HomePage from './features/home/pages/HomePage'
 import AuthPage from './features/auth/pages/AuthPage'
+import ProblemsPage from './features/problems/pages/ProblemsPage'
+import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
+import ContestsPage from './features/contests/pages/ContestsPage'
+import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
+import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
+import ContestDetailPage from './features/contests/pages/ContestDetailPage'
+import ProfilePage from './features/profile/pages/ProfilePage'
 import './App.css'
 
 function App() {
@@ -12,6 +19,37 @@ function App() {
 
   if (pathname === '/login') {
     return <AuthPage mode="login" />
+  }
+
+  if (pathname === '/problems') {
+    return <ProblemsPage />
+  }
+
+  if (pathname.startsWith('/problems/')) {
+    const problemId = decodeURIComponent(pathname.slice('/problems/'.length)).toUpperCase()
+    return <ProblemDetailPage problemId={problemId} />
+  }
+
+  if (pathname === '/submissions') {
+    return <SubmissionsPage />
+  }
+
+  if (pathname === '/contests') {
+    return <ContestsPage />
+  }
+
+  if (pathname.startsWith('/contests/')) {
+    const contestId = decodeURIComponent(pathname.slice('/contests/'.length))
+    return <ContestDetailPage contestId={contestId} />
+  }
+
+  if (pathname === '/leaderboard' || pathname === '/members') {
+    return <LeaderboardPage />
+  }
+
+  if (pathname.startsWith('/profile/')) {
+    const username = decodeURIComponent(pathname.slice('/profile/'.length))
+    return <ProfilePage username={username} />
   }
 
   return <HomePage />

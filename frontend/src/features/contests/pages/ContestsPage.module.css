@@ -1,0 +1,237 @@
+.page {
+  min-height: 100svh;
+  padding-top: 96px;
+  background:
+    radial-gradient(ellipse at 10% 0%, rgba(0, 134, 137, 0.08), transparent 32%),
+    #f3f7f7;
+}
+
+.main {
+  width: min(1240px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 35px 0 72px;
+}
+
+.upcomingSection,
+.listPanel {
+  overflow: hidden;
+  border: 1px solid #e0eaea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(24, 51, 55, 0.05);
+}
+
+.upcomingSection {
+  margin-bottom: 28px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 20px;
+  border-bottom: 1px solid #e9efef;
+}
+
+.sectionHeading p,
+.pastHeading p {
+  margin: 0 0 5px;
+  color: #008689;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.sectionHeading h2,
+.pastHeading h2 {
+  margin: 0;
+  color: #183337;
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.upcomingMark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: #eaf7f6;
+  color: #007b7e;
+  font-size: 17px;
+}
+
+.upcomingEmpty {
+  display: flex;
+  min-height: 104px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.emptyCalendar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e1eded;
+  border-radius: 10px;
+  background: #f7fbfb;
+  color: #7f9b9d;
+  font-size: 19px;
+}
+
+.upcomingEmpty strong {
+  color: #3a585b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.upcomingEmpty p {
+  margin: 5px 0 0;
+  color: #879698;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.pastSection {
+  min-width: 0;
+}
+
+.pastHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 15px;
+}
+
+.pastHeading h2 {
+  font-size: 19px;
+}
+
+.pastHeading > div > span {
+  display: block;
+  margin-top: 6px;
+  color: #829294;
+  font-size: 10px;
+}
+
+.searchBox {
+  display: flex;
+  width: min(280px, 40%);
+  height: 39px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid #dce7e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #809395;
+}
+
+.searchBox:focus-within {
+  border-color: #008689;
+  outline: 3px solid rgba(0, 134, 137, 0.12);
+}
+
+.searchBox > span {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.searchBox input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #26474a;
+  font-size: 11px;
+}
+
+.searchBox input::placeholder {
+  color: #9aa9aa;
+}
+
+.listToolbar,
+.listFooter {
+  display: flex;
+  min-height: 49px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 15px;
+  color: #819193;
+  font-size: 10px;
+}
+
+.listToolbar {
+  border-bottom: 1px solid #edf2f2;
+}
+
+.listFooter {
+  border-top: 1px solid #edf2f2;
+}
+
+.listToolbar nav,
+.listFooter nav {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.listToolbar :global(button),
+.listFooter :global(button) {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.virtualMessage {
+  min-height: 18px;
+  margin: 12px 0 0;
+  color: #287d68;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1020px) {
+  .main {
+    width: min(100% - 40px, 900px);
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding-top: 88px;
+  }
+
+  .main {
+    width: calc(100% - 32px);
+    padding-top: 26px;
+  }
+}
+
+@media (max-width: 560px) {
+  .pastHeading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .searchBox {
+    width: 100%;
+  }
+
+  .upcomingEmpty {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .listToolbar,
+  .listFooter {
+    padding-inline: 9px;
+  }
+}

@@ -1,0 +1,155 @@
+.statsPanel {
+  padding: 20px;
+  border: 1px solid #dce9e8;
+  border-radius: 12px;
+  background: linear-gradient(150deg, #fff 0%, #f6fbfa 100%);
+  box-shadow: 0 10px 28px rgba(24, 51, 55, 0.045);
+}
+
+.statsHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.statsHeading p {
+  margin: 0 0 5px;
+  color: #008689;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.statsHeading h2 {
+  margin: 0;
+  color: #183337;
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.statsMark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 9px;
+  background: #eaf7f6;
+  color: #007b7e;
+  font-size: 17px;
+}
+
+.totalBlock {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #e5efee;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.totalBlock span,
+.successRate span {
+  color: #708487;
+  font-size: 10px;
+}
+
+.totalBlock strong {
+  color: #183b3f;
+  font-size: 23px;
+  font-weight: 780;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalBlock small {
+  color: #95a3a5;
+  font-size: 9px;
+}
+
+.chartArea {
+  display: grid;
+  justify-items: center;
+  gap: 17px;
+  padding: 20px 0 16px;
+}
+
+.donut {
+  display: grid;
+  width: 142px;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  transform: rotate(-90deg);
+}
+
+.donutCenter {
+  display: grid;
+  width: 96px;
+  aspect-ratio: 1;
+  align-content: center;
+  justify-items: center;
+  border-radius: 50%;
+  background: #fff;
+  transform: rotate(90deg);
+  box-shadow: inset 0 0 0 1px #edf2f2;
+}
+
+.donutCenter strong {
+  color: #183b3f;
+  font-size: 22px;
+  font-weight: 780;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.donutCenter span {
+  margin-top: 4px;
+  color: #869698;
+  font-size: 9px;
+}
+
+.legend {
+  display: grid;
+  width: 100%;
+  gap: 9px;
+}
+
+.legendItem {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.legendLabel {
+  color: #6c8083;
+  font-size: 10px;
+}
+
+.legendItem strong {
+  color: #38575a;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.successRate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 13px;
+  border-top: 1px solid #e7eeee;
+}
+
+.successRate strong {
+  color: #168157;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}

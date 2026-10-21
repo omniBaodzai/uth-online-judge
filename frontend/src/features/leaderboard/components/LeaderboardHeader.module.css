@@ -1,0 +1,130 @@
+.categoryTabs {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid #dfebea;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.tab {
+  position: relative;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #718487;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 680;
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.tab:hover {
+  color: #006d70;
+  background: #f3f9f8;
+}
+
+.tab.activeTab {
+  background: #fff;
+  color: #006d70;
+  box-shadow: 0 2px 8px rgba(24, 51, 55, 0.1);
+}
+
+.toolbar {
+  display: flex;
+  min-height: 63px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.toolbarLeading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  color: #819193;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.toolbarLeading nav {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.toolbarLeading :global(button) {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.searchField {
+  display: flex;
+  width: min(300px, 100%);
+  height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid #dce7e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #809395;
+}
+
+.searchField:focus-within {
+  border-color: #008689;
+  outline: 3px solid rgba(0, 134, 137, 0.12);
+}
+
+.searchField > span {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.searchField input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #26474a;
+  font-size: 11px;
+}
+
+.searchField input::placeholder {
+  color: #98a7a9;
+}
+
+@media (max-width: 560px) {
+  .categoryTabs {
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .tab {
+    flex: 1;
+    min-height: 36px;
+    padding-inline: 6px;
+    font-size: 10px;
+  }
+
+  .toolbar {
+    min-height: 55px;
+  }
+
+  .toolbarLeading {
+    gap: 6px;
+  }
+
+  .toolbarLeading > span {
+    display: none;
+  }
+
+  .searchField {
+    width: 100%;
+  }
+}

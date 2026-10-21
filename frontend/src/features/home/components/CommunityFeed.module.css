@@ -3,7 +3,7 @@
   padding: clamp(22px, 3vw, 34px);
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 18px;
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--shadow-card);
 }
 
@@ -12,24 +12,24 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .sectionEyebrow {
-  margin: 0 0 7px;
+  margin: 0 0 8px;
   color: var(--color-primary);
   font-size: 10px;
   font-weight: 760;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.14em;
 }
 
 .sectionTitle {
   margin: 0;
   color: var(--color-ink);
-  font-size: clamp(22px, 2.4vw, 28px);
-  font-weight: 740;
-  letter-spacing: -0.035em;
-  line-height: 1.2;
+  font-size: clamp(24px, 2.5vw, 30px);
+  font-weight: 780;
+  line-height: 1.18;
+  letter-spacing: -0.04em;
 }
 
 .liveLabel {
@@ -55,42 +55,56 @@
 
 .tabs {
   display: flex;
-  gap: 22px;
-  border-bottom: 1px solid var(--color-border);
+  gap: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(150, 175, 176, 0.28);
 }
 
 .tab {
   position: relative;
   display: inline-flex;
-  min-height: 48px;
+  min-height: 52px;
   align-items: center;
   gap: 8px;
-  padding: 0 2px;
+  padding: 0 14px 0 12px;
   border: 0;
+  border-radius: 12px 12px 0 0;
   background: transparent;
   color: var(--color-muted);
   cursor: pointer;
   font-size: 14px;
-  font-weight: 650;
-  transition: color 160ms ease;
+  font-weight: 700;
+  line-height: 1.2;
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.tab:hover {
+  background: rgba(0, 134, 137, 0.04);
+  color: var(--color-primary-dark);
 }
 
 .tab::after {
   position: absolute;
-  right: 0;
+  right: 12px;
   bottom: -1px;
-  left: 0;
-  height: 2px;
+  left: 12px;
+  height: 3px;
+  border-radius: 999px;
   transform: scaleX(0);
   transform-origin: center;
-  background: var(--color-primary);
+  background: linear-gradient(90deg, var(--color-primary) 0%, #31bcb7 100%);
   content: '';
-  transition: transform 180ms ease;
+  transition: transform 200ms ease;
 }
 
-.tab:hover,
 .tab.activeTab {
+  background: linear-gradient(180deg, rgba(0, 134, 137, 0.06), rgba(0, 134, 137, 0.02));
   color: var(--color-primary-dark);
+  box-shadow: inset 0 -1px 0 rgba(0, 134, 137, 0.05);
 }
 
 .tab.activeTab::after {
@@ -99,30 +113,55 @@
 
 .tabCount {
   display: inline-flex;
-  min-width: 21px;
-  height: 21px;
+  min-width: 22px;
+  height: 22px;
   align-items: center;
   justify-content: center;
-  padding: 0 5px;
+  padding: 0 6px;
   border-radius: 999px;
-  background: #edf5f4;
-  color: #577375;
+  background: #edf4f4;
+  color: #587377;
   font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+  transition: all 180ms ease;
 }
 
 .activeTab .tabCount {
-  background: #e3f4f0;
-  color: var(--color-primary-dark);
+  background: linear-gradient(135deg, #0b9b9d 0%, #0f7a7d 100%);
+  color: #fff;
+  box-shadow: 0 6px 12px rgba(15, 122, 125, 0.18);
 }
 
 .feedList {
   min-height: 450px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .feedEntry {
-  padding: 22px 0 20px;
-  border-bottom: 1px solid #edf1f1;
+  padding: 22px 16px 20px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.feedEntry + .feedEntry {
+  border-top: 1px solid rgba(201, 214, 214, 0.7);
+  border-radius: 0;
+}
+
+.feedEntry:hover {
+  background: linear-gradient(180deg, rgba(8, 127, 130, 0.03), rgba(8, 127, 130, 0.01));
+  border-color: rgba(8, 127, 130, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
 }
 
 .entryTopline,
@@ -142,36 +181,39 @@
   color: #187579;
   font-size: 10px;
   font-weight: 680;
+  letter-spacing: 0.03em;
 }
 
 .entryDate {
   color: #859598;
   font-size: 11px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .entryTitle {
-  margin: 12px 0 7px;
+  margin: 12px 0 8px;
   color: var(--color-ink);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.45;
+  font-size: 17px;
+  font-weight: 720;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
 }
 
 .entrySummary {
   max-width: 720px;
   margin: 0;
-  color: #64777a;
-  font-size: 13px;
-  line-height: 1.7;
+  color: #586d70;
+  font-size: 13.5px;
+  line-height: 1.75;
 }
 
 .entryFooter {
   justify-content: flex-start;
-  margin-top: 13px;
+  margin-top: 14px;
   color: #829193;
   font-size: 11px;
+  line-height: 1.5;
 }
 
 .entryAuthor strong {
@@ -203,7 +245,13 @@
   }
 
   .tabs {
-    gap: 18px;
+    gap: 8px;
+  }
+
+  .tab {
+    min-height: 48px;
+    padding: 0 10px 0 10px;
+    font-size: 13px;
   }
 
   .feedList {
@@ -211,14 +259,16 @@
   }
 
   .feedEntry {
-    padding-block: 19px;
+    padding: 18px 12px 17px;
   }
 
   .entryTitle {
     font-size: 15px;
+    line-height: 1.42;
   }
 
   .entrySummary {
     font-size: 12px;
+    line-height: 1.7;
   }
 }

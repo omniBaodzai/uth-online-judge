@@ -5,7 +5,7 @@ import uthLogo from '../../assets/uth_logo.png'
 const navigationLinks = [
   { label: 'Bài tập', href: '/problems' },
   { label: 'Bảng chấm bài', href: '/submissions' },
-  { label: 'Bảng xếp hạng', href: '#leaderboard' },
+  { label: 'Bảng xếp hạng', href: '/leaderboard' },
   { label: 'Cuộc thi', href: '/contests' },
   { label: 'Tổ chức', href: '/organizations' },
   { label: 'Báo lỗi', href: 'mailto:oj@uth.edu.vn?subject=Bao%20loi%20UTH%20Online%20Judge' },
