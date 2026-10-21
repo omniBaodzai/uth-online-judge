@@ -1,5 +1,3 @@
-import SiteFooter from '../../../components/layout/SiteFooter'
-import SiteHeader from '../../../components/layout/SiteHeader'
 import HeroBanner from '../components/HeroBanner'
 import CommunityFeed from '../components/CommunityFeed'
 import LeaderboardCard from '../components/LeaderboardCard'
@@ -9,11 +7,7 @@ import styles from './HomePage.module.css'
 function HomePage() {
   return (
     <>
-      <a className={styles.skipLink} href="#main-content">
-        Bỏ qua điều hướng, đến nội dung chính
-      </a>
       <div className={styles.heroShell}>
-        <SiteHeader />
         <HeroBanner />
       </div>
 
@@ -36,8 +30,6 @@ function HomePage() {
           </aside>
         </div>
       </main>
-
-      <SiteFooter />
     </>
   )
 }

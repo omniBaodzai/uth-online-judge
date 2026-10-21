@@ -1,7 +1,19 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Inject, Injectable, Module, OnApplicationShutdown } from '@nestjs/common';
 import { Pool } from 'pg';
 
 export const DATABASE_POOL = 'DATABASE_POOL';
+
+@Injectable()
+class PoolLifecycle implements OnApplicationShutdown {
+  constructor(
+    @Inject(DATABASE_POOL)
+    private readonly pool: Pool,
+  ) {}
+
+  async onApplicationShutdown(): Promise<void> {
+    await this.pool.end();
+  }
+}
 
 @Global()
 @Module({
@@ -20,6 +32,7 @@ export const DATABASE_POOL = 'DATABASE_POOL';
         });
       },
     },
+    PoolLifecycle,
   ],
   exports: [DATABASE_POOL],
 })

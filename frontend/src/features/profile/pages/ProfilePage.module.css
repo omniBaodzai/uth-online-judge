@@ -1,0 +1,236 @@
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  background: #f3f7f7;
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 1001;
+  top: 10px;
+  left: 12px;
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #fff;
+  color: #006d70;
+  font-weight: 700;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.main {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  justify-items: center;
+  padding: 118px 24px 56px;
+  background-image:
+    linear-gradient(rgba(243, 247, 247, 0.9), rgba(243, 247, 247, 0.94)),
+    url('../../../assets/uth_background.jpg');
+  background-position: center, center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.card {
+  width: min(100%, 680px);
+  padding: clamp(24px, 5vw, 40px);
+  border: 1px solid rgba(0, 134, 137, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgba(15, 58, 60, 0.09);
+}
+
+.heading {
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #00777a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.heading h1 {
+  margin: 0;
+  color: #173f41;
+  font-size: clamp(25px, 4vw, 32px);
+  line-height: 1.2;
+}
+
+.heading > p:last-child {
+  margin: 10px 0 0;
+  color: #536b6c;
+  line-height: 1.55;
+}
+
+.avatar {
+  display: block;
+  width: 88px;
+  height: 88px;
+  margin: 0 0 20px;
+  border: 3px solid #e5f2f1;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.details {
+  display: grid;
+  gap: 0;
+  margin: 0 0 24px;
+}
+
+.details div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1.3fr);
+  gap: 16px;
+  padding: 15px 0;
+  border-bottom: 1px solid #e8eeee;
+}
+
+.details dt {
+  color: #617576;
+  font-size: 14px;
+}
+
+.details dd {
+  min-width: 0;
+  margin: 0;
+  color: #193f40;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.form {
+  display: grid;
+  gap: 9px;
+}
+
+.form label {
+  margin-top: 8px;
+  color: #234b4c;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.form input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #cbdada;
+  border-radius: 6px;
+  background: #fff;
+  color: #193f40;
+  font: inherit;
+}
+
+.form input:focus-visible {
+  border-color: #008689;
+  outline: 3px solid rgba(0, 134, 137, 0.2);
+}
+
+.form input:disabled {
+  background: #f3f7f7;
+  color: #607576;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 17px;
+  border: 1px solid #008689;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.primaryButton {
+  background: #008689;
+  color: #fff;
+}
+
+.primaryButton:hover {
+  background: #006d70;
+}
+
+.secondaryButton {
+  background: #fff;
+  color: #006d70;
+}
+
+.secondaryButton:hover {
+  background: #eaf7f6;
+}
+
+.primaryButton:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.feedback,
+.success,
+.status {
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.feedback {
+  background: #fff1f0;
+  color: #9b3030;
+}
+
+.success {
+  background: #edf8f2;
+  color: #17653e;
+}
+
+.status {
+  background: #f3f7f7;
+  color: #536b6c;
+}
+
+@media (max-width: 560px) {
+  .main {
+    padding: 94px 16px 32px;
+  }
+
+  .card {
+    padding: 22px 18px;
+  }
+
+  .details div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .secondaryButton {
+    transition: none;
+  }
+}
