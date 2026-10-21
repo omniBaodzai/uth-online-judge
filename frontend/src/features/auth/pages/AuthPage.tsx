@@ -109,6 +109,7 @@ function FormField({
   autoComplete,
   minLength,
   maxLength,
+  placeholder,
   required = true,
 }: {
   id: string
@@ -118,6 +119,7 @@ function FormField({
   autoComplete: string
   minLength?: number
   maxLength?: number
+  placeholder?: string
   required?: boolean
 }) {
   return (
@@ -138,7 +140,7 @@ function FormField({
           minLength={minLength}
           maxLength={maxLength}
           required={required}
-          placeholder={`Nhập ${label.toLocaleLowerCase('vi')}`}
+          placeholder={placeholder ?? `Nhập ${label.toLocaleLowerCase('vi')}`}
         />
       </div>
     </div>
@@ -233,7 +235,8 @@ function AuthPage({ mode }: AuthPageProps) {
               icon="user"
               autoComplete={mode === 'register' ? 'username' : 'username'}
               minLength={mode === 'register' ? 3 : undefined}
-              maxLength={32}
+              maxLength={mode === 'login' ? 254 : 32}
+              placeholder={mode === 'login' ? 'Nhập tên đăng nhập hoặc email' : undefined}
             />
             {mode === 'register' && (
               <FormField
