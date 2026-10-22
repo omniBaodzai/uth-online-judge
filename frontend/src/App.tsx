@@ -4,6 +4,7 @@ import HomePage from './features/home/pages/HomePage'
 import AuthPage from './features/auth/pages/AuthPage'
 import ProblemsPage from './features/problems/pages/ProblemsPage'
 import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
+import SubmissionDetailPage from './features/submissions/pages/SubmissionDetailPage'
 import ContestsPage from './features/contests/pages/ContestsPage'
 import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
 import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
@@ -54,6 +55,11 @@ function AppRoutes() {
 
   if (pathname === '/submissions') {
     return <SubmissionsPage />
+  }
+
+  const submissionMatch = pathname.match(/^\/submissions\/([^/]+)$/)
+  if (submissionMatch) {
+    return <SubmissionDetailPage submissionId={decodeURIComponent(submissionMatch[1])} />
   }
 
   if (pathname === '/contests') {

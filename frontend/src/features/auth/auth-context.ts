@@ -19,7 +19,7 @@ export type AuthContextValue = {
   refreshProfile: () => Promise<void>
   updateProfile: (input: ProfileUpdate) => Promise<AuthUser>
   uploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
-  request: <T>(path: string) => Promise<T>
+  request: <T>(path: string, init?: RequestInit) => Promise<T>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

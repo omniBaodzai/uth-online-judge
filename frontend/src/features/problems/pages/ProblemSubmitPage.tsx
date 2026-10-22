@@ -1,8 +1,11 @@
 import { Suspense, lazy, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import SiteHeader from '../../../components/layout/SiteHeader'
+import { useAuth } from '../../auth/useAuth'
+import { createSubmission } from '../../submissions/api'
 import { problems } from '../data'
 import { problemDetails } from '../data/problemDetails'
-import { monacoLanguageByDisplayName, submissionLanguages } from '../data/submissionLanguages'
+import { judge0LanguageIdByDisplayName, monacoLanguageByDisplayName, submissionLanguages } from '../data/submissionLanguages'
 import styles from './ProblemSubmitPage.module.css'
 
 const MonacoEditor = lazy(() => import('../components/CodeEditor'))
@@ -22,7 +25,9 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
   const [sourceError, setSourceError] = useState('')
   const [notice, setNotice] = useState('')
   const [isFullscreen, setIsFullscreen] = useState(false)
-
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const navigate = useNavigate()
+  const { request, isAuthenticated } = useAuth()
   useEffect(() => {
     if (!isFullscreen) return
     function exitFullscreen(event: KeyboardEvent) {
@@ -69,6 +74,7 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
         cs: 'C# 12',
         go: 'Go 1.23',
         rs: 'Rust 1.82',
+        js: 'JavaScript',
       }
       if (extension && detectedLanguage[extension]) setLanguage(detectedLanguage[extension])
     } catch {
@@ -78,16 +84,33 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
     event.target.value = ''
   }
 
-  function submitSolution(event: FormEvent<HTMLFormElement>) {
+  async function submitSolution(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting) return
     if (!sourceCode.trim()) {
       setSourceError('Vui lòng nhập mã nguồn hoặc chọn tệp trước khi nộp bài.')
       setNotice('')
       return
     }
+    if (!isAuthenticated) {
+      setSourceError('Vui lòng đăng nhập để nộp bài.')
+      return
+    }
 
     setSourceError('')
-    setNotice(`Đã nhận bài nộp ${language} (${sourceCode.length.toLocaleString('vi-VN')} ký tự) cho ${currentProblemId}. Bản demo chưa gửi bài lên hệ thống chấm.`)
+    setNotice('')
+    setIsSubmitting(true)
+    try {
+      const created = await createSubmission(request, {
+        problemCode: currentProblemId,
+        sourceCode,
+        languageId: judge0LanguageIdByDisplayName[language],
+      })
+      navigate(`/submissions/${created.id}`)
+    } catch (error) {
+      setSourceError(error instanceof Error ? error.message : 'Không thể gửi bài nộp. Vui lòng thử lại.')
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -119,7 +142,7 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
               ref={fileInputRef}
               className={styles.fileInput}
               type="file"
-              accept=".c,.cc,.cpp,.cxx,.h,.hpp,.java,.py,.cs,.go,.rs,.txt"
+              accept=".c,.cc,.cpp,.cxx,.h,.hpp,.java,.py,.cs,.go,.rs,.js,.txt"
               onChange={handleFileChange}
               aria-label="Chọn tệp mã nguồn"
             />
@@ -187,7 +210,7 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
 
           <div className={styles.formActions}>
             <a href={`/problems/${problem.id}`}>Hủy</a>
-            <button className={styles.submitButton} type="submit"><span aria-hidden="true">↑</span> Nộp bài!</button>
+            <button className={styles.submitButton} type="submit" disabled={isSubmitting} aria-busy={isSubmitting}><span aria-hidden="true">↑</span> {isSubmitting ? 'Đang gửi...' : 'Nộp bài!'}</button>
           </div>
         </form>
       </main>
@@ -198,7 +221,7 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
 function languageExtension(language: string) {
   const extensions: Record<string, string> = {
     'C17': 'c', 'C++17': 'cpp', 'C++20': 'cpp', 'Java 17': 'java',
-    'Python 3': 'py', 'C# 12': 'cs', 'Go 1.23': 'go', 'Rust 1.82': 'rs',
+    'Python 3': 'py', 'C# 12': 'cs', 'Go 1.23': 'go', 'Rust 1.82': 'rs', 'JavaScript': 'js',
   }
   return extensions[language] ?? 'txt'
 }

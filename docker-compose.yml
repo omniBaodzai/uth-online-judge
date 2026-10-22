@@ -20,6 +20,65 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: uth-online-judge-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  judge0-db:
+    image: postgres:16.2
+    container_name: uth-online-judge-judge0-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: ${JUDGE0_DB_PASSWORD:-judge0_local_password}
+    volumes:
+      - judge0_db_data:/var/lib/postgresql/data
+
+  judge0-redis:
+    image: redis:7.2.4
+    container_name: uth-online-judge-judge0-redis
+    restart: unless-stopped
+    command: ["bash", "-c", "docker-entrypoint.sh --appendonly no --requirepass $$REDIS_PASSWORD"]
+    environment:
+      REDIS_PASSWORD: ${JUDGE0_REDIS_PASSWORD:-judge0_redis_password}
+
+  judge0:
+    image: judge0/judge0:1.13.1
+    container_name: uth-online-judge-judge0
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "${JUDGE0_PORT:-2358}:2358"
+    environment: &judge0-env
+      REDIS_HOST: judge0-redis
+      REDIS_PASSWORD: ${JUDGE0_REDIS_PASSWORD:-judge0_redis_password}
+      POSTGRES_HOST: judge0-db
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: ${JUDGE0_DB_PASSWORD:-judge0_local_password}
+      ENABLE_WAIT_RESULT: "false"
+      MAX_NUMBER_OF_RUNS: "50"
+      # Docker Desktop dùng cgroup v2 (Judge0 1.13.1 chỉ hỗ trợ v1) nên tắt cgroup, dùng giới hạn theo tiến trình.
+      ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT: "true"
+      ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT: "true"
+    depends_on:
+      - judge0-db
+      - judge0-redis
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    container_name: uth-online-judge-judge0-worker
+    restart: unless-stopped
+    privileged: true
+    command: ["./scripts/workers"]
+    environment: *judge0-env
+    depends_on:
+      - judge0-db
+      - judge0-redis
   frontend:
     build:
       context: ./frontend
@@ -56,11 +115,19 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JUDGE0_URL: ${JUDGE0_DOCKER_URL:-http://judge0:2358}
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
+      judge0:
+        condition: service_started
 
 volumes:
   postgres_data:
+  judge0_db_data:
   frontend_node_modules:
   backend_node_modules:
