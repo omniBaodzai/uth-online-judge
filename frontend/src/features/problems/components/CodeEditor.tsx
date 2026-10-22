@@ -9,15 +9,17 @@ type CodeEditorProps = {
   theme: 'vs' | 'vs-dark'
   value: string
   onChange: (value: string) => void
+  onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void
 }
 
-function CodeEditor({ height, language, theme, value, onChange }: CodeEditorProps) {
+function CodeEditor({ height, language, theme, value, onChange, onMount }: CodeEditorProps) {
   return (
     <Editor
       height={height}
       language={language}
       theme={theme}
       value={value}
+      onMount={onMount}
       onChange={(nextValue) => onChange(nextValue ?? '')}
       options={{
         ariaLabel: 'Mã nguồn bài giải',

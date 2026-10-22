@@ -37,7 +37,7 @@ function SamplePanel({ title, value, copied, onCopy }: { title: string; value: s
       <div className={styles.sampleHeader}>
         <h4>{title}</h4>
         <button type="button" onClick={onCopy} aria-label={`Copy ${title}`}>
-          <span aria-hidden="true">▢</span> {copied ? 'Đã copy' : 'Copy'}
+          <span aria-hidden="true">▢</span> {copied ? 'Đã chép' : 'Sao chép'}
         </button>
       </div>
       <pre><code>{value}</code></pre>

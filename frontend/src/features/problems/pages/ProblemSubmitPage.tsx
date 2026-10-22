@@ -1,12 +1,14 @@
 import { Suspense, lazy, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import type * as Monaco from 'monaco-editor'
 import { useNavigate } from 'react-router-dom'
 import SiteHeader from '../../../components/layout/SiteHeader'
 import { useAuth } from '../../auth/useAuth'
 import LoginRequiredNotice from '../../auth/components/LoginRequiredNotice'
-import { createSubmission } from '../../submissions/api'
+import { createSubmission, hasAcceptedSubmission } from '../../submissions/api'
+import ProblemSample from '../components/ProblemSample'
 import { problems } from '../data'
 import { problemDetails } from '../data/problemDetails'
-import { judge0LanguageIdByDisplayName, monacoLanguageByDisplayName, submissionLanguages } from '../data/submissionLanguages'
+import { codeTemplateByDisplayName, judge0LanguageIdByDisplayName, monacoLanguageByDisplayName, submissionLanguages } from '../data/submissionLanguages'
 import styles from './ProblemSubmitPage.module.css'
 
 const MonacoEditor = lazy(() => import('../components/CodeEditor'))
@@ -20,8 +22,9 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
   const detail = problemDetails[problemId]
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [language, setLanguage] = useState('C++20')
-  const [editorTheme, setEditorTheme] = useState<'vs' | 'vs-dark'>('vs-dark')
-  const [sourceCode, setSourceCode] = useState('')
+  const [sourceCode, setSourceCode] = useState(codeTemplateByDisplayName['C++20'])
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
+  const [isSolved, setIsSolved] = useState<boolean | null>(null)
   const [selectedFile, setSelectedFile] = useState('')
   const [sourceError, setSourceError] = useState('')
   const [notice, setNotice] = useState('')
@@ -29,6 +32,18 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
   const { request, isAuthenticated, isLoading } = useAuth()
+  const requestRef = useRef(request)
+  useEffect(() => {
+    requestRef.current = request
+  }, [request])
+  useEffect(() => {
+    if (!isAuthenticated || !problem) return
+    let cancelled = false
+    hasAcceptedSubmission(requestRef.current, problem.id)
+      .then((solved) => { if (!cancelled) setIsSolved(solved) })
+      .catch(() => { if (!cancelled) setIsSolved(null) })
+    return () => { cancelled = true }
+  }, [isAuthenticated, problem])
   useEffect(() => {
     if (!isFullscreen) return
     function exitFullscreen(event: KeyboardEvent) {
@@ -76,6 +91,23 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
         </main>
       </div>
     )
+  }
+
+  function changeLanguage(next: string) {
+    const isUntouched = !sourceCode.trim() || sourceCode === codeTemplateByDisplayName[language]
+    setLanguage(next)
+    if (isUntouched) setSourceCode(codeTemplateByDisplayName[next] ?? '')
+  }
+
+  function resetCode() {
+    setSourceCode(codeTemplateByDisplayName[language] ?? '')
+    setSelectedFile('')
+    setSourceError('')
+    setNotice('')
+  }
+
+  function formatCode() {
+    void editorRef.current?.getAction('editor.action.formatDocument')?.run()
   }
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -142,65 +174,68 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
     <div className={styles.page}>
       <SiteHeader />
       <main className={styles.main}>
-        <nav className={styles.breadcrumb} aria-label="Điều hướng đường dẫn">
-          <a href="/problems">Bài tập</a><span aria-hidden="true">/</span>
-          <a href={`/problems/${problem.id}`}>{problem.id} · {problem.title}</a><span aria-hidden="true">/</span>
-          <span>Nộp bài</span>
-        </nav>
-
-        <header className={styles.pageHeading}>
-          <div>
-            <p className={styles.eyebrow}>GỬI LỜI GIẢI LÊN HỆ THỐNG</p>
-            <h1>Nộp bài: <span>{problem.title}</span></h1>
-            <p className={styles.problemMeta}>{problem.id} <i /> {detail.timeLimit} <i /> {detail.memoryLimit}</p>
-          </div>
-          <a className={styles.backLink} href={`/problems/${problem.id}`}>← Quay lại đề bài</a>
-        </header>
-
-        <form className={styles.submitForm} onSubmit={submitSolution}>
-          <div className={styles.instructions}>
-            <div>
-              <strong>Dán bài làm của bạn ở đây hoặc nhập từ file:</strong>
-              <span>{selectedFile || 'Chấp nhận tệp mã nguồn văn bản'}</span>
+        <div className={styles.split}>
+          <article className={`${styles.panel} ${styles.statement}`} aria-label="Đề bài">
+            <a className={styles.backLink} href={`/problems/${problem.id}`}>← Quay lại chi tiết bài tập</a>
+            <div className={styles.titleRow}>
+              <h1><strong>{problem.id}</strong> — {problem.title}</h1>
+              {isSolved !== null && (
+                <span className={`${styles.solvedBadge} ${isSolved ? '' : styles.unsolvedBadge}`}>
+                  {isSolved ? '✓ Đã làm' : 'Chưa làm'}
+                </span>
+              )}
             </div>
-            <input
-              ref={fileInputRef}
-              className={styles.fileInput}
-              type="file"
-              accept=".c,.cc,.cpp,.cxx,.h,.hpp,.java,.py,.cs,.go,.rs,.js,.txt"
-              onChange={handleFileChange}
-              aria-label="Chọn tệp mã nguồn"
-            />
-            <button className={styles.chooseFileButton} type="button" onClick={() => fileInputRef.current?.click()}>
-              <span aria-hidden="true">↑</span> Chọn tệp
-            </button>
-          </div>
+            <div className={styles.meta}>
+              <span>{detail.timeLimit}</span>
+              <span>{detail.memoryLimit}</span>
+              <span>{problem.score.toFixed(2)} điểm</span>
+            </div>
 
-          <section className={`${styles.editorWorkspace} ${isFullscreen ? styles.fullscreenWorkspace : ''}`} aria-label="Trình soạn thảo bài giải">
-            <div className={styles.editorToolbar}>
-              <div className={styles.editorTitle}>
-                <span className={styles.editorDot} />
-                <strong>{selectedFile || `${problem.id}.${languageExtension(language)}`}</strong>
-                <span>{language}</span>
-              </div>
-              <div className={styles.editorActions}>
-                <button
-                  className={styles.themeButton}
-                  type="button"
-                  aria-label={editorTheme === 'vs-dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-                  onClick={() => setEditorTheme((current) => current === 'vs-dark' ? 'vs' : 'vs-dark')}
-                >
-                  <span aria-hidden="true">{editorTheme === 'vs-dark' ? '☼' : '◐'}</span>
-                  {editorTheme === 'vs-dark' ? 'Tối' : 'Sáng'}
-                </button>
-                <button
-                  className={styles.fullscreenButton}
-                  type="button"
-                  aria-label={isFullscreen ? 'Thoát toàn màn hình' : 'Phóng to toàn màn hình'}
-                  onClick={() => setIsFullscreen((current) => !current)}
-                >
-                  <span aria-hidden="true">{isFullscreen ? '↙' : '↗'}</span>
-                  {isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+            <section className={styles.section}>
+              <h2>Đề bài</h2>
+              {detail.description.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </section>
+            <section className={styles.section}>
+              <h2>Đầu vào (Input)</h2>
+              <p>{detail.input}</p>
+            </section>
+            <section className={styles.section}>
+              <h2>Giới hạn (Constraints)</h2>
+              <ul className={styles.constraints}>
+                {detail.constraints.map((constraint) => <li key={constraint}><code>{constraint}</code></li>)}
+              </ul>
+            </section>
+            <section className={styles.section}>
+              <h2>Đầu ra (Output)</h2>
+              <p>{detail.output}</p>
+            </section>
+            <section className={styles.section}>
+              <h2>Ví dụ</h2>
+              {detail.examples.map((example, index) => (
+                <ProblemSample example={example} index={index} key={`${problem.id}-sample-${index}`} />
+              ))}
+            </section>
+          </article>
+
+          <form className={`${styles.panel} ${styles.workspace} ${isFullscreen ? styles.fullscreenWorkspace : ''}`} onSubmit={submitSolution} aria-label="Khu vực làm bài">
+            <div className={styles.toolbar}>
+              <label className={styles.langLabel} htmlFor="submit-language">NGÔN NGỮ</label>
+              <select id="submit-language" value={language} onChange={(event) => changeLanguage(event.target.value)}>
+                {submissionLanguages.map((item) => <option key={item}>{item}</option>)}
+              </select>
+              <div className={styles.toolbarActions}>
+                <input
+                  ref={fileInputRef}
+                  className={styles.fileInput}
+                  type="file"
+                  accept=".c,.cc,.cpp,.cxx,.h,.hpp,.java,.py,.cs,.go,.rs,.js,.txt"
+                  onChange={handleFileChange}
+                  aria-label="Chọn tệp mã nguồn"
+                />
+                <button className={styles.toolButton} type="button" onClick={() => fileInputRef.current?.click()}>Chọn tệp</button>
+                <button className={styles.toolButton} type="button" onClick={formatCode}>Định dạng</button>
+                <button className={styles.toolButton} type="button" onClick={() => setIsFullscreen((current) => !current)}>
+                  {isFullscreen ? 'Thu nhỏ' : 'Phóng to'}
                 </button>
               </div>
             </div>
@@ -208,47 +243,35 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
             <div className={styles.editorFrame}>
               <Suspense fallback={<div className={styles.editorLoading}>Đang tải Monaco Editor...</div>}>
                 <MonacoEditor
-                  height={isFullscreen ? 'calc(100dvh - 142px)' : 'min(540px, 58vh)'}
+                  height="100%"
                   language={monacoLanguageByDisplayName[language] ?? 'plaintext'}
-                  theme={editorTheme}
+                  theme="vs"
                   value={sourceCode}
+                  onMount={(editor) => { editorRef.current = editor }}
                   onChange={(value) => {
                     setSourceCode(value)
                     if (sourceError) setSourceError('')
-                    if (notice) setNotice('')
                   }}
                 />
               </Suspense>
             </div>
 
-            <div className={styles.editorFooter}>
-              <label htmlFor="submit-language">Ngôn ngữ lập trình</label>
-              <select id="submit-language" value={language} onChange={(event) => setLanguage(event.target.value)}>
-                {submissionLanguages.map((item) => <option key={item}>{item}</option>)}
-              </select>
-              <span className={styles.editorHint}>Tab để thụt lề <i /> Ctrl+Z để hoàn tác</span>
+            {sourceError && <p className={styles.formError} role="alert">{sourceError}</p>}
+            {notice && <p className={styles.formNotice} role="status">{notice}</p>}
+
+            <div className={styles.footerBar}>
+              <span className={styles.currentLanguage}>Đang chọn: <strong>{language}</strong>{selectedFile ? ` · ${selectedFile}` : ''}</span>
+              <div className={styles.footerActions}>
+                <button className={styles.toolButton} type="button" onClick={resetCode}>Đặt lại code</button>
+                <button className={styles.submitButton} type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
+                  {isSubmitting ? 'Đang gửi...' : 'Gửi bài giải'}
+                </button>
+              </div>
             </div>
-          </section>
-
-          {sourceError && <p className={styles.formError} role="alert">{sourceError}</p>}
-          {notice && <p className={styles.formNotice} role="status">{notice}</p>}
-
-          <div className={styles.formActions}>
-            <a href={`/problems/${problem.id}`}>Hủy</a>
-            <button className={styles.submitButton} type="submit" disabled={isSubmitting} aria-busy={isSubmitting}><span aria-hidden="true">↑</span> {isSubmitting ? 'Đang gửi...' : 'Nộp bài!'}</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </main>
     </div>
   )
 }
-
-function languageExtension(language: string) {
-  const extensions: Record<string, string> = {
-    'C17': 'c', 'C++17': 'cpp', 'C++20': 'cpp', 'Java 17': 'java',
-    'Python 3': 'py', 'C# 12': 'cs', 'Go 1.23': 'go', 'Rust 1.82': 'rs', 'JavaScript': 'js',
-  }
-  return extensions[language] ?? 'txt'
-}
-
 export default ProblemSubmitPage

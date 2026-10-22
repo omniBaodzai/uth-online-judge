@@ -41,3 +41,8 @@ export const languageNameById: Record<number, string> = {
 export function listSubmissions(request: SubmissionRequest) {
   return request<{ items: SubmissionResult[]; total: number }>('/api/submissions?pageSize=100')
 }
+
+export async function hasAcceptedSubmission(request: SubmissionRequest, problemCode: string) {
+  const result = await request<{ items: SubmissionResult[] }>(`/api/submissions?mine=true&problemCode=${encodeURIComponent(problemCode)}&pageSize=100`)
+  return result.items.some((item) => item.status === 'AC')
+}
