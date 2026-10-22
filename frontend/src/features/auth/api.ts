@@ -54,6 +54,7 @@ export async function register(input: {
 export async function login(input: {
   identifier: string
   password: string
+  rememberMe: boolean
 }): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/login', {
     method: 'POST',

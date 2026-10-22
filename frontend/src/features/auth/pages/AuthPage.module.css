@@ -191,6 +191,55 @@
   color: #006d70;
 }
 
+.loginOptions {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rememberMe {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 9px;
+  color: #29484b;
+  cursor: pointer;
+}
+
+.rememberMe input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: #008689;
+  cursor: pointer;
+}
+
+.rememberMe span {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.forgotLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: #00777a;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.forgotLink:hover {
+  color: #005b5d;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .switchPrompt a:hover {
   color: #005b5d;
   text-decoration: underline;

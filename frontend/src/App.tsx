@@ -11,6 +11,8 @@ import ContestDetailPage from './features/contests/pages/ContestDetailPage'
 import ProblemSubmitPage from './features/problems/pages/ProblemSubmitPage'
 import AccountProfilePage from './features/profile/pages/AccountProfilePage'
 import MemberProfilePage from './features/profile/pages/MemberProfilePage'
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
+import SiteHeader from './components/layout/SiteHeader'
 import PlaceholderPage from './components/layout/PlaceholderPage'
 import './App.css'
 
@@ -24,6 +26,15 @@ function AppRoutes() {
 
   if (pathname === '/login') {
     return <AuthPage mode="login" />
+  }
+
+  if (pathname === '/forgot-password') {
+    return (
+      <>
+        <SiteHeader />
+        <ForgotPasswordPage />
+      </>
+    )
   }
 
   if (pathname === '/problems') {

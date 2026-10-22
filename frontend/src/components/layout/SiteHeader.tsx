@@ -16,6 +16,8 @@ const navigationLinks = [
   { label: 'Liên hệ', href: '#contact' },
 ]
 
+const LOGOUT_TOAST_DURATION_MS = 5000
+
 function SiteHeader() {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -44,7 +46,10 @@ function SiteHeader() {
 
   useEffect(() => {
     if (!logoutSuccess) return
-    const timeoutId = window.setTimeout(() => setLogoutSuccess(false), 5000)
+    const timeoutId = window.setTimeout(
+      () => setLogoutSuccess(false),
+      LOGOUT_TOAST_DURATION_MS,
+    )
     return () => window.clearTimeout(timeoutId)
   }, [logoutSuccess])
 
@@ -179,7 +184,12 @@ function SiteHeader() {
       </div>
 
       {logoutSuccess && !user && (
-        <div className={styles.logoutSuccess} role="status" aria-live="polite">
+        <div
+          className={styles.logoutSuccess}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           <span className={styles.successIcon} aria-hidden="true">✓</span>
           <span>
             <strong>Đăng xuất thành công!</strong>

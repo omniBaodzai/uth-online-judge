@@ -104,6 +104,7 @@ describe('AppController (e2e)', () => {
     expect(response.body.accessToken).toBe('test-access-token');
     expect(response.headers['set-cookie'][0]).toContain('HttpOnly');
     expect(response.headers['set-cookie'][0]).toContain('Path=/auth');
+    expect(response.headers['set-cookie'][0]).toContain('Max-Age=');
     expect(auth.register).toHaveBeenCalledTimes(1);
   });
 
@@ -125,6 +126,38 @@ describe('AppController (e2e)', () => {
     expect(auth.login).toHaveBeenCalledWith('student01', 'valid-password');
   });
 
+  it('uses session cookies when remember login is unchecked', async () => {
+    auth.login.mockResolvedValueOnce({
+      user: { id: 'user-id', username: 'student01', email: 'student@example.com' },
+      accessToken: 'test-access-token',
+      refreshToken: 'test-refresh-token',
+      expiresIn: 900,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ identifier: 'student01', password: 'valid-password', rememberMe: false })
+      .expect(200);
+    const cookies = response.headers['set-cookie'] as string[];
+    const refreshCookie = cookies.find((cookie) => cookie.startsWith('uth_refresh_token='));
+    const rememberCookie = cookies.find((cookie) => cookie.startsWith('uth_remember_login='));
+
+    expect(refreshCookie).toContain('HttpOnly');
+    expect(refreshCookie).not.toContain('Max-Age=');
+    expect(rememberCookie).toContain('uth_remember_login=0');
+    expect(rememberCookie).not.toContain('Max-Age=');
+  });
+
+  it('rejects non-boolean remember login values', () => {
+    return request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ identifier: 'student01', password: 'valid-password', rememberMe: 'true' })
+      .expect(400)
+      .then(() => {
+        expect(auth.login).not.toHaveBeenCalled();
+      });
+  });
+
   it('rotates the refresh cookie without returning its token in JSON', async () => {
     auth.refresh.mockResolvedValueOnce({
       user: { id: 'user-id', username: 'student01', email: 'student@example.com' },
@@ -143,6 +176,43 @@ describe('AppController (e2e)', () => {
     expect(response.body).not.toHaveProperty('refreshToken');
     expect(response.headers['set-cookie'][0]).toContain('HttpOnly');
     expect(response.headers['set-cookie'][0]).toContain('next-refresh-token');
+  });
+
+  it('preserves remembered login when rotating refresh cookies', async () => {
+    auth.refresh.mockResolvedValueOnce({
+      user: { id: 'user-id', username: 'student01', email: 'student@example.com' },
+      accessToken: 'next-access-token',
+      refreshToken: 'next-refresh-token',
+      expiresIn: 900,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', 'uth_refresh_token=old-refresh-token; uth_remember_login=1')
+      .expect(200);
+    const cookies = response.headers['set-cookie'] as string[];
+
+    expect(cookies.find((cookie) => cookie.startsWith('uth_refresh_token='))).toContain('Max-Age=');
+    expect(cookies.find((cookie) => cookie.startsWith('uth_remember_login='))).toContain('Max-Age=');
+  });
+
+  it('preserves session-only login when rotating refresh cookies', async () => {
+    auth.refresh.mockResolvedValueOnce({
+      user: { id: 'user-id', username: 'student01', email: 'student@example.com' },
+      accessToken: 'next-access-token',
+      refreshToken: 'next-refresh-token',
+      expiresIn: 900,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', 'uth_refresh_token=old-refresh-token; uth_remember_login=0')
+      .expect(200);
+    const cookies = response.headers['set-cookie'] as string[];
+
+    expect(cookies.find((cookie) => cookie.startsWith('uth_refresh_token='))).not.toContain('Max-Age=');
+    expect(cookies.find((cookie) => cookie.startsWith('uth_remember_login='))).not.toContain('Max-Age=');
+    expect(cookies.find((cookie) => cookie.startsWith('uth_remember_login='))).toContain('uth_remember_login=0');
   });
 
   it('clears the current cookie on logout', async () => {
