@@ -1,7 +1,9 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
-import SiteFooter from '../../../components/layout/SiteFooter'
-import SiteHeader from '../../../components/layout/SiteHeader'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import uthLogo from '../../../assets/uth_logo.png'
+import SiteHeader from '../../../components/layout/SiteHeader'
+import { ApiError } from '../api'
+import { useAuth } from '../useAuth'
 import styles from './AuthPage.module.css'
 
 type AuthMode = 'register' | 'login'
@@ -15,8 +17,6 @@ const authCopy = {
   register: {
     title: 'Đăng ký tài khoản',
     submitLabel: 'Đăng ký',
-    googleLabel: 'Đăng ký qua Google',
-    githubLabel: 'Đăng ký qua GitHub',
     switchPrompt: 'Bạn đã có tài khoản?',
     switchLabel: 'Đăng nhập ngay',
     switchHref: '/login',
@@ -24,8 +24,6 @@ const authCopy = {
   login: {
     title: 'Đăng nhập hệ thống',
     submitLabel: 'Đăng nhập',
-    googleLabel: 'Đăng nhập qua Google',
-    githubLabel: 'Đăng nhập qua GitHub',
     switchPrompt: 'Bạn chưa có tài khoản?',
     switchLabel: 'Đăng ký ngay',
     switchHref: '/register',
@@ -33,8 +31,6 @@ const authCopy = {
 } satisfies Record<AuthMode, {
   title: string
   submitLabel: string
-  googleLabel: string
-  githubLabel: string
   switchPrompt: string
   switchLabel: string
   switchHref: string
@@ -67,40 +63,6 @@ function FieldIcon({ name }: { name: FieldIconName }) {
   )
 }
 
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        fill="#4285f4"
-        d="M21.6 12.23c0-.72-.06-1.41-.18-2.08H12v3.94h5.38a4.6 4.6 0 0 1-2 3.02v2.52h3.23c1.9-1.75 2.99-4.33 2.99-7.4Z"
-      />
-      <path
-        fill="#34a853"
-        d="M12 22c2.7 0 4.97-.9 6.62-2.37l-3.23-2.52c-.9.6-2.05.96-3.39.96-2.6 0-4.8-1.76-5.6-4.13H3.07v2.6A10 10 0 0 0 12 22Z"
-      />
-      <path
-        fill="#fbbc05"
-        d="M6.4 13.94a6.02 6.02 0 0 1 0-3.88v-2.6H3.07a10 10 0 0 0 0 9.08l3.33-2.6Z"
-      />
-      <path
-        fill="#ea4335"
-        d="M12 5.93c1.47 0 2.8.5 3.84 1.5l2.88-2.88C16.96 2.9 14.7 2 12 2a10 10 0 0 0-8.93 5.46l3.33 2.6c.8-2.37 3-4.13 5.6-4.13Z"
-      />
-    </svg>
-  )
-}
-
-function GithubMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.1c-3.1.68-3.76-1.31-3.76-1.31-.5-1.29-1.24-1.63-1.24-1.63-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 .1.76 2.56 3.43 1.8.1-.73.4-1.23.7-1.51-2.47-.28-5.07-1.24-5.07-5.5 0-1.22.44-2.21 1.16-2.99-.12-.28-.5-1.42.11-2.95 0 0 .95-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.1-1.43 3.05-1.14 3.05-1.14.61 1.53.23 2.67.11 2.95.72.78 1.16 1.77 1.16 2.99 0 4.27-2.6 5.21-5.08 5.49.4.35.75 1.02.75 2.06v3.06c0 .3.2.65.77.54A11.1 11.1 0 0 0 12 .9Z"
-      />
-    </svg>
-  )
-}
-
 function FormField({
   id,
   label,
@@ -109,6 +71,9 @@ function FormField({
   autoComplete,
   minLength,
   maxLength,
+  pattern,
+  placeholder,
+  error,
   required = true,
 }: {
   id: string
@@ -118,6 +83,9 @@ function FormField({
   autoComplete: string
   minLength?: number
   maxLength?: number
+  pattern?: string
+  placeholder?: string
+  error?: string
   required?: boolean
 }) {
   return (
@@ -137,15 +105,19 @@ function FormField({
           autoComplete={autoComplete}
           minLength={minLength}
           maxLength={maxLength}
+          pattern={pattern}
           required={required}
-          placeholder={`Nhập ${label.toLocaleLowerCase('vi')}`}
+          placeholder={placeholder ?? `Nhập ${label.toLocaleLowerCase('vi')}`}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
         />
       </div>
+      {error && <span className={styles.fieldError} id={`${id}-error`} role="alert">{error}</span>}
     </div>
   )
 }
 
-function PasswordField({ mode }: { mode: AuthMode }) {
+function PasswordField({ mode, error }: { mode: AuthMode; error?: string }) {
   const [visible, setVisible] = useState(false)
   const label = 'Mật khẩu'
 
@@ -165,8 +137,11 @@ function PasswordField({ mode }: { mode: AuthMode }) {
           type={visible ? 'text' : 'password'}
           autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
           minLength={mode === 'register' ? 8 : undefined}
+          maxLength={72}
           required
           placeholder="Nhập mật khẩu"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? 'password-error' : undefined}
         />
         <button
           className={styles.passwordToggle}
@@ -188,35 +163,84 @@ function PasswordField({ mode }: { mode: AuthMode }) {
           )}
         </button>
       </div>
+      {error && <span className={styles.fieldError} id="password-error" role="alert">{error}</span>}
     </div>
   )
 }
 
 function AuthPage({ mode }: AuthPageProps) {
   const copy = authCopy[mode]
+  const {
+    login,
+    register,
+    isLoading: restoringSession,
+    initializationError,
+    retrySession,
+  } = useAuth()
   const [notice, setNotice] = useState('')
+  const [noticeType, setNoticeType] = useState<'error' | 'success' | ''>('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const navigate = useNavigate()
+  const { search } = useLocation()
+  const redirectTimer = useRef<number | undefined>(undefined)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => () => window.clearTimeout(redirectTimer.current), [])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setNotice('Giao diện đã kiểm tra dữ liệu. Chức năng xác thực chưa được kết nối.')
-  }
+    setNotice('')
+    setNoticeType('')
+    setFieldErrors({})
+    setIsSubmitting(true)
 
-  function handleProvider(provider: string) {
-    setNotice(`Đăng nhập qua ${provider} chưa được cấu hình.`)
+    const formData = new FormData(event.currentTarget)
+    const username = String(formData.get('username') ?? '').trim()
+    const email = String(formData.get('email') ?? '').trim()
+    const password = String(formData.get('password') ?? '')
+    let succeeded = false
+
+    try {
+      if (mode === 'register') {
+        await register(username, email, password)
+        setNotice('Đăng ký thành công! Đang chuyển về trang chủ…')
+        setNoticeType('success')
+      } else {
+        await login(username, password)
+        setNotice('Đăng nhập thành công! Đang chuyển tiếp…')
+        setNoticeType('success')
+      }
+
+      succeeded = true
+      redirectTimer.current = window.setTimeout(() => {
+        navigate(getReturnPath(search), { replace: true })
+      }, 650)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setFieldErrors({ password: 'Tên đăng nhập/email hoặc mật khẩu không chính xác.' })
+      } else if (error instanceof ApiError && error.status === 409) {
+        setNotice('Tên đăng nhập hoặc email đã được sử dụng. Vui lòng thử thông tin khác.')
+        setNoticeType('error')
+      } else if (error instanceof ApiError && error.status === 400) {
+        setNotice(error.message)
+        setNoticeType('error')
+      } else {
+        setNotice(error instanceof Error ? error.message : 'Không thể hoàn tất yêu cầu. Vui lòng thử lại.')
+        setNoticeType('error')
+      }
+    } finally {
+      if (!succeeded) setIsSubmitting(false)
+    }
   }
 
   return (
     <div className={styles.page}>
-      <a className={styles.skipLink} href="#auth-main">
-        Bỏ qua điều hướng, đến biểu mẫu
-      </a>
       <SiteHeader />
-
-      <main className={styles.main} id="auth-main">
+      <main className={styles.main} id="main-content">
         <section className={styles.card} aria-labelledby="auth-title">
-          <a className={styles.logoLink} href="/" aria-label="Về trang chủ UTH Online Judge">
+          <Link className={styles.logoLink} to="/" aria-label="Về trang chủ UTH Online Judge">
             <img src={uthLogo} alt="Đại học Giao thông vận tải Thành phố Hồ Chí Minh" />
-          </a>
+          </Link>
           <h1 className={styles.title} id="auth-title">
             {copy.title}
           </h1>
@@ -233,7 +257,10 @@ function AuthPage({ mode }: AuthPageProps) {
               icon="user"
               autoComplete={mode === 'register' ? 'username' : 'username'}
               minLength={mode === 'register' ? 3 : undefined}
-              maxLength={32}
+              maxLength={mode === 'login' ? 254 : 32}
+              pattern={mode === 'register' ? '[A-Za-z0-9._\\-]+' : undefined}
+              placeholder={mode === 'login' ? 'Nhập tên đăng nhập hoặc email' : undefined}
+              error={fieldErrors.username}
             />
             {mode === 'register' && (
               <FormField
@@ -245,69 +272,55 @@ function AuthPage({ mode }: AuthPageProps) {
                 maxLength={254}
               />
             )}
-            <PasswordField mode={mode} />
+            <PasswordField mode={mode} error={fieldErrors.password} />
 
-            {mode === 'login' && (
-              <a className={styles.forgotLink} href="mailto:oj@uth.edu.vn?subject=Khoi%20phuc%20mat%20khau">
-                Quên mật khẩu?
-              </a>
-            )}
-
-            <button className={styles.submitButton} type="submit">
-              {copy.submitLabel}
+            <button
+              className={styles.submitButton}
+              type="submit"
+              disabled={isSubmitting || restoringSession}
+            >
+              {isSubmitting ? 'Đang xử lý…' : copy.submitLabel}
             </button>
           </form>
 
-          <div className={styles.divider} aria-label="Hoặc">
-            <span />
-            <span className={styles.dividerText}>Hoặc</span>
-            <span />
-          </div>
-
-          <div className={styles.providerActions}>
-            <ProviderButton
-              icon={<GoogleMark />}
-              label={copy.googleLabel}
-              onClick={() => handleProvider('Google')}
-            />
-            <ProviderButton
-              icon={<GithubMark />}
-              label={copy.githubLabel}
-              onClick={() => handleProvider('GitHub')}
-            />
-          </div>
-
-          <p className={styles.notice} role="status" aria-live="polite">
-            {notice}
+          <p
+            className={`${styles.notice} ${noticeType === 'error' || initializationError ? styles.noticeError : ''} ${noticeType === 'success' ? styles.noticeSuccess : ''}`}
+            role={noticeType === 'error' || initializationError ? 'alert' : 'status'}
+            aria-live={noticeType === 'error' || initializationError ? 'assertive' : 'polite'}
+          >
+            {notice || initializationError}
           </p>
+          {initializationError && (
+            <button
+              className={styles.retryButton}
+              type="button"
+              onClick={() => void retrySession()}
+              disabled={restoringSession}
+            >
+              {restoringSession ? 'Đang kết nối…' : 'Thử kết nối lại'}
+            </button>
+          )}
 
           <p className={styles.switchPrompt}>
             {copy.switchPrompt}{' '}
-            <a href={copy.switchHref}>{copy.switchLabel}</a>
+            <Link to={copy.switchHref}>{copy.switchLabel}</Link>
           </p>
         </section>
       </main>
-
-      <SiteFooter />
     </div>
   )
 }
 
-function ProviderButton({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: ReactNode
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button className={styles.providerButton} type="button" onClick={onClick}>
-      <span className={styles.providerIcon}>{icon}</span>
-      <span>{label}</span>
-    </button>
-  )
+function getReturnPath(search: string): string {
+  const requestedPath = new URLSearchParams(search).get('returnTo')
+  if (!requestedPath || !requestedPath.startsWith('/') || requestedPath.startsWith('//') || requestedPath.includes('\\')) {
+    return '/'
+  }
+
+  const destination = new URL(requestedPath, window.location.origin)
+  return destination.origin === window.location.origin
+    ? `${destination.pathname}${destination.search}${destination.hash}`
+    : '/'
 }
 
 export default AuthPage

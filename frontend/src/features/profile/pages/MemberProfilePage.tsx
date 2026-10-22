@@ -3,9 +3,9 @@ import SiteHeader from '../../../components/layout/SiteHeader'
 import ContributionHeatmap from '../components/ContributionHeatmap'
 import RatingHistoryChart from '../components/RatingHistoryChart'
 import { userProfiles } from '../data'
-import styles from './ProfilePage.module.css'
+import styles from './MemberProfilePage.module.css'
 
-type ProfilePageProps = {
+type MemberProfilePageProps = {
   username: string
 }
 
@@ -17,7 +17,7 @@ const tabs: { id: ProfileTab; label: string }[] = [
   { id: 'blog', label: 'Blog' },
 ]
 
-function ProfilePage({ username }: ProfilePageProps) {
+function MemberProfilePage({ username }: MemberProfilePageProps) {
   const profile = userProfiles[username.toLocaleLowerCase('vi')]
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
 
@@ -42,7 +42,6 @@ function ProfilePage({ username }: ProfilePageProps) {
         <nav className={styles.breadcrumb} aria-label="Điều hướng đường dẫn">
           <a href="/leaderboard">Thành viên</a><span aria-hidden="true">/</span><span>{profile.handle}</span>
         </nav>
-
         <section className={styles.profileHeader}>
           <div className={styles.profileHeading}>
             <span className={styles.headerAvatar} aria-hidden="true">{profile.avatarText}</span>
@@ -56,12 +55,12 @@ function ProfilePage({ username }: ProfilePageProps) {
             {tabs.map((tab) => (
               <button
                 className={`${styles.tab} ${activeTab === tab.id ? styles.activeTab : ''}`}
-                id={`profile-tab-${tab.id}`}
+                id={`member-profile-tab-${tab.id}`}
                 key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab.id}
-                aria-controls="profile-tab-panel"
+                aria-controls="member-profile-panel"
                 onClick={() => setActiveTab(tab.id)}
               >
                 {tab.label}
@@ -87,7 +86,6 @@ function ProfilePage({ username }: ProfilePageProps) {
                 Xem các bài nộp <span aria-hidden="true">→</span>
               </a>
             </section>
-
             <section className={styles.contestStats}>
               <h2>Thống kê cuộc thi</h2>
               <Stat label="Đã tham gia" value={`${profile.contestsParticipated} kỳ`} />
@@ -101,9 +99,9 @@ function ProfilePage({ username }: ProfilePageProps) {
 
           <section
             className={styles.content}
-            id="profile-tab-panel"
+            id="member-profile-panel"
             role="tabpanel"
-            aria-labelledby={`profile-tab-${activeTab}`}
+            aria-labelledby={`member-profile-tab-${activeTab}`}
             aria-live="polite"
           >
             {activeTab === 'overview' && <Overview profile={profile} />}
@@ -138,10 +136,8 @@ function Overview({ profile }: { profile: (typeof userProfiles)[string] }) {
           <div><small>Trường / tổ chức</small><strong>{profile.institution}</strong></div>
         </div>
       </section>
-
       <ContributionHeatmap days={profile.activityDays} />
       <RatingHistoryChart points={profile.ratingHistory} currentRating={profile.rating} minRating={profile.minRating} maxRating={profile.maxRating} />
-
       <section className={styles.personalNote}>
         <div className={styles.noteMark} aria-hidden="true">UTH</div>
         <div><p>HỌC TẬP · CHIA SẺ · BỨT PHÁ</p><h2>Mỗi bài toán là một bước tiến mới.</h2><span>Tham gia cộng đồng UTH Online Judge từ {profile.joinedAt}.</span></div>
@@ -158,11 +154,7 @@ function BlogList({ profile }: { profile: (typeof userProfiles)[string] }) {
         {profile.articles.map((article) => (
           <article className={styles.article} key={article.title}>
             <div className={styles.articleDate}>{article.publishedAt}</div>
-            <div className={styles.articleBody}>
-              <h3>{article.title}</h3>
-              <p>{article.excerpt}</p>
-              <span>{article.reads.toLocaleString('vi-VN')} lượt đọc</span>
-            </div>
+            <div className={styles.articleBody}><h3>{article.title}</h3><p>{article.excerpt}</p><span>{article.reads.toLocaleString('vi-VN')} lượt đọc</span></div>
             <span className={styles.articleArrow} aria-hidden="true">→</span>
           </article>
         ))}
@@ -175,4 +167,4 @@ function Stat({ label, value }: { label: string; value: string }) {
   return <div className={styles.stat}><span>{label}</span><strong>{value}</strong></div>
 }
 
-export default ProfilePage
+export default MemberProfilePage

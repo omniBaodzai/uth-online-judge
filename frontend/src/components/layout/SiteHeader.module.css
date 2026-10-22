@@ -114,6 +114,204 @@
   gap: 9px;
 }
 
+.accountMenu {
+  position: relative;
+}
+
+.accountSkeleton {
+  display: flex;
+  gap: 9px;
+}
+
+.accountSkeleton span {
+  display: block;
+  width: 88px;
+  height: 38px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e3efee 25%, #f3f9f8 50%, #e3efee 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.accountButton {
+  display: inline-flex;
+  min-height: 42px;
+  max-width: 290px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid rgba(0, 134, 137, 0.25);
+  border-radius: 999px;
+  background: #f5fbfa;
+  color: #174b4e;
+  cursor: pointer;
+  font: inherit;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.accountButton:hover,
+.accountButton[aria-expanded='true'] {
+  border-color: #008689;
+  background: #eaf7f6;
+}
+
+.accountChevron {
+  color: #006d70;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.accountDropdown {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: max-content;
+  min-width: 210px;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid rgba(0, 134, 137, 0.16);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(4, 28, 35, 0.16);
+  animation: dropdown-enter 140ms ease-out both;
+}
+
+.accountDropdown a,
+.accountDropdown button {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #174b4e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.accountDropdown a:hover,
+.accountDropdown button:hover {
+  background: #eaf7f6;
+  color: #006d70;
+}
+
+.accountDropdown button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.userGreeting {
+  max-width: 205px;
+  overflow: hidden;
+  color: #174b4e;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionStatus {
+  color: #526d6e;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.logoutError {
+  margin: 0;
+  color: #a52f2f;
+  font-size: 12px;
+}
+
+.logoutSuccess {
+  position: fixed;
+  z-index: 1100;
+  top: 92px;
+  right: max(24px, calc((100vw - 1240px) / 2));
+  display: flex;
+  min-width: min(320px, calc(100vw - 32px));
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 14px 15px;
+  border: 1px solid #b8dfca;
+  border-radius: 12px;
+  background: #f2fbf5;
+  box-shadow: 0 12px 32px rgba(16, 67, 43, 0.16);
+  color: #174b32;
+  animation: success-toast-enter 220ms ease-out both;
+}
+
+.successIcon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #d7f1e1;
+  color: #17653e;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.logoutSuccess > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.logoutSuccess strong {
+  font-size: 14px;
+}
+
+.logoutSuccess > span:nth-child(2) > span {
+  color: #456b56;
+  font-size: 13px;
+}
+
+.logoutSuccess button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-left: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #456b56;
+  cursor: pointer;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.logoutSuccess button:hover {
+  background: #e1f3e8;
+}
+
+@keyframes success-toast-enter {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .registerLink,
 .loginLink {
   display: inline-flex;
@@ -136,6 +334,10 @@
     box-shadow 180ms ease;
 }
 
+.loginLink {
+  cursor: pointer;
+}
+
 .registerLink {
   background: #008689;
   color: #fff;
@@ -156,6 +358,12 @@
   background: #eaf7f6;
 }
 
+.loginLink:disabled {
+  transform: none;
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .registerLink:active,
 .loginLink:active {
   transform: translateY(0) scale(0.98);
@@ -163,6 +371,18 @@
 
 .menuToggle {
   display: none;
+}
+
+@keyframes dropdown-enter {
+  from {
+    transform: translateY(-3px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @keyframes header-enter {
@@ -279,8 +499,36 @@
   }
 
   .accountActions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
     padding-top: 12px;
     border-top: 1px solid rgba(0, 134, 137, 0.16);
+  }
+
+  .accountMenu {
+    width: 100%;
+  }
+
+  .accountButton {
+    width: 100%;
+    max-width: none;
+    justify-content: space-between;
+  }
+
+  .accountDropdown {
+    position: static;
+    width: 100%;
+    margin-top: 5px;
+    box-shadow: none;
+  }
+
+  .accountSkeleton {
+    width: 100%;
+  }
+
+  .accountSkeleton span {
+    flex: 1 1 0;
+    height: 46px;
   }
 
   .registerLink,
@@ -319,6 +567,13 @@
   .navigationList {
     grid-template-columns: 1fr;
   }
+
+  .logoutSuccess {
+    top: 82px;
+    right: 16px;
+    left: 16px;
+    min-width: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -332,6 +587,14 @@
   .loginLink,
   .menuToggle,
   .menuToggle span {
+    transition: none;
+  }
+
+  .accountSkeleton span,
+  .accountButton,
+  .accountDropdown,
+  .logoutSuccess {
+    animation: none;
     transition: none;
   }
 }

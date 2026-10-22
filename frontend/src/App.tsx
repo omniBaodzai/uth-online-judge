@@ -1,4 +1,5 @@
-
+import { BrowserRouter, useLocation } from 'react-router-dom'
+import { AuthProvider } from './features/auth/AuthContext'
 import HomePage from './features/home/pages/HomePage'
 import AuthPage from './features/auth/pages/AuthPage'
 import ProblemsPage from './features/problems/pages/ProblemsPage'
@@ -7,12 +8,15 @@ import ContestsPage from './features/contests/pages/ContestsPage'
 import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
 import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
 import ContestDetailPage from './features/contests/pages/ContestDetailPage'
-import ProfilePage from './features/profile/pages/ProfilePage'
 import ProblemSubmitPage from './features/problems/pages/ProblemSubmitPage'
+import AccountProfilePage from './features/profile/pages/AccountProfilePage'
+import MemberProfilePage from './features/profile/pages/MemberProfilePage'
+import PlaceholderPage from './components/layout/PlaceholderPage'
 import './App.css'
 
-function App() {
-  const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
+function AppRoutes() {
+  const { pathname: currentPathname } = useLocation()
+  const pathname = currentPathname.replace(/\/+$/, '') || '/'
 
   if (pathname === '/register') {
     return <AuthPage mode="register" />
@@ -56,10 +60,29 @@ function App() {
 
   if (pathname.startsWith('/profile/')) {
     const username = decodeURIComponent(pathname.slice('/profile/'.length))
-    return <ProfilePage username={username} />
+    if (username === 'edit') return <AccountProfilePage edit />
+    return <MemberProfilePage username={username} />
+  }
+
+  if (pathname === '/profile') {
+    return <AccountProfilePage />
+  }
+
+  if (pathname === '/organizations') {
+    return <PlaceholderPage title="Tổ chức" />
   }
 
   return <HomePage />
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  )
 }
 
 export default App
