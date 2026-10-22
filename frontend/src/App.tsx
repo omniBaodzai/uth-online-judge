@@ -11,7 +11,7 @@ import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
 import ContestDetailPage from './features/contests/pages/ContestDetailPage'
 import ProblemSubmitPage from './features/problems/pages/ProblemSubmitPage'
 import AccountProfilePage from './features/profile/pages/AccountProfilePage'
-import MemberProfilePage from './features/profile/pages/MemberProfilePage'
+import MemberProfilePage, { OwnProfilePage } from './features/profile/pages/MemberProfilePage'
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import SiteHeader from './components/layout/SiteHeader'
 import OrganizationsPage from './features/organizations/pages/OrganizationsPage'
@@ -84,7 +84,7 @@ function AppRoutes() {
   }
 
   if (pathname === '/profile') {
-    return <AccountProfilePage />
+    return <OwnProfilePage />
   }
 
   if (pathname === '/organizations') {

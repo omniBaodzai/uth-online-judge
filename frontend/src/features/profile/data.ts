@@ -118,3 +118,44 @@ export const userProfiles: Record<string, UserProfile> = Object.fromEntries(
     return [member.handle.toLocaleLowerCase('vi'), profile]
   }),
 )
+
+type AccountIdentity = {
+  username: string | null
+  email: string
+  fullName: string | null
+  createdAt: string
+}
+
+export function createAccountProfile(account: AccountIdentity): UserProfile {
+  const handle = account.username ?? account.email.split('@')[0]
+  const fullName = account.fullName || handle
+  const index = [...handle].reduce((sum, character) => sum + character.charCodeAt(0), 0) % 7 + 2
+  const member: Member = {
+    handle,
+    fullName,
+    rating: 1180 + index * 37,
+    score: 120 + index * 23.45,
+    solved: 12 + index * 3,
+    contributions: index * 2,
+    organization: 'ĐH Giao thông vận tải TP.HCM',
+  }
+  const ratingHistory = createRatingHistory(member, index)
+  const historyRatings = ratingHistory.map((point) => point.rating)
+  const joined = new Date(account.createdAt)
+
+  return {
+    ...member,
+    rank: 40 + index * 5,
+    avatarText: fullName.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase(),
+    bio: 'Sinh viên UTH đang luyện tập thuật toán mỗi ngày. Hãy chỉnh sửa hồ sơ để cập nhật phần giới thiệu của bạn.',
+    institution: institutions[member.organization],
+    contestsParticipated: 6 + index,
+    contestRank: 60 + index * 4,
+    minRating: Math.min(...historyRatings),
+    maxRating: Math.max(...historyRatings),
+    joinedAt: Number.isNaN(joined.getTime()) ? '—' : `Tháng ${joined.getMonth() + 1}, ${joined.getFullYear()}`,
+    activityDays: createActivity(handle),
+    ratingHistory,
+    articles: [],
+  }
+}

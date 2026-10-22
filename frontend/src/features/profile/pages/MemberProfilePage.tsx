@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import SiteHeader from '../../../components/layout/SiteHeader'
 import ContributionHeatmap from '../components/ContributionHeatmap'
 import RatingHistoryChart from '../components/RatingHistoryChart'
-import { userProfiles } from '../data'
+import { resolveAvatarUrl, type AuthUser } from '../../auth/api'
+import { RequireAuth } from '../../auth/components/RequireAuth'
+import { useAuth } from '../../auth/useAuth'
+import UserAvatar from '../components/UserAvatar'
+import { createAccountProfile, userProfiles, type UserProfile } from '../data'
 import styles from './MemberProfilePage.module.css'
 
 type MemberProfilePageProps = {
   username: string
+  account?: AuthUser
 }
 
 type ProfileTab = 'overview' | 'statistics' | 'blog'
@@ -17,9 +23,25 @@ const tabs: { id: ProfileTab; label: string }[] = [
   { id: 'blog', label: 'Blog' },
 ]
 
+export function OwnProfilePage() {
+  const { user } = useAuth()
+  return (
+    <div className={styles.page}>
+      <SiteHeader />
+      <main className={styles.main}>
+        <RequireAuth>{user ? <MemberProfileView account={user} /> : null}</RequireAuth>
+      </main>
+    </div>
+  )
+}
+
+function MemberProfileView({ account }: { account: AuthUser }) {
+  const profile = useMemo(() => createAccountProfile({ username: account.username, email: account.email, fullName: account.full_name, createdAt: account.created_at }), [account.username, account.email, account.full_name, account.created_at])
+  return <MemberProfileContent profile={profile} account={account} />
+}
+
 function MemberProfilePage({ username }: MemberProfilePageProps) {
   const profile = userProfiles[username.toLocaleLowerCase('vi')]
-  const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
 
   if (!profile) {
     return (
@@ -39,14 +61,25 @@ function MemberProfilePage({ username }: MemberProfilePageProps) {
     <div className={styles.page}>
       <SiteHeader />
       <main className={styles.main}>
+        <MemberProfileContent profile={profile} />
+      </main>
+    </div>
+  )
+}
+
+function MemberProfileContent({ profile, account }: { profile: UserProfile; account?: AuthUser }) {
+  const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
+
+  return (
+    <>
         <nav className={styles.breadcrumb} aria-label="Điều hướng đường dẫn">
-          <a href="/leaderboard">Thành viên</a><span aria-hidden="true">/</span><span>{profile.handle}</span>
+          <a href={account ? '/' : '/leaderboard'}>{account ? 'Tài khoản' : 'Thành viên'}</a><span aria-hidden="true">/</span><span>{profile.handle}</span>
         </nav>
         <section className={styles.profileHeader}>
           <div className={styles.profileHeading}>
-            <span className={styles.headerAvatar} aria-hidden="true">{profile.avatarText}</span>
+            {account ? <UserAvatar source={resolveAvatarUrl(account.avatar_url)} username={profile.handle} size="large" /> : <span className={styles.headerAvatar} aria-hidden="true">{profile.avatarText}</span>}
             <div>
-              <p>HỒ SƠ THÀNH VIÊN</p>
+              <p>{account ? 'THÔNG TIN CÁ NHÂN' : 'HỒ SƠ THÀNH VIÊN'}</p>
               <h1>{profile.handle}</h1>
               <span>{profile.fullName}</span>
             </div>
@@ -72,7 +105,7 @@ function MemberProfilePage({ username }: MemberProfilePageProps) {
         <div className={styles.profileLayout}>
           <aside className={styles.sidebar} aria-label="Tóm tắt hồ sơ">
             <section className={styles.memberCard}>
-              <div className={styles.avatarLarge}>{profile.avatarText}</div>
+              {account ? <UserAvatar source={resolveAvatarUrl(account.avatar_url)} username={profile.handle} size="large" /> : <div className={styles.avatarLarge}>{profile.avatarText}</div>}
               <h2>{profile.fullName}</h2>
               <p className={styles.username}>@{profile.handle}</p>
               <p className={styles.joined}>Thành viên từ {profile.joinedAt}</p>
@@ -104,7 +137,7 @@ function MemberProfilePage({ username }: MemberProfilePageProps) {
             aria-labelledby={`member-profile-tab-${activeTab}`}
             aria-live="polite"
           >
-            {activeTab === 'overview' && <Overview profile={profile} />}
+            {activeTab === 'overview' && <Overview profile={profile} account={account} />}
             {activeTab === 'statistics' && (
               <div className={styles.contentStack}>
                 <section className={styles.statisticsCards}>
@@ -120,14 +153,14 @@ function MemberProfilePage({ username }: MemberProfilePageProps) {
             {activeTab === 'blog' && <BlogList profile={profile} />}
           </section>
         </div>
-      </main>
-    </div>
+    </>
   )
 }
 
-function Overview({ profile }: { profile: (typeof userProfiles)[string] }) {
+function Overview({ profile, account }: { profile: UserProfile; account?: AuthUser }) {
   return (
     <div className={styles.contentStack}>
+      {account && <AccountSettings account={account} />}
       <section className={styles.bioCard}>
         <div className={styles.sectionHeading}><div><p>GIỚI THIỆU</p><h2>Về tôi</h2></div><span aria-hidden="true">“</span></div>
         <p className={styles.bioText}>{profile.bio}</p>
@@ -146,11 +179,27 @@ function Overview({ profile }: { profile: (typeof userProfiles)[string] }) {
   )
 }
 
-function BlogList({ profile }: { profile: (typeof userProfiles)[string] }) {
+function AccountSettings({ account }: { account: AuthUser }) {
+  return (
+    <section className={styles.accountCard}>
+      <div className={styles.sectionHeading}><div><p>CÀI ĐẶT TÀI KHOẢN</p><h2>Thông tin tài khoản</h2></div></div>
+      <dl className={styles.accountDetails}>
+        <div><dt>Tên đăng nhập</dt><dd>{account.username ?? 'Chưa thiết lập'}</dd></div>
+        <div><dt>Email</dt><dd>{account.email}</dd></div>
+        <div><dt>Họ và tên</dt><dd>{account.full_name || 'Chưa cập nhật'}</dd></div>
+        <div><dt>Ngày tham gia</dt><dd>{new Date(account.created_at).toLocaleDateString('vi-VN')}</dd></div>
+      </dl>
+      <Link className={styles.editButton} to="/profile/edit">Chỉnh sửa hồ sơ</Link>
+    </section>
+  )
+}
+
+function BlogList({ profile }: { profile: UserProfile }) {
   return (
     <div className={styles.blogPanel}>
       <div className={styles.sectionHeading}><div><p>GHI CHÚ CÁ NHÂN</p><h2>Blog của @{profile.handle}</h2></div><span>{profile.articles.length} bài viết</span></div>
       <div className={styles.articleList}>
+        {profile.articles.length === 0 && <p className={styles.bioText}>Bạn chưa có bài viết nào.</p>}
         {profile.articles.map((article) => (
           <article className={styles.article} key={article.title}>
             <div className={styles.articleDate}>{article.publishedAt}</div>
