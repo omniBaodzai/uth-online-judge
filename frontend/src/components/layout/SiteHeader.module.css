@@ -142,9 +142,9 @@
 .accountButton {
   display: inline-flex;
   min-height: 42px;
-  max-width: 220px;
+  max-width: 290px;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   padding: 0 12px;
   border: 1px solid rgba(0, 134, 137, 0.25);
   border-radius: 999px;
@@ -213,7 +213,7 @@
 }
 
 .userGreeting {
-  max-width: 180px;
+  max-width: 205px;
   overflow: hidden;
   color: #174b4e;
   font-size: 14px;
@@ -228,51 +228,88 @@
   white-space: nowrap;
 }
 
-.sessionError {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #8c3434;
-  font-size: 12px;
-}
-
-.sessionWarning {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  color: #805813;
-  font-size: 12px;
-}
-
-.sessionWarning button {
-  min-height: 34px;
-  padding: 0 9px;
-  border: 1px solid #a87928;
-  border-radius: 999px;
-  background: #fffaf0;
-  color: #66470f;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 650;
-}
-
-.sessionError button {
-  min-height: 34px;
-  padding: 0 9px;
-  border: 1px solid #b94b4b;
-  border-radius: 999px;
-  background: #fff;
-  color: #8c3434;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 650;
-}
-
 .logoutError {
   margin: 0;
   color: #a52f2f;
   font-size: 12px;
+}
+
+.logoutSuccess {
+  position: fixed;
+  z-index: 1100;
+  top: 92px;
+  right: max(24px, calc((100vw - 1240px) / 2));
+  display: flex;
+  min-width: min(320px, calc(100vw - 32px));
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 14px 15px;
+  border: 1px solid #b8dfca;
+  border-radius: 12px;
+  background: #f2fbf5;
+  box-shadow: 0 12px 32px rgba(16, 67, 43, 0.16);
+  color: #174b32;
+  animation: success-toast-enter 220ms ease-out both;
+}
+
+.successIcon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #d7f1e1;
+  color: #17653e;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.logoutSuccess > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.logoutSuccess strong {
+  font-size: 14px;
+}
+
+.logoutSuccess > span:nth-child(2) > span {
+  color: #456b56;
+  font-size: 13px;
+}
+
+.logoutSuccess button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-left: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #456b56;
+  cursor: pointer;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.logoutSuccess button:hover {
+  background: #e1f3e8;
+}
+
+@keyframes success-toast-enter {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .registerLink,
@@ -485,10 +522,6 @@
     box-shadow: none;
   }
 
-  .sessionError {
-    flex-wrap: wrap;
-  }
-
   .accountSkeleton {
     width: 100%;
   }
@@ -496,10 +529,6 @@
   .accountSkeleton span {
     flex: 1 1 0;
     height: 46px;
-  }
-
-  .sessionWarning {
-    flex-basis: 100%;
   }
 
   .registerLink,
@@ -538,6 +567,13 @@
   .navigationList {
     grid-template-columns: 1fr;
   }
+
+  .logoutSuccess {
+    top: 82px;
+    right: 16px;
+    left: 16px;
+    min-width: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -556,7 +592,8 @@
 
   .accountSkeleton span,
   .accountButton,
-  .accountDropdown {
+  .accountDropdown,
+  .logoutSuccess {
     animation: none;
     transition: none;
   }

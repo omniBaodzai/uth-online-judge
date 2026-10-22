@@ -8,10 +8,14 @@ import {
   Patch,
   Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -20,7 +24,9 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import type {} from 'multer';
 import { AuthService, type AuthResult } from './auth.service.js';
+import { AVATAR_MAX_BYTES } from './avatar-storage.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { ProfileUpdateDto } from './dto/profile-update.dto.js';
@@ -108,6 +114,22 @@ export class AuthController {
     @Body() input: ProfileUpdateDto,
   ) {
     return this.auth.updateProfile(request.user.id, input);
+  }
+
+  @Post('me/avatar')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('avatar', { limits: { fileSize: AVATAR_MAX_BYTES, files: 1 } }))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Tải ảnh đại diện (PNG, JPEG, WebP, GIF, tối đa 2 MB)' })
+  @ApiOkResponse({ description: 'Thông tin người dùng sau khi cập nhật ảnh đại diện' })
+  async uploadAvatar(
+    @Req() request: AuthenticatedRequest,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() input: ProfileUpdateDto,
+  ) {
+    return this.auth.uploadAvatar(request.user.id, file?.buffer, input);
   }
 }
 

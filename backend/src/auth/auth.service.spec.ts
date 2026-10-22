@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, UnauthorizedException } from '@
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthSessionRepository } from './auth-session.repository.js';
+import { AvatarStorageService } from './avatar-storage.service.js';
 import { AuthService, hashRefreshToken } from './auth.service.js';
 import { UsersService, type PublicUser, type UserRecord } from '../users/users.service.js';
 
@@ -36,9 +37,11 @@ describe('AuthService', () => {
     revoke: ReturnType<typeof vi.fn>;
   };
   let jwt: { signAsync: ReturnType<typeof vi.fn> };
+  let avatars: { save: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    avatars = { save: vi.fn(), remove: vi.fn().mockResolvedValue(undefined) };
     users = {
       create: vi.fn(),
       findByIdentifier: vi.fn(),
@@ -57,6 +60,7 @@ describe('AuthService', () => {
       users as unknown as UsersService,
       sessions as unknown as AuthSessionRepository,
       jwt as unknown as JwtService,
+      avatars as unknown as AvatarStorageService,
     );
   });
 
@@ -182,6 +186,72 @@ describe('AuthService', () => {
       BadRequestException,
     );
     expect(users.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('removes the previous uploaded avatar when the avatar changes', async () => {
+    const oldAvatar = '/uploads/avatars/a83d7d70-2c6b-485e-a2da-ec1d571908fc.png';
+    users.findById.mockResolvedValue({ ...publicUser(user), avatar_url: oldAvatar });
+    users.updateProfile.mockResolvedValue({ ...publicUser(user), avatar_url: null });
+
+    await service.updateProfile(user.id, { avatarUrl: null });
+
+    expect(avatars.remove).toHaveBeenCalledWith(oldAvatar);
+  });
+
+  it('keeps the previous avatar when only the name changes', async () => {
+    users.findById.mockResolvedValue(publicUser(user));
+    users.updateProfile.mockResolvedValue({ ...publicUser(user), full_name: 'A' });
+
+    await service.updateProfile(user.id, { fullName: 'A' });
+
+    expect(avatars.remove).not.toHaveBeenCalled();
+  });
+
+  it('stores an uploaded avatar and links it to the current user', async () => {
+    const stored = '/uploads/avatars/new.png';
+    avatars.save.mockResolvedValue(stored);
+    users.findById.mockResolvedValue(publicUser(user));
+    users.updateProfile.mockResolvedValue({ ...publicUser(user), avatar_url: stored });
+
+    await expect(service.uploadAvatar(user.id, Buffer.from('x'))).resolves.toMatchObject({
+      avatar_url: stored,
+    });
+    expect(users.updateProfile).toHaveBeenCalledWith(user.id, { avatarUrl: stored });
+  });
+
+  it('updates the full name together with an uploaded avatar', async () => {
+    const stored = '/uploads/avatars/new.png';
+    avatars.save.mockResolvedValue(stored);
+    users.findById.mockResolvedValue(publicUser(user));
+    users.updateProfile.mockResolvedValue({
+      ...publicUser(user),
+      full_name: 'Student Name',
+      avatar_url: stored,
+    });
+
+    await service.uploadAvatar(user.id, Buffer.from('image'), { fullName: 'Student Name' });
+
+    expect(users.updateProfile).toHaveBeenCalledWith(user.id, {
+      fullName: 'Student Name',
+      avatarUrl: stored,
+    });
+  });
+
+  it('deletes the stored file when the profile update fails', async () => {
+    avatars.save.mockResolvedValue('/uploads/avatars/new.png');
+    users.findById.mockResolvedValue(publicUser(user));
+    users.updateProfile.mockResolvedValue(null);
+
+    await expect(service.uploadAvatar(user.id, Buffer.from('x'))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(avatars.remove).toHaveBeenCalledWith('/uploads/avatars/new.png');
+  });
+
+  it('rejects an avatar upload without a file', async () => {
+    await expect(service.uploadAvatar(user.id, undefined)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });
 

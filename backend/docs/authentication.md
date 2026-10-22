@@ -41,6 +41,14 @@ Run the migration once using the project's PostgreSQL operator/tooling after rev
 | `POST` | `/auth/refresh` | Rotate the HttpOnly refresh cookie and issue a new access token |
 | `POST` | `/auth/logout` | Revoke the current refresh session and clear its cookie |
 | `GET` | `/auth/me` | Return the current user; requires a bearer access token |
+| `PATCH` | `/auth/me` | Update the authenticated user's full name and/or avatar URL |
+| `POST` | `/auth/me/avatar` | Upload the authenticated user's PNG, JPEG, WebP, or GIF avatar (2 MB maximum) |
+
+The profile endpoints only identify the owner from the verified access token. Profile updates accept only `fullName` and `avatarUrl`; identity, credentials, role, and account status are not writable. Avatar file uploads are checked against their file signature (not just the supplied name or MIME type), assigned a random server-generated filename, and stored on local disk. The existing `users.avatar_url` field stores either the supplied HTTP(S) URL or a public `/uploads/avatars/...` path; image bytes are not stored in the database.
+
+The default storage directory is `uploads` relative to the backend working directory. Set optional `UPLOAD_DIR` to a persistent directory in deployments where the application directory is ephemeral. No external image provider or additional database migration is required. Uploaded images are publicly retrievable because they are displayed as profile avatars; upload and profile mutation themselves require authentication.
+
+For Docker Compose, the backend defaults to `/app/uploads`, which is in the existing backend bind mount during local development. To use a different persistent location, set `UPLOAD_DIR` in the repository `.env` file and mount that location into the backend container.
 
 Swagger UI is available at `/api`. Use the `Authorize` control to set a bearer access token for `/auth/me`. To verify refresh/logout manually, use the browser-based frontend flow so the HttpOnly cookie is sent automatically.
 
@@ -52,7 +60,7 @@ From the repository root, keep the existing `.env` file (do not overwrite existi
 docker compose up --build -d
 ```
 
-Open `http://localhost:5173/register`, register with a new username/email/password, refresh the page to verify that the cookie restores the session, sign out, and confirm the signed-out header appears. Then sign in at `http://localhost:5173/login` using either username or email. Verify duplicate email/username and incorrect credentials produce safe, actionable messages.
+Open `http://localhost:5173/register`, register with a new username/email/password, refresh the page to verify that the cookie restores the session, sign out, and confirm the signed-out header appears. Then sign in at `http://localhost:5173/login` using either username or email. Verify duplicate email/username and incorrect credentials produce safe, actionable messages. While signed in, open the account menu and test the personal profile, profile editor, avatar URL preview, file upload, reset-to-default action, cancel, and outside-click/Escape dismissal.
 
 Use `localhost` consistently in the browser. The default CORS allowlist is `http://localhost:5173`; using `127.0.0.1:5173` is a different browser origin and must also be added to `FRONTEND_ORIGINS` if desired.
 

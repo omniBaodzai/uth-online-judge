@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import styles from './SiteHeader.module.css'
 import uthLogo from '../../assets/uth_logo.png'
 import { useAuth } from '../../features/auth/useAuth'
+import { resolveAvatarUrl } from '../../features/auth/api'
+import UserAvatar from '../../features/profile/components/UserAvatar'
 
 const navigationLinks = [
   { label: 'Bài tập', href: '/problems' },
@@ -18,17 +20,20 @@ function SiteHeader() {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [logoutError, setLogoutError] = useState('')
+  const [logoutSuccess, setLogoutSuccess] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement>(null)
   const accountButtonRef = useRef<HTMLButtonElement>(null)
-  const { user, isLoading: isRestoringSession, initializationError, retrySession, logout } = useAuth()
+  const { user, isLoading: isRestoringSession, logout } = useAuth()
 
   async function handleLogout() {
     setLogoutError('')
     setIsLoggingOut(true)
     try {
       await logout()
+      setAccountMenuOpen(false)
+      setLogoutSuccess(true)
       navigate('/', { replace: true })
     } catch {
       setLogoutError('Không thể thu hồi phiên trên máy chủ. Vui lòng thử đăng xuất lại.')
@@ -36,6 +41,12 @@ function SiteHeader() {
       setIsLoggingOut(false)
     }
   }
+
+  useEffect(() => {
+    if (!logoutSuccess) return
+    const timeoutId = window.setTimeout(() => setLogoutSuccess(false), 5000)
+    return () => window.clearTimeout(timeoutId)
+  }, [logoutSuccess])
 
   useEffect(() => {
     if (!accountMenuOpen) return
@@ -115,14 +126,17 @@ function SiteHeader() {
                   aria-controls="account-menu"
                   onClick={() => setAccountMenuOpen((open) => !open)}
                 >
+                  <UserAvatar
+                    source={resolveAvatarUrl(user.avatar_url)}
+                    username={user.username ?? user.email}
+                  />
                   <span className={styles.userGreeting}>Xin chào, {user.username ?? user.email}</span>
                   <span className={styles.accountChevron} aria-hidden="true">⌄</span>
                 </button>
                 {accountMenuOpen && (
-                  <div className={styles.accountDropdown} id="account-menu" role="menu">
+                  <div className={styles.accountDropdown} id="account-menu">
                     <Link
                       to="/profile"
-                      role="menuitem"
                       onClick={() => {
                         setAccountMenuOpen(false)
                         setMenuOpen(false)
@@ -132,7 +146,6 @@ function SiteHeader() {
                     </Link>
                     <Link
                       to="/profile/edit"
-                      role="menuitem"
                       onClick={() => {
                         setAccountMenuOpen(false)
                         setMenuOpen(false)
@@ -142,7 +155,6 @@ function SiteHeader() {
                     </Link>
                     <button
                       type="button"
-                      role="menuitem"
                       onClick={() => void handleLogout()}
                       disabled={isLoggingOut}
                     >
@@ -151,18 +163,7 @@ function SiteHeader() {
                   </div>
                 )}
               </div>
-              {initializationError && (
-                <div className={styles.sessionWarning} role="status">
-                  <span>Không thể xác nhận phiên với máy chủ.</span>
-                  <button type="button" onClick={() => void retrySession()}>Thử lại</button>
-                </div>
-              )}
             </>
-          ) : initializationError ? (
-            <div className={styles.sessionError}>
-              <span role="status">Chưa thể kiểm tra phiên đăng nhập.</span>
-              <button type="button" onClick={() => void retrySession()}>Thử lại</button>
-            </div>
           ) : (
             <>
               <Link className={styles.registerLink} to="/register" onClick={() => setMenuOpen(false)}>
@@ -176,6 +177,23 @@ function SiteHeader() {
         </div>
         {logoutError && <p className={styles.logoutError} role="alert">{logoutError}</p>}
       </div>
+
+      {logoutSuccess && !user && (
+        <div className={styles.logoutSuccess} role="status" aria-live="polite">
+          <span className={styles.successIcon} aria-hidden="true">✓</span>
+          <span>
+            <strong>Đăng xuất thành công!</strong>
+            <span>Hẹn gặp lại bạn nhé.</span>
+          </span>
+          <button
+            type="button"
+            aria-label="Đóng thông báo đăng xuất"
+            onClick={() => setLogoutSuccess(false)}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <button
         className={styles.menuToggle}

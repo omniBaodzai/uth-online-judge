@@ -55,6 +55,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:5173}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
     depends_on:
       postgres:
         condition: service_healthy

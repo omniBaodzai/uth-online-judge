@@ -1,6 +1,11 @@
 import { createContext } from 'react'
 import type { AuthUser } from './api'
 
+export type ProfileUpdate = {
+  fullName?: string | null
+  avatarUrl?: string | null
+}
+
 export type AuthContextValue = {
   accessToken: string | null
   user: AuthUser | null
@@ -12,7 +17,8 @@ export type AuthContextValue = {
   register: (username: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>
-  updateProfile: (input: { fullName: string | null; avatarUrl: string | null }) => Promise<void>
+  updateProfile: (input: ProfileUpdate) => Promise<AuthUser>
+  uploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
   request: <T>(path: string) => Promise<T>
 }
 

@@ -27,8 +27,18 @@ export class ApiError extends Error {
   }
 }
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
+export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')
 let refreshInFlight: Promise<RefreshResponse> | null = null
+
+export function resolveAvatarUrl(avatarUrl: string | null | undefined): string | null {
+  if (!avatarUrl) return null
+  try {
+    const url = new URL(avatarUrl, `${apiBaseUrl}/`)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null
+  } catch {
+    return null
+  }
+}
 
 export async function register(input: {
   username: string
@@ -74,13 +84,28 @@ export async function getProfileWithRefresh(
 }
 
 export async function updateProfileWithRefresh(
-  input: { fullName: string | null; avatarUrl: string | null },
+  input: { fullName?: string | null; avatarUrl?: string | null },
   accessToken: string,
   onRefresh: (nextAccessToken: string) => void,
 ): Promise<AuthUser> {
   return requestProtected<AuthUser>('/auth/me', accessToken, onRefresh, {
     method: 'PATCH',
     body: JSON.stringify(input),
+  })
+}
+
+export async function uploadAvatarWithRefresh(
+  file: File,
+  fullName: string | null,
+  accessToken: string,
+  onRefresh: (nextAccessToken: string) => void,
+): Promise<AuthUser> {
+  const body = new FormData()
+  body.append('avatar', file, file.name)
+  body.append('fullName', fullName ?? '')
+  return requestProtected<AuthUser>('/auth/me/avatar', accessToken, onRefresh, {
+    method: 'POST',
+    body,
   })
 }
 
@@ -117,7 +142,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response
   try {
     const headers = new Headers(init.headers)
-    if (init.body && !headers.has('Content-Type')) {
+    if (typeof init.body === 'string' && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json')
     }
     response = await fetch(`${apiBaseUrl}${path}`, {

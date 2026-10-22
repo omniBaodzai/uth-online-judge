@@ -8,7 +8,7 @@ import {
 } from 'react'
 import * as authApi from './api'
 import type { AuthUser } from './api'
-import { AuthContext } from './auth-context'
+import { AuthContext, type ProfileUpdate } from './auth-context'
 
 type Credentials = {
   accessToken: string
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accessToken])
 
   const updateProfile = useCallback(
-    async (input: { fullName: string | null; avatarUrl: string | null }) => {
+    async (input: ProfileUpdate) => {
       if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
       const revision = authRevision.current
       try {
@@ -134,6 +134,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         )
         if (revision === authRevision.current) setUser(profile)
+        return profile
+      } catch (error) {
+        if (revision === authRevision.current && error instanceof authApi.ApiError && error.status === 401) {
+          setAccessToken(null)
+          setUser(null)
+        }
+        throw error
+      }
+    },
+    [accessToken],
+  )
+
+  const uploadAvatar = useCallback(
+    async (file: File, fullName: string | null) => {
+      if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
+      const revision = authRevision.current
+      try {
+        const profile = await authApi.uploadAvatarWithRefresh(
+          file,
+          fullName,
+          accessToken,
+          (token) => {
+            if (revision === authRevision.current) setAccessToken(token)
+          },
+        )
+        if (revision === authRevision.current) setUser(profile)
+        return profile
       } catch (error) {
         if (revision === authRevision.current && error instanceof authApi.ApiError && error.status === 401) {
           setAccessToken(null)
@@ -174,6 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshProfile,
       updateProfile,
+      uploadAvatar,
       request,
     }),
     [
@@ -187,6 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshProfile,
       updateProfile,
+      uploadAvatar,
       request,
     ],
   )

@@ -1,12 +1,25 @@
 
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { REFRESH_COOKIE_NAME } from './auth/auth.controller.js';
+import { AvatarStorageService } from './auth/avatar-storage.service.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Ảnh đại diện là tài nguyên công khai; nosniff ngăn trình duyệt đoán sai kiểu nội dung.
+  app.useStaticAssets(app.get(AvatarStorageService).root, {
+    prefix: '/uploads/',
+    index: false,
+    dotfiles: 'deny',
+    maxAge: '1d',
+    setHeaders: (response) => {
+      response.setHeader('X-Content-Type-Options', 'nosniff');
+      response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
+  });
   const allowedOrigins = (process.env.FRONTEND_ORIGINS ?? 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())

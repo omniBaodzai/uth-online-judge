@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { AuthSessionRepository } from './auth-session.repository.js';
+import { AvatarStorageService } from './avatar-storage.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { UsersService, type PublicUser, type UserRecord } from '../users/users.service.js';
 
@@ -30,6 +31,7 @@ export class AuthService {
     private readonly users: UsersService,
     private readonly sessions: AuthSessionRepository,
     private readonly jwt: JwtService,
+    private readonly avatars: AvatarStorageService,
   ) {}
 
   async register(input: RegisterDto): Promise<AuthResult> {
@@ -116,11 +118,36 @@ export class AuthService {
       throw new BadRequestException('Hãy nhập ít nhất một thông tin cần cập nhật.');
     }
 
+    const previous = await this.users.findById(userId);
     const user = await this.users.updateProfile(userId, input);
     if (!user || !user.is_active) {
       throw new UnauthorizedException('Tài khoản không còn hoạt động.');
     }
+    if (previous && previous.avatar_url !== user.avatar_url) {
+      await this.avatars.remove(previous.avatar_url);
+    }
     return user;
+  }
+
+  async uploadAvatar(
+    userId: string,
+    file: Buffer | undefined,
+    input: { fullName?: string | null } = {},
+  ): Promise<PublicUser> {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn một tệp ảnh.');
+    }
+
+    const avatarUrl = await this.avatars.save(file);
+    try {
+      return await this.updateProfile(userId, {
+        ...(Object.hasOwn(input, 'fullName') ? { fullName: input.fullName } : {}),
+        avatarUrl,
+      });
+    } catch (error) {
+      await this.avatars.remove(avatarUrl);
+      throw error;
+    }
   }
 
   private async createSession(user: UserRecord | PublicUser): Promise<AuthResult> {

@@ -26,6 +26,7 @@ describe('AppController (e2e)', () => {
     logout: vi.fn().mockResolvedValue(undefined),
     getProfile: vi.fn(),
     updateProfile: vi.fn(),
+    uploadAvatar: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -50,6 +51,7 @@ describe('AppController (e2e)', () => {
     auth.logout.mockReset().mockResolvedValue(undefined);
     auth.getProfile.mockReset();
     auth.updateProfile.mockReset();
+    auth.uploadAvatar.mockReset();
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -204,6 +206,43 @@ describe('AppController (e2e)', () => {
 
     expect(response.body).toEqual(profile);
     expect(auth.updateProfile).toHaveBeenCalledWith(profile.id, { fullName: 'Student Name' });
+
+    await request(app.getHttpServer())
+      .patch('/auth/me')
+      .set('Authorization', ['Bearer', accessToken].join(' '))
+      .send({ fullName: 'Student Name', is_active: false })
+      .expect(400);
+    expect(auth.updateProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires authentication to upload an avatar and forwards only validated profile data', async () => {
+    const profile = {
+      id: 'a83d7d70-2c6b-485e-a2da-ec1d571908fc',
+      username: 'student01',
+      email: 'student@example.com',
+      full_name: 'Student Name',
+      avatar_url: '/uploads/avatars/student.png',
+    };
+    const image = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    auth.uploadAvatar.mockResolvedValueOnce(profile);
+    const accessToken = await app.get(JwtService).signAsync({ sub: profile.id });
+
+    await request(app.getHttpServer())
+      .post('/auth/me/avatar')
+      .attach('avatar', image, { filename: 'student.png', contentType: 'image/png' })
+      .expect(401);
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/me/avatar')
+      .set('Authorization', ['Bearer', accessToken].join(' '))
+      .field('fullName', profile.full_name)
+      .attach('avatar', image, { filename: 'student.png', contentType: 'image/png' })
+      .expect(200);
+
+    expect(response.body).toEqual(profile);
+    expect(auth.uploadAvatar).toHaveBeenCalledWith(profile.id, image, {
+      fullName: profile.full_name,
+    });
   });
 
   it('allows logout when no current refresh cookie is present', () => {
