@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState, type ChangeEvent, type For
 import { useNavigate } from 'react-router-dom'
 import SiteHeader from '../../../components/layout/SiteHeader'
 import { useAuth } from '../../auth/useAuth'
+import LoginRequiredNotice from '../../auth/components/LoginRequiredNotice'
 import { createSubmission } from '../../submissions/api'
 import { problems } from '../data'
 import { problemDetails } from '../data/problemDetails'
@@ -27,7 +28,7 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
-  const { request, isAuthenticated } = useAuth()
+  const { request, isAuthenticated, isLoading } = useAuth()
   useEffect(() => {
     if (!isFullscreen) return
     function exitFullscreen(event: KeyboardEvent) {
@@ -52,6 +53,30 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
   }
 
   const currentProblemId = problem.id
+
+  if (isLoading) {
+    return (
+      <div className={styles.page}>
+        <SiteHeader />
+        <main className={styles.main}><p>Đang kiểm tra phiên đăng nhập…</p></main>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className={styles.page}>
+        <SiteHeader />
+        <main className={styles.main}>
+          <LoginRequiredNotice
+            message={`Vui lòng đăng nhập hoặc đăng ký tài khoản để nộp bài ${problem.id}.`}
+            backHref={`/problems/${problem.id}`}
+            backLabel="Quay lại đề bài"
+          />
+        </main>
+      </div>
+    )
+  }
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]

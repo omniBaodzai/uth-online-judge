@@ -1,4 +1,7 @@
+import { useState, type MouseEvent } from 'react'
 import SiteHeader from '../../../components/layout/SiteHeader'
+import { useAuth } from '../../auth/useAuth'
+import LoginRequiredNotice from '../../auth/components/LoginRequiredNotice'
 import ProblemSample from '../components/ProblemSample'
 import ProblemComments from '../components/ProblemComments'
 import { getOrganization } from '../../organizations/data'
@@ -15,6 +18,14 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
   const problem = problems.find((item) => item.id === problemId)
   const detail = problemDetails[problemId]
   const organization = getOrganization(new URLSearchParams(window.location.search).get('org') ?? '')
+  const { isAuthenticated, isLoading } = useAuth()
+  const [showLoginNotice, setShowLoginNotice] = useState(false)
+
+  function handleSubmitClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (isAuthenticated) return
+    event.preventDefault()
+    if (!isLoading) setShowLoginNotice(true)
+  }
 
   if (!problem || !detail) {
     return (
@@ -97,9 +108,12 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
 
           <aside className={styles.sidebar} aria-label="Thông tin và thao tác bài tập">
             <section className={styles.actionsPanel}>
-              <a className={styles.submitButton} href={`/problems/${problem.id}/submit`}>
+              <a className={styles.submitButton} href={`/problems/${problem.id}/submit`} onClick={handleSubmitClick}>
                 <span aria-hidden="true">↑</span> Gửi bài giải
               </a>
+              {showLoginNotice && !isAuthenticated && (
+                <LoginRequiredNotice message="Bạn cần đăng nhập để gửi bài giải." />
+              )}
               <a className={styles.quickLink} href={`/submissions?problemId=${problem.id}`}>
                 <span aria-hidden="true">☷</span> Danh sách bài nộp <span aria-hidden="true">→</span>
               </a>
