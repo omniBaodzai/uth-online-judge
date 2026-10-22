@@ -8,6 +8,7 @@ import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
 import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
 import ContestDetailPage from './features/contests/pages/ContestDetailPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
+import ProblemSubmitPage from './features/problems/pages/ProblemSubmitPage'
 import './App.css'
 
 function App() {
@@ -23,6 +24,12 @@ function App() {
 
   if (pathname === '/problems') {
     return <ProblemsPage />
+  }
+
+  const submitMatch = pathname.match(/^\/problems\/([^/]+)\/submit$/)
+  if (submitMatch) {
+    const problemId = decodeURIComponent(submitMatch[1]).toUpperCase()
+    return <ProblemSubmitPage problemId={problemId} />
   }
 
   if (pathname.startsWith('/problems/')) {

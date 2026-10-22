@@ -1,38 +1,17 @@
-import { useEffect, useState, type FormEvent } from 'react'
 import SiteHeader from '../../../components/layout/SiteHeader'
 import ProblemSample from '../components/ProblemSample'
 import { problems } from '../data'
 import { problemDetails } from '../data/problemDetails'
+import { submissionLanguages } from '../data/submissionLanguages'
 import styles from './ProblemDetailPage.module.css'
 
 type ProblemDetailPageProps = {
   problemId: string
 }
 
-const languages = ['C17', 'C++17', 'C++20', 'Java 17', 'Python 3', 'C# 12', 'Go 1.23', 'Rust 1.82']
-
 function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
   const problem = problems.find((item) => item.id === problemId)
   const detail = problemDetails[problemId]
-  const [submitOpen, setSubmitOpen] = useState(false)
-  const [language, setLanguage] = useState('C++17')
-  const [sourceCode, setSourceCode] = useState('')
-  const [notice, setNotice] = useState('')
-
-  useEffect(() => {
-    if (!submitOpen) return
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setSubmitOpen(false)
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [submitOpen])
-
-  function submitSolution(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitOpen(false)
-    setNotice(`Đã nhận mã nguồn ${language} cho ${problemId}. Chế độ demo chưa gửi bài lên hệ thống.`)
-  }
 
   if (!problem || !detail) {
     return (
@@ -105,9 +84,9 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
 
           <aside className={styles.sidebar} aria-label="Thông tin và thao tác bài tập">
             <section className={styles.actionsPanel}>
-              <button className={styles.submitButton} type="button" onClick={() => setSubmitOpen(true)}>
+              <a className={styles.submitButton} href={`/problems/${problem.id}/submit`}>
                 <span aria-hidden="true">↑</span> Gửi bài giải
-              </button>
+              </a>
               <a className={styles.quickLink} href={`/submissions?problemId=${problem.id}`}>
                 <span aria-hidden="true">☷</span> Danh sách bài nộp <span aria-hidden="true">→</span>
               </a>
@@ -126,7 +105,7 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
               <InfoRow label="Dạng bài" value={problem.topic} />
               <div className={styles.languageList}>
                 <h3>Ngôn ngữ hỗ trợ</h3>
-                <div>{languages.map((item) => <span key={item}>{item}</span>)}</div>
+                <div>{submissionLanguages.map((item) => <span key={item}>{item}</span>)}</div>
               </div>
             </section>
 
@@ -136,43 +115,7 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
             </section>
           </aside>
         </div>
-        <p className={styles.notice} aria-live="polite">{notice}</p>
       </main>
-
-      {submitOpen && (
-        <div className={styles.modalBackdrop} onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setSubmitOpen(false)
-        }}>
-          <section className={styles.submitModal} role="dialog" aria-modal="true" aria-labelledby="submit-title">
-            <div className={styles.modalHeader}>
-              <div>
-                <p>NỘP LỜI GIẢI</p>
-                <h2 id="submit-title">{problem.id} · {problem.title}</h2>
-              </div>
-              <button type="button" aria-label="Đóng" onClick={() => setSubmitOpen(false)}>×</button>
-            </div>
-            <form onSubmit={submitSolution}>
-              <label htmlFor="submission-language">Ngôn ngữ</label>
-              <select id="submission-language" value={language} onChange={(event) => setLanguage(event.target.value)}>
-                {languages.map((item) => <option key={item}>{item}</option>)}
-              </select>
-              <label htmlFor="source-code">Mã nguồn</label>
-              <textarea
-                id="source-code"
-                value={sourceCode}
-                onChange={(event) => setSourceCode(event.target.value)}
-                placeholder="Dán hoặc nhập mã nguồn của bạn..."
-                required
-                spellCheck={false}
-              />
-              <div className={styles.modalActions}>
-                <button type="button" onClick={() => setSubmitOpen(false)}>Hủy</button>
-                <button type="submit">Gửi bài</button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
     </div>
   )
 }
