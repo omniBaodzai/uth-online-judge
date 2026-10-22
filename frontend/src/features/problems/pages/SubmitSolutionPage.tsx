@@ -1,0 +1,85 @@
+import { useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth'
+import ProblemStatement from '../components/ProblemStatement'
+import { getProblemDetail } from '../detail-data'
+import CodeEditorPanel from '../submit/CodeEditorPanel'
+import detail from './ProblemDetailPage.module.css'
+import styles from './SubmitSolutionPage.module.css'
+
+type Tab = 'statement' | 'editor'
+
+function SubmitSolutionPage() {
+  const { code = '' } = useParams()
+  const { user } = useAuth()
+  const [tab, setTab] = useState<Tab>('editor')
+  const problem = getProblemDetail(code)
+
+  if (!problem) {
+    return (
+      <main className={detail.main} id="main-content">
+        <div className={detail.notFound}>
+          <h1>Không tìm thấy bài tập</h1>
+          <p>Bài tập “{code}” không tồn tại hoặc đã bị gỡ.</p>
+          <Link className={detail.cta} to="/problems">Quay lại danh sách bài tập</Link>
+        </div>
+      </main>
+    )
+  }
+
+  return (
+    <main className={detail.main} id="main-content">
+      <div className={styles.wrap}>
+        <div className={styles.tabs} role="tablist" aria-label="Chế độ xem">
+          <button
+            type="button"
+            role="tab"
+            id="tab-statement"
+            aria-selected={tab === 'statement'}
+            aria-controls="pane-statement"
+            onClick={() => setTab('statement')}
+          >
+            Đề bài
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-editor"
+            aria-selected={tab === 'editor'}
+            aria-controls="pane-editor"
+            onClick={() => setTab('editor')}
+          >
+            Soạn code
+          </button>
+        </div>
+        <div className={styles.grid}>
+          <div
+            id="pane-statement"
+            role="tabpanel"
+            aria-labelledby="tab-statement"
+            className={`${styles.statementPane} ${tab === 'statement' ? '' : styles.inactive}`}
+          >
+            <ProblemStatement
+              problem={problem}
+              nav={
+                <nav className={detail.breadcrumb} aria-label="Điều hướng phụ">
+                  <Link to={`/problems/${problem.code}`}>← Quay lại chi tiết bài tập</Link>
+                </nav>
+              }
+            />
+          </div>
+          <div
+            id="pane-editor"
+            role="tabpanel"
+            aria-labelledby="tab-editor"
+            className={`${styles.editorPane} ${tab === 'editor' ? '' : styles.inactive}`}
+          >
+            {user && <CodeEditorPanel problemCode={problem.code} userId={user.id} />}
+          </div>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+export default SubmitSolutionPage
