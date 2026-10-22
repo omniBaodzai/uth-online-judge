@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { ApiError, resolveAvatarUrl, type AuthUser } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import { RequireAuth } from '../../auth/components/RequireAuth'
+import AvatarCropModal from '../components/AvatarCropModal'
+import { AVATAR_ACCEPTED_TYPES, AVATAR_MAX_BYTES } from '../avatar-constants'
 import UserAvatar from '../components/UserAvatar'
 import styles from './ProfilePage.module.css'
 
@@ -29,14 +31,12 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
   const initialAvatarUrl = resolveAvatarUrl(user.avatar_url) ?? ''
   const initialFullName = user.full_name ?? ''
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const filePreviewRef = useRef<string | null>(null)
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState(initialAvatarUrl)
   const [originalFullName, setOriginalFullName] = useState(initialFullName)
   const [fullName, setFullName] = useState(initialFullName)
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl)
   const [avatarMode, setAvatarMode] = useState<'url' | 'upload'>('url')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [filePreviewUrl, setFilePreviewUrl] = useState('')
+  const [cropUrl, setCropUrl] = useState('')
   const [resetAvatar, setResetAvatar] = useState(false)
   const [loadedSource, setLoadedSource] = useState<string | null>(null)
   const [failedSource, setFailedSource] = useState<string | null>(null)
@@ -44,22 +44,10 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const avatarChanged =
-    resetAvatar ||
-    (avatarMode === 'upload' && selectedFile !== null) ||
-    avatarUrl.trim() !== originalAvatarUrl
+  const avatarChanged = resetAvatar || avatarUrl.trim() !== originalAvatarUrl
   const profileChanged = fullName.trim() !== originalFullName || avatarChanged
-  const avatarNeedsImageValidation =
-    avatarChanged &&
-    !resetAvatar &&
-    ((avatarMode === 'upload' && selectedFile !== null) ||
-      (avatarMode === 'url' && avatarUrl.trim() !== ''))
-  const previewSource =
-    avatarMode === 'upload'
-      ? filePreviewUrl || null
-      : avatarUrl.trim()
-        ? resolveAvatarUrl(avatarUrl.trim())
-        : null
+  const avatarNeedsImageValidation = avatarChanged && !resetAvatar && avatarUrl.trim() !== ''
+  const previewSource = avatarUrl.trim() ? resolveAvatarUrl(avatarUrl.trim()) : null
 
   useEffect(() => {
     if (!previewSource) return
@@ -73,28 +61,16 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
     }
   }, [previewSource])
 
-  useEffect(() => () => {
-    if (filePreviewRef.current) URL.revokeObjectURL(filePreviewRef.current)
-  }, [])
-
   const previewStatus =
     !previewSource
-      ? avatarMode === 'upload' && selectedFile
-        ? 'loading'
-        : avatarUrl.trim()
-          ? 'invalid'
-          : 'empty'
+      ? avatarUrl.trim()
+        ? 'invalid'
+        : 'empty'
       : loadedSource === previewSource
         ? 'valid'
         : failedSource === previewSource
           ? 'invalid'
           : 'loading'
-
-  function clearFilePreview() {
-    if (filePreviewRef.current) URL.revokeObjectURL(filePreviewRef.current)
-    filePreviewRef.current = null
-    setFilePreviewUrl('')
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -103,16 +79,11 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
     setIsSaving(true)
 
     try {
-      let updatedUser: AuthUser
       const submittedFullName = fullName.trim() || null
-      if (avatarMode === 'upload' && selectedFile) {
-        updatedUser = await uploadAvatar(selectedFile, submittedFullName)
-      } else {
-        const update: { fullName?: string | null; avatarUrl?: string | null } = {}
-        if (submittedFullName !== originalFullName) update.fullName = submittedFullName
-        if (avatarChanged) update.avatarUrl = resetAvatar ? null : avatarUrl.trim() || null
-        updatedUser = await updateProfile(update)
-      }
+      const update: { fullName?: string | null; avatarUrl?: string | null } = {}
+      if (submittedFullName !== originalFullName) update.fullName = submittedFullName
+      if (avatarChanged) update.avatarUrl = resetAvatar ? null : avatarUrl.trim() || null
+      const updatedUser = await updateProfile(update)
 
       const savedFullName = updatedUser.full_name ?? ''
       const nextAvatarUrl = resolveAvatarUrl(updatedUser.avatar_url) ?? ''
@@ -120,11 +91,7 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
       setOriginalAvatarUrl(nextAvatarUrl)
       setFullName(savedFullName)
       setAvatarUrl(nextAvatarUrl)
-      clearFilePreview()
-      setSelectedFile(null)
       setResetAvatar(false)
-      setAvatarMode('url')
-      if (fileInputRef.current) fileInputRef.current.value = ''
       setNotice('Hồ sơ đã được cập nhật.')
     } catch (saveError) {
       setError(
@@ -139,8 +106,6 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
 
   function handleUrlChange(value: string) {
     setAvatarMode('url')
-    clearFilePreview()
-    setSelectedFile(null)
     setResetAvatar(false)
     setAvatarUrl(value)
     setError('')
@@ -150,23 +115,34 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
   function handleFileChange(file: File | undefined) {
     setError('')
     setNotice('')
-    clearFilePreview()
-    if (!file) {
-      setSelectedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (!file) return
+    if (!AVATAR_ACCEPTED_TYPES.includes(file.type)) {
+      setError('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.')
       return
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setSelectedFile(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+    if (file.size > AVATAR_MAX_BYTES) {
       setError('Ảnh đại diện phải có dung lượng tối đa 2 MB.')
       return
     }
-    setAvatarMode('upload')
+    setCropUrl(URL.createObjectURL(file))
+  }
+
+  function closeCropModal() {
+    URL.revokeObjectURL(cropUrl)
+    setCropUrl('')
+  }
+
+  // Chỉ tải lên ảnh đã cắt; giữ nguyên họ tên đã lưu để không lưu nhầm bản nháp.
+  async function handleCroppedSave(croppedFile: File) {
+    const updatedUser = await uploadAvatar(croppedFile, user.full_name)
+    const nextAvatarUrl = resolveAvatarUrl(updatedUser.avatar_url) ?? ''
+    setOriginalAvatarUrl(nextAvatarUrl)
+    setAvatarUrl(nextAvatarUrl)
     setResetAvatar(false)
-    const objectUrl = URL.createObjectURL(file)
-    filePreviewRef.current = objectUrl
-    setFilePreviewUrl(objectUrl)
-    setSelectedFile(file)
+    setAvatarMode('url')
+    closeCropModal()
+    setNotice('Ảnh đại diện đã được cập nhật.')
   }
 
   return (
@@ -251,17 +227,17 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
               </>
             ) : (
               <>
-                <label htmlFor="profile-avatar-file">Chọn ảnh (PNG, JPEG, WebP hoặc GIF)</label>
+                <label htmlFor="profile-avatar-file">Chọn ảnh (JPG, PNG hoặc WebP)</label>
                 <input
                   ref={fileInputRef}
                   id="profile-avatar-file"
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={(event) => handleFileChange(event.currentTarget.files?.[0])}
                   aria-describedby="avatar-file-help"
                 />
                 <p id="avatar-file-help" className={styles.helperText}>
-                  Tối đa 2 MB. Định dạng ảnh sẽ được máy chủ xác minh trước khi lưu.
+                  Tối đa 2 MB. Sau khi chọn, bạn có thể kéo và phóng to để căn chỉnh ảnh trước khi lưu.
                 </p>
               </>
             )}
@@ -290,8 +266,6 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
               onClick={() => {
                 setAvatarMode('url')
                 setAvatarUrl('')
-                clearFilePreview()
-                setSelectedFile(null)
                 setResetAvatar(true)
                 setError('')
                 setNotice('')
@@ -312,8 +286,7 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
               disabled={
                 isSaving ||
                 !profileChanged ||
-                (avatarNeedsImageValidation && previewStatus !== 'valid') ||
-                (avatarMode === 'upload' && !selectedFile)
+                (avatarNeedsImageValidation && previewStatus !== 'valid')
               }
             >
               {isSaving ? 'Đang lưu…' : 'Lưu thay đổi'}
@@ -335,6 +308,13 @@ function ProfileContent({ user, edit }: { user: AuthUser; edit: boolean }) {
             Chỉnh sửa hồ sơ
           </Link>
         </>
+      )}
+      {cropUrl && (
+        <AvatarCropModal
+          imageUrl={cropUrl}
+          onCancel={closeCropModal}
+          onSave={handleCroppedSave}
+        />
       )}
     </section>
   )
