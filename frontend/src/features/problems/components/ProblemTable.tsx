@@ -4,9 +4,18 @@ import styles from './ProblemTable.module.css'
 type ProblemTableProps = {
   problems: Problem[]
   highlightedProblemId: string | null
+  isLoading?: boolean
 }
 
-function ProblemTable({ problems, highlightedProblemId }: ProblemTableProps) {
+function ProblemTable({ problems, highlightedProblemId, isLoading = false }: ProblemTableProps) {
+  if (isLoading) {
+    return (
+      <div className={styles.emptyState}>
+        <h3>Đang tải danh sách bài tập…</h3>
+      </div>
+    )
+  }
+
   if (problems.length === 0) {
     return (
       <div className={styles.emptyState}>

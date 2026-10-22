@@ -7,14 +7,15 @@ import {
   defaultProblemFilters,
   featuredProblemIds,
   problemPageSize,
-  problemTopics,
-  problems,
   type Problem,
   type ProblemFilters,
 } from '../data'
+import { useProblemCatalog } from '../problemCatalog'
 import styles from './ProblemsPage.module.css'
 
 function ProblemsPage() {
+  const { problems, isLoading } = useProblemCatalog()
+  const problemTopics = useMemo(() => [...new Set(problems.map((problem) => problem.topic))].sort(), [problems])
   const [draftFilters, setDraftFilters] = useState<ProblemFilters>(defaultProblemFilters)
   const [filters, setFilters] = useState<ProblemFilters>(defaultProblemFilters)
   const [currentPage, setCurrentPage] = useState(1)
@@ -34,7 +35,7 @@ function ProblemsPage() {
     const matchesEditorial = !filters.editorialOnly || problem.hasEditorial
 
     return matchesKeyword && matchesTopic && matchesDifficulty && matchesScore && matchesUnsolved && matchesEditorial
-  }), [filters])
+  }), [filters, problems])
 
   const orderedProblems = useMemo(() => {
     const result = [...filteredProblems]
@@ -119,7 +120,7 @@ function ProblemsPage() {
                 </select>
               </label>
             </div>
-            <ProblemTable problems={visibleProblems} highlightedProblemId={highlightedProblemId} />
+            <ProblemTable problems={visibleProblems} highlightedProblemId={highlightedProblemId} isLoading={isLoading} />
             <div className={styles.paginationRow}>
               <span>{orderedProblems.length} kết quả</span>
               <Pagination

@@ -66,6 +66,47 @@ export class ProblemDto {
   totalScore!: number;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  topic?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @IsIn(['Dễ', 'Trung bình', 'Khó'])
+  difficulty?: 'Dễ' | 'Trung bình' | 'Khó';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  inputSpec?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  outputSpec?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  constraintsText?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  source?: string;
+
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(200)
   @ValidateNested({ each: true })

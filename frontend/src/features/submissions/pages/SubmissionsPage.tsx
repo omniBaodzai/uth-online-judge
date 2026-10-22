@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import Pagination from '../../../components/ui/Pagination'
 import SiteHeader from '../../../components/layout/SiteHeader'
 import { useAuth } from '../../auth/useAuth'
-import { problems } from '../../problems/data'
+import { useProblemCatalog } from '../../problems/problemCatalog'
+import type { Problem } from '../../problems/data'
 import { isJudgingFinished, languageNameById, listSubmissions, type SubmissionResult } from '../api'
 import SubmissionFilter from '../components/SubmissionFilter'
 import SubmissionStats from '../components/SubmissionStats'
@@ -20,7 +21,7 @@ import {
 } from '../data'
 import styles from './SubmissionsPage.module.css'
 
-function toRow(item: SubmissionResult): Submission {
+function toRow(item: SubmissionResult, problems: Problem[]): Submission {
   const problem = problems.find((entry) => entry.id === item.problemCode.toUpperCase())
   const created = new Date(item.createdAt)
   return {
@@ -45,7 +46,9 @@ function toRow(item: SubmissionResult): Submission {
 function SubmissionsPage() {
   const { request, isAuthenticated, isLoading } = useAuth()
   const requestRef = useRef(request)
-  const [liveSubmissions, setLiveSubmissions] = useState<Submission[]>([])
+  const { problems: catalog } = useProblemCatalog()
+  const [rawSubmissions, setRawSubmissions] = useState<SubmissionResult[]>([])
+  const liveSubmissions = useMemo(() => rawSubmissions.map((item) => toRow(item, catalog)), [rawSubmissions, catalog])
   const searchParams = new URLSearchParams(window.location.search)
   const problemId = searchParams.get('problemId')?.toUpperCase() ?? ''
   const username = searchParams.get('username')?.toLocaleLowerCase('vi') ?? ''
@@ -63,10 +66,10 @@ function SubmissionsPage() {
     let cancelled = false
     listSubmissions(requestRef.current)
       .then((result) => {
-        if (!cancelled) setLiveSubmissions(result.items.filter((item) => isJudgingFinished(item.status)).map(toRow))
+        if (!cancelled) setRawSubmissions(result.items.filter((item) => isJudgingFinished(item.status)))
       })
       .catch(() => {
-        if (!cancelled) setLiveSubmissions([])
+        if (!cancelled) setRawSubmissions([])
       })
     return () => {
       cancelled = true

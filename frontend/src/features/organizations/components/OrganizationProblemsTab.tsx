@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Pagination from '../../../components/ui/Pagination'
-import { problems, type Problem } from '../../problems/data'
+import { useProblemCatalog } from '../../problems/problemCatalog'
+import type { Problem } from '../../problems/data'
 import type { Organization } from '../data'
 import styles from '../pages/OrganizationDetailPage.module.css'
 
@@ -10,11 +11,12 @@ const statusText = { solved: 'Đã giải', attempted: 'Đã thử, chưa đạt
 const statusIcon = { solved: '✓', attempted: '!', unsolved: '○' } as const
 
 function OrganizationProblemsTab({ organization }: { organization: Organization }) {
+  const { problems } = useProblemCatalog()
   const orgProblems = useMemo(
     () => organization.problemIds
       .map((id) => problems.find((problem) => problem.id === id))
       .filter((problem): problem is Problem => problem !== undefined),
-    [organization],
+    [organization, problems],
   )
   const groups = useMemo(() => [...new Set(orgProblems.map((problem) => problem.topic))], [orgProblems])
   const types = useMemo(() => [...new Set(orgProblems.flatMap((problem) => problem.tags))], [orgProblems])
@@ -25,7 +27,8 @@ function OrganizationProblemsTab({ organization }: { organization: Organization 
   const [group, setGroup] = useState('')
   const [type, setType] = useState('')
   const [minScore, setMinScore] = useState(0)
-  const [upperScore, setUpperScore] = useState(maxScore)
+  const [upperOverride, setUpperScore] = useState<number | null>(null)
+  const upperScore = upperOverride ?? maxScore
   const [page, setPage] = useState(1)
 
   const filtered = useMemo(() => {
@@ -55,7 +58,7 @@ function OrganizationProblemsTab({ organization }: { organization: Organization 
     setGroup('')
     setType('')
     setMinScore(0)
-    setUpperScore(maxScore)
+    setUpperScore(null)
     setPage(1)
   }
 

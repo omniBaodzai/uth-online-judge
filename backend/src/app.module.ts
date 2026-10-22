@@ -8,6 +8,7 @@ import { SupportModule } from './support/support.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { DatabaseModule } from './databases/database.module.js';
 import { SubmissionsModule } from './submissions/submissions.module.js';
+import { ProblemsModule } from './problems/problems.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SubmissionsModule } from './submissions/submissions.module.js';
     AdminModule,
     SupportModule,
     SubmissionsModule,
+    ProblemsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

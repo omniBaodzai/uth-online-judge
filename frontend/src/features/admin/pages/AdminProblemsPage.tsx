@@ -7,13 +7,23 @@ import styles from '../admin.module.css'
 
 type ProblemRow = { id: string; code: string; title: string; timeLimitSeconds: number; memoryLimitMb: number; totalScore: number; testCount: number; submissionCount: number; createdAt: string }
 type TestCase = { input: string; expectedOutput: string; isSample: boolean }
-type ProblemForm = { id?: string; code: string; title: string; timeLimitSeconds: number; memoryLimitMb: number; totalScore: number; testCases: TestCase[] }
+type ProblemForm = {
+  id?: string; code: string; title: string; timeLimitSeconds: number; memoryLimitMb: number; totalScore: number
+  topic: string; tags: string[]; difficulty: 'Dễ' | 'Trung bình' | 'Khó'
+  description: string; inputSpec: string; outputSpec: string; constraintsText: string; source: string
+  testCases: TestCase[]
+}
 
-const emptyForm: ProblemForm = { code: '', title: '', timeLimitSeconds: 1, memoryLimitMb: 256, totalScore: 100, testCases: [{ input: '', expectedOutput: '', isSample: true }] }
+const emptyForm: ProblemForm = {
+  code: '', title: '', timeLimitSeconds: 1, memoryLimitMb: 256, totalScore: 100,
+  topic: '', tags: [], difficulty: 'Trung bình', description: '', inputSpec: '', outputSpec: '', constraintsText: '', source: '',
+  testCases: [{ input: '', expectedOutput: '', isSample: true }],
+}
 
 function ProblemEditor({ initial, onClose, onSaved }: { initial: ProblemForm; onClose: () => void; onSaved: () => void }) {
   const { request } = useAuth()
   const [form, setForm] = useState(initial)
+  const [tagsText, setTagsText] = useState(initial.tags.join(', '))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const setTest = (index: number, patch: Partial<TestCase>) =>
@@ -24,7 +34,8 @@ function ProblemEditor({ initial, onClose, onSaved }: { initial: ProblemForm; on
     setError('')
     try {
       const { id, ...body } = form
-      await request(id ? `/api/admin/problems/${id}` : '/api/admin/problems', { method: id ? 'PUT' : 'POST', body: JSON.stringify({ ...body, code: body.code.trim().toUpperCase(), title: body.title.trim() }) })
+      const tags = tagsText.split(',').map((tag) => tag.trim()).filter(Boolean)
+      await request(id ? `/api/admin/problems/${id}` : '/api/admin/problems', { method: id ? 'PUT' : 'POST', body: JSON.stringify({ ...body, tags, topic: body.topic.trim(), code: body.code.trim().toUpperCase(), title: body.title.trim() }) })
       onSaved()
     } catch (reason) {
       setError(describeError(reason))
@@ -43,6 +54,23 @@ function ProblemEditor({ initial, onClose, onSaved }: { initial: ProblemForm; on
         <label className={styles.field}>Giới hạn bộ nhớ (MB)<input type="number" min={16} max={2048} value={form.memoryLimitMb} onChange={(event) => setForm({ ...form, memoryLimitMb: Number(event.target.value) })} /></label>
         <label className={styles.field}>Tổng điểm<input type="number" min={1} max={10000} value={form.totalScore} onChange={(event) => setForm({ ...form, totalScore: Number(event.target.value) })} /></label>
       </div>
+      <h4>Nội dung đề bài (hiển thị cho người dùng)</h4>
+      <div className={styles.formGrid}>
+        <label className={styles.field}>Nhóm / chủ đề<input value={form.topic} onChange={(event) => setForm({ ...form, topic: event.target.value })} maxLength={100} placeholder="Ví dụ: Vòng lặp" /></label>
+        <label className={styles.field}>Mức độ
+          <select value={form.difficulty} onChange={(event) => setForm({ ...form, difficulty: event.target.value as ProblemForm['difficulty'] })}>
+            <option>Dễ</option><option>Trung bình</option><option>Khó</option>
+          </select>
+        </label>
+        <label className={styles.field}>Nhãn (cách nhau bằng dấu phẩy)<input value={tagsText} onChange={(event) => setTagsText(event.target.value)} placeholder="Python cơ bản, Toán học" /></label>
+        <label className={styles.field}>Nguồn bài<input value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} maxLength={255} /></label>
+      </div>
+      <label className={styles.field}>Mô tả (mỗi dòng là một đoạn)<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} /></label>
+      <div className={styles.formGrid}>
+        <label className={styles.field}>Đầu vào<textarea value={form.inputSpec} onChange={(event) => setForm({ ...form, inputSpec: event.target.value })} rows={3} /></label>
+        <label className={styles.field}>Đầu ra<textarea value={form.outputSpec} onChange={(event) => setForm({ ...form, outputSpec: event.target.value })} rows={3} /></label>
+      </div>
+      <label className={styles.field}>Giới hạn (mỗi dòng một ràng buộc)<textarea value={form.constraintsText} onChange={(event) => setForm({ ...form, constraintsText: event.target.value })} rows={3} /></label>
       <h4>Test case ({form.testCases.length})</h4>
       {form.testCases.map((test, index) => (
         <div key={index} className={styles.card}>

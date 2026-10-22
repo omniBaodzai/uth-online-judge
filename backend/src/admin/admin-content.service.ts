@@ -44,7 +44,10 @@ export class AdminContentService {
     if (!UUID.test(id)) throw new NotFoundException('Không tìm thấy bài tập.');
     const problem = await this.database.query(
       `SELECT id, code, title, time_limit_seconds::float AS "timeLimitSeconds", memory_limit_mb AS "memoryLimitMb",
-              total_score AS "totalScore" FROM problems WHERE id = $1`,
+              total_score AS "totalScore", topic, tags, difficulty, COALESCE(description, '') AS description,
+              COALESCE(input_spec, '') AS "inputSpec", COALESCE(output_spec, '') AS "outputSpec",
+              COALESCE(constraints_text, '') AS "constraintsText", COALESCE(source, '') AS source
+       FROM problems WHERE id = $1`,
       [id],
     );
     if (!problem.rows[0]) throw new NotFoundException('Không tìm thấy bài tập.');
@@ -57,6 +60,12 @@ export class AdminContentService {
   }
 
   async saveProblem(actorId: string, input: ProblemDto, id?: string) {
+    const blank = (value?: string) => (value?.trim() ? value.trim() : null);
+    const fields = [
+      input.code.toUpperCase(), input.title, input.timeLimitSeconds, input.memoryLimitMb, input.totalScore,
+      input.topic?.trim() || 'Khác', (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean), input.difficulty ?? 'Trung bình',
+      blank(input.description), blank(input.inputSpec), blank(input.outputSpec), blank(input.constraintsText), blank(input.source),
+    ];
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
@@ -64,16 +73,19 @@ export class AdminContentService {
       if (id) {
         if (!UUID.test(id)) throw new NotFoundException('Không tìm thấy bài tập.');
         const updated = await client.query(
-          `UPDATE problems SET code = $2, title = $3, time_limit_seconds = $4, memory_limit_mb = $5, total_score = $6
+          `UPDATE problems SET code = $2, title = $3, time_limit_seconds = $4, memory_limit_mb = $5, total_score = $6,
+                  topic = $7, tags = $8, difficulty = $9, description = $10, input_spec = $11, output_spec = $12,
+                  constraints_text = $13, source = $14
            WHERE id = $1 RETURNING id`,
-          [id, input.code.toUpperCase(), input.title, input.timeLimitSeconds, input.memoryLimitMb, input.totalScore],
+          [id, ...fields],
         );
         if (!updated.rows[0]) throw new NotFoundException('Không tìm thấy bài tập.');
       } else {
         const created = await client.query<{ id: string }>(
-          `INSERT INTO problems (code, title, time_limit_seconds, memory_limit_mb, total_score)
-           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-          [input.code.toUpperCase(), input.title, input.timeLimitSeconds, input.memoryLimitMb, input.totalScore],
+          `INSERT INTO problems (code, title, time_limit_seconds, memory_limit_mb, total_score,
+                                 topic, tags, difficulty, description, input_spec, output_spec, constraints_text, source)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+          fields,
         );
         problemId = created.rows[0]!.id;
       }

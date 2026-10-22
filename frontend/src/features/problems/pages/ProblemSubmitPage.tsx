@@ -6,8 +6,7 @@ import { useAuth } from '../../auth/useAuth'
 import LoginRequiredNotice from '../../auth/components/LoginRequiredNotice'
 import { createSubmission, hasAcceptedSubmission } from '../../submissions/api'
 import ProblemSample from '../components/ProblemSample'
-import { problems } from '../data'
-import { problemDetails } from '../data/problemDetails'
+import { useProblem } from '../problemCatalog'
 import { codeTemplateByDisplayName, judge0LanguageIdByDisplayName, monacoLanguageByDisplayName, submissionLanguages } from '../data/submissionLanguages'
 import styles from './ProblemSubmitPage.module.css'
 
@@ -18,8 +17,9 @@ type ProblemSubmitPageProps = {
 }
 
 function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
-  const problem = problems.find((item) => item.id === problemId)
-  const detail = problemDetails[problemId]
+  const catalogState = useProblem(problemId)
+  const problem = catalogState.status === 'ready' ? catalogState.problem : undefined
+  const detail = catalogState.status === 'ready' ? catalogState.detail : undefined
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [language, setLanguage] = useState('C++20')
   const [sourceCode, setSourceCode] = useState(codeTemplateByDisplayName['C++20'])
@@ -52,6 +52,15 @@ function ProblemSubmitPage({ problemId }: ProblemSubmitPageProps) {
     window.addEventListener('keydown', exitFullscreen)
     return () => window.removeEventListener('keydown', exitFullscreen)
   }, [isFullscreen])
+
+  if (catalogState.status === 'loading') {
+    return (
+      <div className={styles.page}>
+        <SiteHeader />
+        <main className={styles.main}><p>Đang tải đề bài…</p></main>
+      </div>
+    )
+  }
 
   if (!problem || !detail) {
     return (

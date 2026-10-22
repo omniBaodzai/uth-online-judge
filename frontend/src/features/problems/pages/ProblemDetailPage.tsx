@@ -5,8 +5,7 @@ import LoginRequiredNotice from '../../auth/components/LoginRequiredNotice'
 import ProblemSample from '../components/ProblemSample'
 import ProblemComments from '../components/ProblemComments'
 import { getOrganization } from '../../organizations/data'
-import { problems } from '../data'
-import { problemDetails } from '../data/problemDetails'
+import { useProblem } from '../problemCatalog'
 import { submissionLanguages } from '../data/submissionLanguages'
 import styles from './ProblemDetailPage.module.css'
 
@@ -15,8 +14,7 @@ type ProblemDetailPageProps = {
 }
 
 function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
-  const problem = problems.find((item) => item.id === problemId)
-  const detail = problemDetails[problemId]
+  const state = useProblem(problemId)
   const organization = getOrganization(new URLSearchParams(window.location.search).get('org') ?? '')
   const { isAuthenticated, isLoading } = useAuth()
   const [showLoginNotice, setShowLoginNotice] = useState(false)
@@ -27,7 +25,16 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
     if (!isLoading) setShowLoginNotice(true)
   }
 
-  if (!problem || !detail) {
+  if (state.status === 'loading') {
+    return (
+      <div className={styles.page}>
+        <SiteHeader />
+        <main className={styles.notFound}><p>Đang tải đề bài…</p></main>
+      </div>
+    )
+  }
+
+  if (state.status === 'missing') {
     return (
       <div className={styles.page}>
         <SiteHeader />
@@ -40,6 +47,8 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
       </div>
     )
   }
+
+  const { problem, detail } = state
 
   return (
     <div className={styles.page}>
