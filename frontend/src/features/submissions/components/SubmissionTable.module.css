@@ -1,0 +1,140 @@
+.wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th {
+  padding: 13px 14px;
+  border-bottom: 1px solid #d5e2e2;
+  background: #eaf4f3;
+  color: #2d5659;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 14px;
+  border-top: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.table tbody tr:hover {
+  background: #f1f8f7;
+}
+
+.table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  min-width: 44px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.time {
+  white-space: nowrap;
+}
+
+.time span {
+  display: block;
+  color: #2d4549;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.time span + span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.coder {
+  color: var(--color-ink);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.problem {
+  display: block;
+  color: var(--color-ink);
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.problem:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+.code {
+  color: var(--color-muted);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.lang {
+  color: #2d4549;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 56px 20px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.empty strong {
+  color: var(--color-ink);
+  font-size: 16px;
+}
+
+.empty p {
+  margin: 6px 0 0;
+}
+
+.skeletons {
+  margin: 0;
+  padding: 16px 20px;
+  list-style: none;
+}
+
+.skeleton {
+  height: 48px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #eef4f4 25%, #f7fafa 50%, #eef4f4 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}

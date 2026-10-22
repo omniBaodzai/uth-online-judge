@@ -6,6 +6,7 @@ import ProblemsPage from './features/problems/pages/ProblemsPage'
 import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
 import SubmitSolutionPage from './features/problems/pages/SubmitSolutionPage'
 import { RequireAuth } from './features/auth/components/RequireAuth'
+import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
 import AppLayout from './components/layout/AppLayout'
@@ -36,7 +37,7 @@ function App() {
             <Route path="problems/:code/submissions/best" element={<PlaceholderPage title="Bài nộp tốt nhất" />} />
             <Route path="problems/:code/solution" element={<PlaceholderPage title="Lời giải bài tập" />} />
             <Route path="contests" element={<PlaceholderPage title="Cuộc thi" />} />
-            <Route path="submissions" element={<PlaceholderPage title="Bảng chấm bài" />} />
+            <Route path="submissions" element={<SubmissionsPage />} />
             <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

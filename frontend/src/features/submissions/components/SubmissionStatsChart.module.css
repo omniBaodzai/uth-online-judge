@@ -1,0 +1,142 @@
+.card {
+  overflow: hidden;
+  border: 1px solid rgba(224, 235, 235, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-card);
+}
+
+.heading {
+  margin: 0;
+  padding: 13px 14px;
+  border-bottom: 1px solid #d5e2e2;
+  background: #eaf4f3;
+  color: #2d5659;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  line-height: normal;
+  text-transform: uppercase;
+}
+
+.body {
+  padding: 16px;
+}
+
+.desc {
+  margin: 0 0 14px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.chartWrap {
+  position: relative;
+  width: min(220px, 100%);
+  margin: 0 auto 16px;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  transform: rotate(-90deg);
+}
+
+.track,
+.segment {
+  fill: none;
+  stroke-width: 16;
+}
+
+.track {
+  stroke: #eef4f4;
+}
+
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.center strong {
+  color: var(--color-ink);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.center span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 0;
+  border-block: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.summary dt {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.summary dd {
+  margin: 2px 0 0;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.name {
+  min-width: 0;
+  flex: 1;
+  color: #2d4549;
+}
+
+.name strong {
+  margin-right: 4px;
+  color: var(--color-ink);
+}
+
+.value {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  text-align: center;
+}
