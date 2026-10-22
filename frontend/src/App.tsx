@@ -18,6 +18,16 @@ import OrganizationsPage from './features/organizations/pages/OrganizationsPage'
 import OrganizationDetailPage from './features/organizations/pages/OrganizationDetailPage'
 import type { OrganizationTab } from './features/organizations/data'
 import './App.css'
+import AdminDashboardPage from './features/admin/pages/AdminDashboardPage'
+import AdminUsersPage from './features/admin/pages/AdminUsersPage'
+import AdminProblemsPage from './features/admin/pages/AdminProblemsPage'
+import AdminSubmissionsPage from './features/admin/pages/AdminSubmissionsPage'
+import AdminModerationPage from './features/admin/pages/AdminModerationPage'
+import AdminDataPage from './features/admin/pages/AdminDataPage'
+import AdminSettingsPage from './features/admin/pages/AdminSettingsPage'
+import AdminLogsPage from './features/admin/pages/AdminLogsPage'
+import AdminSupportPage from './features/admin/pages/AdminSupportPage'
+import SupportPage from './features/admin/pages/SupportPage'
 
 function AppRoutes() {
   const { pathname: currentPathname } = useLocation()
@@ -86,6 +96,18 @@ function AppRoutes() {
   if (pathname === '/profile') {
     return <OwnProfilePage />
   }
+
+  if (pathname === '/support') return <SupportPage />
+
+  if (pathname === '/admin') return <AdminDashboardPage />
+  if (pathname === '/admin/users') return <AdminUsersPage />
+  if (pathname === '/admin/problems') return <AdminProblemsPage />
+  if (pathname === '/admin/submissions') return <AdminSubmissionsPage />
+  if (pathname === '/admin/moderation') return <AdminModerationPage />
+  if (pathname === '/admin/data') return <AdminDataPage />
+  if (pathname === '/admin/settings') return <AdminSettingsPage />
+  if (pathname === '/admin/logs') return <AdminLogsPage />
+  if (pathname === '/admin/support') return <AdminSupportPage />
 
   if (pathname === '/organizations') {
     return <OrganizationsPage />

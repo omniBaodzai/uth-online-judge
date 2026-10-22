@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,6 +11,8 @@ import * as bcrypt from 'bcrypt';
 import { AuthSessionRepository } from './auth-session.repository.js';
 import { AvatarStorageService } from './avatar-storage.service.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { ActivityLogService } from '../platform/activity-log.service.js';
+import { SettingsService } from '../platform/settings.service.js';
 import { UsersService, type PublicUser, type UserRecord } from '../users/users.service.js';
 
 const BCRYPT_COST = 12;
@@ -32,9 +35,14 @@ export class AuthService {
     private readonly sessions: AuthSessionRepository,
     private readonly jwt: JwtService,
     private readonly avatars: AvatarStorageService,
+    private readonly activity: ActivityLogService,
+    private readonly settings: SettingsService,
   ) {}
 
   async register(input: RegisterDto): Promise<AuthResult> {
+    if (!(await this.settings.get()).features.registration) {
+      throw new ForbiddenException('Hệ thống đang tạm dừng đăng ký tài khoản mới.');
+    }
     if (Buffer.byteLength(input.password, 'utf8') > 72) {
       throw new BadRequestException('Mật khẩu không được vượt quá 72 byte.');
     }
@@ -52,6 +60,7 @@ export class AuthService {
       }
       throw error;
     }
+    await this.activity.log({ userId: user.id, action: 'REGISTER' });
     return this.createSession(user);
   }
 
@@ -65,9 +74,11 @@ export class AuthService {
     const matches = await bcrypt.compare(password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
 
     if (!user || !user.is_active || !user.password_hash || !matches) {
+      if (user) await this.activity.log({ userId: user.id, action: user.is_active ? 'LOGIN_FAILED' : 'LOGIN_BLOCKED' });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
 
+    await this.activity.log({ userId: user.id, action: 'LOGIN' });
     return this.createSession(user);
   }
 
@@ -193,6 +204,7 @@ function toPublicUser(user: UserRecord | PublicUser): PublicUser {
     email: user.email,
     full_name: user.full_name,
     avatar_url: user.avatar_url,
+    role: user.role,
     is_active: user.is_active,
     created_at: user.created_at,
     updated_at: user.updated_at,

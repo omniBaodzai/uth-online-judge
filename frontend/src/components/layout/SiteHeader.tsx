@@ -149,6 +149,17 @@ function SiteHeader() {
                     >
                       Thông tin cá nhân
                     </Link>
+                    {(user.role === 'ADMIN' || user.role === 'MODERATOR') && (
+                      <Link
+                        to="/admin"
+                        onClick={() => {
+                          setAccountMenuOpen(false)
+                          setMenuOpen(false)
+                        }}
+                      >
+                        Quản trị
+                      </Link>
+                    )}
                     <Link
                       to="/profile/edit"
                       onClick={() => {

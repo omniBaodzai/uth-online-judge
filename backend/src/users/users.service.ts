@@ -10,6 +10,7 @@ export type UserRecord = {
   full_name: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  role: 'ADMIN' | 'MODERATOR' | 'USER';
   created_at: Date;
   updated_at: Date;
 };
@@ -26,7 +27,7 @@ export class UsersService {
   async findByIdentifier(identifier: string): Promise<UserRecord | null> {
     const result = await this.database.query<UserRecord>(
       `SELECT id, username, email, password_hash, full_name, avatar_url,
-              is_active, created_at, updated_at
+              is_active, role, created_at, updated_at
        FROM users
        WHERE lower(email) = $1 OR lower(username) = $1
        LIMIT 1`,
@@ -39,7 +40,7 @@ export class UsersService {
   async findById(id: string): Promise<PublicUser | null> {
     const result = await this.database.query<PublicUser>(
       `SELECT id, username, email, full_name, avatar_url,
-              is_active, created_at, updated_at
+              is_active, role, created_at, updated_at
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -58,7 +59,7 @@ export class UsersService {
       `INSERT INTO users (username, email, password_hash)
        VALUES ($1, $2, $3)
        RETURNING id, username, email, full_name, avatar_url,
-                 is_active, created_at, updated_at`,
+                 is_active, role, created_at, updated_at`,
       [input.username, input.email, input.passwordHash],
     );
 
@@ -83,7 +84,7 @@ export class UsersService {
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
        RETURNING id, username, email, full_name, avatar_url,
-                 is_active, created_at, updated_at`,
+                 is_active, role, created_at, updated_at`,
       [
         id,
         updateFullName,

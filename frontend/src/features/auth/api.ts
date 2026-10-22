@@ -4,6 +4,7 @@ export type AuthUser = {
   email: string
   full_name: string | null
   avatar_url: string | null
+  role?: 'ADMIN' | 'MODERATOR' | 'USER'
   is_active: boolean
   created_at: string
   updated_at: string
@@ -166,5 +167,6 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   }
 
   if (response.status === 204) return undefined as T
+  if (response.headers.get('Content-Type')?.includes('text/csv')) return (await response.text()) as T
   return (await response.json()) as T
 }
