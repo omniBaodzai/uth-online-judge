@@ -4,7 +4,7 @@
 
 Set `JWT_ACCESS_SECRET` in the local `.env` file to a randomly generated value of at least 32 characters. Do not commit that value. Set `FRONTEND_ORIGINS` to the exact browser origins allowed to call the API, and set the frontend build-time `VITE_API_BASE_URL` to the backend URL.
 
-The refresh cookie is HttpOnly, scoped to `/auth`, uses `SameSite=Lax`, and is marked `Secure` in production. The browser must use credentials for API requests. The current cookie policy assumes the frontend and API are deployed on the same site; cross-site deployments require a deliberate cookie and CSRF review.
+The refresh cookie is HttpOnly, scoped to `/auth`, uses `SameSite=Lax`, and is marked `Secure` in production. On login, “remember login” keeps it in the browser for up to seven days; otherwise it is a browser-session cookie. Refresh rotation preserves this choice. The server-side refresh session continues to use the existing seven-day sliding expiry. The browser must use credentials for API requests. The current cookie policy assumes the frontend and API are deployed on the same site; cross-site deployments require a deliberate cookie and CSRF review.
 
 ## Database migration
 

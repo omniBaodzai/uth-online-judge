@@ -68,10 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [restoreSession])
 
-  const login = useCallback(async (identifier: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string, rememberMe: boolean) => {
     const revision = ++authRevision.current
     try {
-      const credentials = await authApi.login({ identifier, password })
+      const credentials = await authApi.login({ identifier, password, rememberMe })
       if (revision === authRevision.current) acceptCredentials(credentials)
     } finally {
       if (revision === authRevision.current) setIsLoading(false)

@@ -170,6 +170,7 @@ function PasswordField({ mode, error }: { mode: AuthMode; error?: string }) {
 function AuthPage({ mode }: AuthPageProps) {
   const copy = authCopy[mode]
   const { login, register, isLoading: restoringSession, initializationError } = useAuth()
+  const [rememberMe, setRememberMe] = useState(true)
   const [notice, setNotice] = useState('')
   const [noticeType, setNoticeType] = useState<'error' | 'success' | ''>('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -199,7 +200,7 @@ function AuthPage({ mode }: AuthPageProps) {
         setNotice('Đăng ký thành công! Đang chuyển về trang chủ…')
         setNoticeType('success')
       } else {
-        await login(username, password)
+        await login(username, password, rememberMe)
         setNotice('Đăng nhập thành công! Đang chuyển tiếp…')
         setNoticeType('success')
       }
@@ -265,6 +266,24 @@ function AuthPage({ mode }: AuthPageProps) {
               />
             )}
             <PasswordField mode={mode} error={fieldErrors.password} />
+
+            {mode === 'login' && (
+              <div className={styles.loginOptions}>
+                <label className={styles.rememberMe} htmlFor="remember-me">
+                  <input
+                    id="remember-me"
+                    name="rememberMe"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.target.checked)}
+                  />
+                  <span>Ghi nhớ đăng nhập</span>
+                </label>
+                <Link className={styles.forgotLink} to="/forgot-password">
+                  Quên mật khẩu?
+                </Link>
+              </div>
+            )}
 
             <button
               className={styles.submitButton}

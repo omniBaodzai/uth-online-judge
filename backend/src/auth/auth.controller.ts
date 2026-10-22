@@ -33,6 +33,7 @@ import { ProfileUpdateDto } from './dto/profile-update.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 export const REFRESH_COOKIE_NAME = 'uth_refresh_token';
+export const REMEMBER_LOGIN_COOKIE_NAME = 'uth_remember_login';
 export const REFRESH_COOKIE_PATH = '/auth';
 export const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -51,7 +52,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.auth.register(input);
-    setRefreshCookie(response, result.refreshToken);
+    setRefreshCookie(response, result.refreshToken, true);
     return toClientResult(result);
   }
 
@@ -65,7 +66,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.auth.login(input.identifier, input.password);
-    setRefreshCookie(response, result.refreshToken);
+    setRefreshCookie(response, result.refreshToken, input.rememberMe ?? true);
     return toClientResult(result);
   }
 
@@ -79,7 +80,8 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.auth.refresh(readRefreshCookie(request));
-    setRefreshCookie(response, result.refreshToken);
+    const rememberLogin = readCookie(request, REMEMBER_LOGIN_COOKIE_NAME) !== '0';
+    setRefreshCookie(response, result.refreshToken, rememberLogin);
     return toClientResult(result);
   }
 
@@ -93,6 +95,7 @@ export class AuthController {
   ): Promise<void> {
     await this.auth.logout(readRefreshCookie(request));
     clearRefreshCookie(response);
+    clearRememberLoginCookie(response);
   }
 
   @Get('me')
@@ -139,12 +142,16 @@ function toClientResult(result: AuthResult) {
 }
 
 function readRefreshCookie(request: Request): string | undefined {
+  return readCookie(request, REFRESH_COOKIE_NAME);
+}
+
+function readCookie(request: Request, cookieName: string): string | undefined {
   const cookieHeader = request.headers.cookie;
   if (!cookieHeader) return undefined;
 
   for (const part of cookieHeader.split(';')) {
     const [name, ...valueParts] = part.trim().split('=');
-    if (name === REFRESH_COOKIE_NAME) {
+    if (name === cookieName) {
       return valueParts.join('=');
     }
   }
@@ -152,18 +159,34 @@ function readRefreshCookie(request: Request): string | undefined {
   return undefined;
 }
 
-function setRefreshCookie(response: Response, token: string): void {
+function setRefreshCookie(response: Response, token: string, rememberLogin: boolean): void {
   response.cookie(REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: REFRESH_COOKIE_PATH,
-    maxAge: REFRESH_TOKEN_TTL_MS,
+    ...(rememberLogin ? { maxAge: REFRESH_TOKEN_TTL_MS } : {}),
+  });
+  response.cookie(REMEMBER_LOGIN_COOKIE_NAME, rememberLogin ? '1' : '0', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: REFRESH_COOKIE_PATH,
+    ...(rememberLogin ? { maxAge: REFRESH_TOKEN_TTL_MS } : {}),
   });
 }
 
 function clearRefreshCookie(response: Response): void {
   response.clearCookie(REFRESH_COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: REFRESH_COOKIE_PATH,
+  });
+}
+
+function clearRememberLoginCookie(response: Response): void {
+  response.clearCookie(REMEMBER_LOGIN_COOKIE_NAME, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

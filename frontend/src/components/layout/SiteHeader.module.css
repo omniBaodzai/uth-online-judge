@@ -249,7 +249,21 @@
   background: #f2fbf5;
   box-shadow: 0 12px 32px rgba(16, 67, 43, 0.16);
   color: #174b32;
+  overflow: hidden;
   animation: success-toast-enter 220ms ease-out both;
+}
+
+.logoutSuccess::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  transform: scaleX(1);
+  transform-origin: left;
+  background: #27965e;
+  content: '';
+  animation: success-toast-progress 5s linear both;
 }
 
 .successIcon {
@@ -309,6 +323,12 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes success-toast-progress {
+  to {
+    transform: scaleX(0);
   }
 }
 
@@ -596,5 +616,9 @@
   .logoutSuccess {
     animation: none;
     transition: none;
+  }
+
+  .logoutSuccess::after {
+    animation: none;
   }
 }
