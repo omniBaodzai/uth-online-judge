@@ -1,11 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, BookOpen, Database, FileCode2, LayoutDashboard, LifeBuoy, LogOut, Menu, Settings, ShieldCheck, TriangleAlert, Users,
+  BookOpen, Database, FileCode2, LayoutDashboard, LifeBuoy, LogOut, Menu, Settings, ShieldCheck, TriangleAlert, Users,
   type LucideIcon,
 } from 'lucide-react'
 import uthLogo from '../../assets/uth_logo.png'
-import { RequireAuth } from '../auth/components/RequireAuth'
 import { useAuth } from '../auth/useAuth'
 import styles from './admin.module.css'
 
@@ -74,8 +73,7 @@ function Shell({ title, subtitle, adminOnly, children }: { title: string; subtit
             <span className={styles.avatar} aria-hidden="true">{name.charAt(0).toUpperCase()}</span>
             <span><b>{name}</b><small>{user?.role === 'ADMIN' ? 'Quản trị viên' : 'Điều hành viên'}</small></span>
           </div>
-          <Link to="/" className={styles.footerLink}><ArrowLeft size={16} aria-hidden="true" />Về trang web</Link>
-          <button type="button" className={styles.footerLink} onClick={() => void logout().then(() => navigate('/login'))}><LogOut size={16} aria-hidden="true" />Đăng xuất</button>
+          <button type="button" className={styles.footerLink} onClick={() => void logout().then(() => navigate('/admin/login'))}><LogOut size={16} aria-hidden="true" />Đăng xuất</button>
         </div>
       </aside>
       <main className={styles.main}>
@@ -89,10 +87,28 @@ function Shell({ title, subtitle, adminOnly, children }: { title: string; subtit
   )
 }
 
+function AdminSession({ children }: { children: ReactNode }) {
+  const { user, isLoading, initializationError, retrySession } = useAuth()
+  const location = useLocation()
+
+  if (user && (user.role === 'ADMIN' || user.role === 'MODERATOR')) return children
+  if (isLoading) return <main className={styles.status} aria-live="polite">Đang kiểm tra phiên đăng nhập…</main>
+  if (initializationError) {
+    return (
+      <main className={styles.status} role="alert">
+        <p>{initializationError}</p>
+        <button type="button" className={styles.btn} onClick={() => void retrySession()}>Thử lại</button>
+      </main>
+    )
+  }
+  // Chưa đăng nhập, hoặc đang đăng nhập bằng tài khoản thường ở trang chính: yêu cầu đăng nhập quản trị riêng.
+  return <Navigate to={`/admin/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`} replace />
+}
+
 export default function AdminLayout({ title, subtitle, adminOnly = true, children }: { title: string; subtitle?: string; adminOnly?: boolean; children: ReactNode }) {
   return (
-    <RequireAuth>
+    <AdminSession>
       <Shell title={title} subtitle={subtitle} adminOnly={adminOnly}>{children}</Shell>
-    </RequireAuth>
+    </AdminSession>
   )
 }

@@ -1,0 +1,15 @@
+.page { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(160deg, #e6f3f3 0%, #f3f7f7 55%, #dfeeee 100%); color: #1f2d2d; }
+.card { width: min(420px, 100%); background: #fff; border: 1px solid #dbe6e6; border-radius: 16px; padding: 32px 28px; box-shadow: 0 12px 40px rgba(0, 90, 92, .12); }
+.logo { display: block; width: 190px; max-width: 100%; margin: 0 auto 18px; }
+.badge { display: flex; align-items: center; justify-content: center; gap: 6px; width: fit-content; margin: 0 auto 10px; padding: 4px 12px; border-radius: 999px; background: #e0f2f2; color: #006d70; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.card h1 { margin: 0; text-align: center; font-size: 22px; }
+.intro { margin: 6px 0 20px; text-align: center; color: #5d7272; font-size: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: #46605f; }
+.inputWrap { display: flex; align-items: center; gap: 8px; border: 1px solid #c5d6d6; border-radius: 10px; padding: 0 12px; background: #fff; color: #5d7272; }
+.inputWrap:focus-within { border-color: #008689; box-shadow: 0 0 0 3px rgba(0, 134, 137, .15); }
+.inputWrap input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 11px 0; font: inherit; font-weight: 400; color: #1f2d2d; background: transparent; }
+.toggle { display: grid; place-items: center; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 4px; }
+.error { margin: 0 0 12px; padding: 9px 12px; border-radius: 8px; background: #fde3df; color: #a02e22; font-size: 14px; }
+.submit { width: 100%; border: 0; border-radius: 10px; padding: 12px; background: #008689; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.submit:hover:not(:disabled) { background: #006d70; }
+.submit:disabled { opacity: .6; cursor: not-allowed; }

@@ -19,6 +19,7 @@ import OrganizationDetailPage from './features/organizations/pages/OrganizationD
 import type { OrganizationTab } from './features/organizations/data'
 import './App.css'
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage'
+import AdminLoginPage from './features/admin/pages/AdminLoginPage'
 import AdminUsersPage from './features/admin/pages/AdminUsersPage'
 import AdminProblemsPage from './features/admin/pages/AdminProblemsPage'
 import AdminSubmissionsPage from './features/admin/pages/AdminSubmissionsPage'
@@ -99,6 +100,7 @@ function AppRoutes() {
 
   if (pathname === '/support') return <SupportPage />
 
+  if (pathname === '/admin/login') return <AdminLoginPage />
   if (pathname === '/admin') return <AdminDashboardPage />
   if (pathname === '/admin/users') return <AdminUsersPage />
   if (pathname === '/admin/problems') return <AdminProblemsPage />

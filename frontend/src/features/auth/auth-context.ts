@@ -13,7 +13,7 @@ export type AuthContextValue = {
   isAuthenticated: boolean
   initializationError: string | null
   retrySession: () => Promise<void>
-  login: (identifier: string, password: string, rememberMe: boolean) => Promise<void>
+  login: (identifier: string, password: string, rememberMe: boolean, allow?: (user: AuthUser) => boolean) => Promise<void>
   register: (username: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>

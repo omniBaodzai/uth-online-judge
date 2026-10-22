@@ -83,10 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [restoreSession])
 
-  const login = useCallback(async (identifier: string, password: string, rememberMe: boolean) => {
+  const login = useCallback(async (identifier: string, password: string, rememberMe: boolean, allow?: (user: AuthUser) => boolean) => {
     const revision = ++authRevision.current
     try {
       const credentials = await authApi.login({ identifier, password, rememberMe })
+      if (allow && !allow(credentials.user)) {
+        // Thu hồi ngay phiên vừa tạo để tài khoản không đủ quyền không bị đăng nhập ngầm.
+        await authApi.logout().catch(() => undefined)
+        throw new authApi.ApiError('Tài khoản này không có quyền truy cập khu vực quản trị.', 403)
+      }
       if (revision === authRevision.current) acceptCredentials(credentials)
     } finally {
       if (revision === authRevision.current) setIsLoading(false)
