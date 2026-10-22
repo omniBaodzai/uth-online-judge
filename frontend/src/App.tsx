@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import HomePage from './features/home/pages/HomePage'
 import AuthPage from './features/auth/pages/AuthPage'
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
+import ProblemsPage from './features/problems/pages/ProblemsPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
 import AppLayout from './components/layout/AppLayout'
@@ -20,7 +21,8 @@ function App() {
             <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/edit" element={<ProfilePage edit />} />
-            <Route path="problems" element={<PlaceholderPage title="Bài tập" />} />
+            <Route path="problems" element={<ProblemsPage />} />
+            <Route path="problems/:code" element={<PlaceholderPage title="Chi tiết bài tập" />} />
             <Route path="contests" element={<PlaceholderPage title="Cuộc thi" />} />
             <Route path="submissions" element={<PlaceholderPage title="Bảng chấm bài" />} />
             <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />

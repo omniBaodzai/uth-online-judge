@@ -72,6 +72,7 @@ function FormField({
   maxLength,
   pattern,
   placeholder,
+  defaultValue,
   error,
   required = true,
 }: {
@@ -84,6 +85,7 @@ function FormField({
   maxLength?: number
   pattern?: string
   placeholder?: string
+  defaultValue?: string
   error?: string
   required?: boolean
 }) {
@@ -106,6 +108,7 @@ function FormField({
           maxLength={maxLength}
           pattern={pattern}
           required={required}
+          defaultValue={defaultValue}
           placeholder={placeholder ?? `Nhập ${label.toLocaleLowerCase('vi')}`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
@@ -167,10 +170,69 @@ function PasswordField({ mode, error }: { mode: AuthMode; error?: string }) {
   )
 }
 
+const SAVED_IDENTIFIER_KEY = 'uth_remembered_identifier'
+const REMEMBER_OPT_OUT_KEY = 'uth_remember_opt_out'
+
+// Chỉ lưu tên đăng nhập/email (không nhạy cảm). Mật khẩu KHÔNG bao giờ được ghi vào
+// localStorage/sessionStorage/cookie; việc lưu mật khẩu giao cho trình quản lý mật khẩu của trình duyệt.
+function readSavedIdentifier(): string {
+  try {
+    return window.localStorage.getItem(SAVED_IDENTIFIER_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function readRememberPreference(): boolean {
+  try {
+    return window.localStorage.getItem(REMEMBER_OPT_OUT_KEY) !== '1'
+  } catch {
+    return true
+  }
+}
+
+function saveRememberPreference(remember: boolean, identifier: string) {
+  try {
+    if (remember) {
+      window.localStorage.setItem(SAVED_IDENTIFIER_KEY, identifier)
+      window.localStorage.removeItem(REMEMBER_OPT_OUT_KEY)
+    } else {
+      window.localStorage.removeItem(SAVED_IDENTIFIER_KEY)
+      window.localStorage.setItem(REMEMBER_OPT_OUT_KEY, '1')
+    }
+  } catch {
+    // Bỏ qua khi trình duyệt chặn localStorage.
+  }
+}
+
+type PasswordCredentialConstructor = new (data: {
+  id: string
+  password: string
+}) => Credential
+
+// Yêu cầu trình duyệt lưu mật khẩu vào kho an toàn của nó (Chromium); trình duyệt khác bỏ qua.
+async function storeBrowserCredential(identifier: string, password: string) {
+  const Ctor = (window as unknown as { PasswordCredential?: PasswordCredentialConstructor })
+    .PasswordCredential
+  if (!Ctor || !navigator.credentials?.store) return
+  try {
+    await navigator.credentials.store(new Ctor({ id: identifier, password }))
+  } catch {
+    // Không ảnh hưởng luồng đăng nhập nếu trình duyệt từ chối.
+  }
+}
+
 function AuthPage({ mode }: AuthPageProps) {
   const copy = authCopy[mode]
-  const { login, register, isLoading: restoringSession, initializationError } = useAuth()
-  const [rememberMe, setRememberMe] = useState(true)
+  const {
+    login,
+    register,
+    isAuthenticated,
+    isLoading: restoringSession,
+    initializationError,
+  } = useAuth()
+  const [savedIdentifier] = useState(readSavedIdentifier)
+  const [rememberMe, setRememberMe] = useState(readRememberPreference)
   const [notice, setNotice] = useState('')
   const [noticeType, setNoticeType] = useState<'error' | 'success' | ''>('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -180,6 +242,11 @@ function AuthPage({ mode }: AuthPageProps) {
   const redirectTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => () => window.clearTimeout(redirectTimer.current), [])
+
+  // Phiên được khôi phục từ cookie: không cần đăng nhập lại.
+  useEffect(() => {
+    if (isAuthenticated && !isSubmitting) navigate(getReturnPath(search), { replace: true })
+  }, [isAuthenticated, isSubmitting, navigate, search])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -201,6 +268,9 @@ function AuthPage({ mode }: AuthPageProps) {
         setNoticeType('success')
       } else {
         await login(username, password, rememberMe)
+        saveRememberPreference(rememberMe, username)
+        if (rememberMe) await storeBrowserCredential(username, password)
+        else void navigator.credentials?.preventSilentAccess?.()
         setNotice('Đăng nhập thành công! Đang chuyển tiếp…')
         setNoticeType('success')
       }
@@ -248,11 +318,12 @@ function AuthPage({ mode }: AuthPageProps) {
               id="username"
               label="Tên đăng nhập"
               icon="user"
-              autoComplete={mode === 'register' ? 'username' : 'username'}
+              autoComplete="username"
               minLength={mode === 'register' ? 3 : undefined}
               maxLength={mode === 'login' ? 254 : 32}
               pattern={mode === 'register' ? '[A-Za-z0-9._-]+' : undefined}
               placeholder={mode === 'login' ? 'Nhập tên đăng nhập hoặc email' : undefined}
+              defaultValue={mode === 'login' ? savedIdentifier : undefined}
               error={fieldErrors.username}
             />
             {mode === 'register' && (
