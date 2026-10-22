@@ -41,10 +41,14 @@ export class SubmissionsService {
     return submission;
   }
 
-  async get(id: string) {
+  async get(id: string, requesterId: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new NotFoundException('Không tìm thấy bài nộp.');
-    const submission = await this.repository.findById(id);
+    const submission = await this.repository.findById(id, true);
     if (!submission) throw new NotFoundException('Không tìm thấy bài nộp.');
+    if (submission.userId !== requesterId) {
+      const { sourceCode: _hidden, ...publicView } = submission;
+      return publicView;
+    }
     return submission;
   }
 

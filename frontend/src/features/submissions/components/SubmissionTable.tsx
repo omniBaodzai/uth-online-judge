@@ -33,11 +33,15 @@ function SubmissionTable({ submissions: rows }: SubmissionTableProps) {
             <tr key={submission.id}>
               <td>
                 <div className={styles.resultCell}>
-                  <span className={`${styles.resultTile} ${styles[submission.status]}`}>
-                    {submission.status === 'AC'
-                      ? `${submission.passedTests}/${submission.totalTests}`
-                      : submission.status}
-                  </span>
+                  {submission.detailHref ? (
+                    <a className={`${styles.resultTile} ${styles[submission.status]}`} href={submission.detailHref} title="Xem chi tiết và mã nguồn">
+                      {submission.status === 'AC' ? `${submission.passedTests}/${submission.totalTests}` : submission.status}
+                    </a>
+                  ) : (
+                    <span className={`${styles.resultTile} ${styles[submission.status]}`}>
+                      {submission.status === 'AC' ? `${submission.passedTests}/${submission.totalTests}` : submission.status}
+                    </span>
+                  )}
                   <span className={`${styles.statusLabel} ${styles[`label${submission.status}`]}`}>
                     <span aria-hidden="true" />
                     {submission.status}

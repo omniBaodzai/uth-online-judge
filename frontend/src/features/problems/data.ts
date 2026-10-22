@@ -1,3 +1,4 @@
+import { pythonCourseProblems } from './data/pythonCourse'
 export type ProblemDifficulty = 'Dễ' | 'Trung bình' | 'Khó'
 export type ProblemStatus = 'solved' | 'attempted' | 'unsolved'
 
@@ -55,6 +56,7 @@ export const problems: Problem[] = [
   { id: 'UTH018', title: 'Mô phỏng hàng đợi', tags: ['Hàng đợi', 'Mô phỏng'], topic: 'Cấu trúc dữ liệu', score: 20, acceptance: 64.1, acceptedCount: 801, difficulty: 'Dễ', status: 'solved', hasEditorial: true },
 ]
 
+problems.push(...pythonCourseProblems)
 export const featuredProblemIds = ['UTH004', 'UTH006', 'UTH009']
 
 export const problemTopics = [...new Set(problems.map((problem) => problem.topic))].sort()

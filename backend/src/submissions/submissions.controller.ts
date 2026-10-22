@@ -46,7 +46,7 @@ export class SubmissionsController {
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.submissions.get(id);
+  get(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.submissions.get(id, request.user.id);
   }
 }

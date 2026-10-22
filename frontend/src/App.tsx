@@ -14,7 +14,9 @@ import AccountProfilePage from './features/profile/pages/AccountProfilePage'
 import MemberProfilePage from './features/profile/pages/MemberProfilePage'
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import SiteHeader from './components/layout/SiteHeader'
-import PlaceholderPage from './components/layout/PlaceholderPage'
+import OrganizationsPage from './features/organizations/pages/OrganizationsPage'
+import OrganizationDetailPage from './features/organizations/pages/OrganizationDetailPage'
+import type { OrganizationTab } from './features/organizations/data'
 import './App.css'
 
 function AppRoutes() {
@@ -86,7 +88,17 @@ function AppRoutes() {
   }
 
   if (pathname === '/organizations') {
-    return <PlaceholderPage title="Tổ chức" />
+    return <OrganizationsPage />
+  }
+
+  const organizationMatch = pathname.match(/^\/organizations\/([^/]+)(?:\/(members|problems|contests|submissions))?$/)
+  if (organizationMatch) {
+    return (
+      <OrganizationDetailPage
+        organizationId={decodeURIComponent(organizationMatch[1])}
+        tab={(organizationMatch[2] as OrganizationTab | undefined) ?? 'home'}
+      />
+    )
   }
 
   return <HomePage />

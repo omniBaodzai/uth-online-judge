@@ -1,3 +1,4 @@
+import { pythonCourseDetails } from './pythonCourse'
 export type ProblemExample = {
   input: string
   output: string
@@ -17,6 +18,7 @@ export type ProblemDetail = {
 const standardLimits = { timeLimit: '1.0 giây', memoryLimit: '256 MB' }
 
 export const problemDetails: Record<string, ProblemDetail> = {
+  ...pythonCourseDetails,
   UTH001: {
     description: [
       'Cho hai số nguyên a và b. Hãy tính tổng của hai số đó.',

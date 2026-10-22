@@ -1,5 +1,7 @@
 import SiteHeader from '../../../components/layout/SiteHeader'
 import ProblemSample from '../components/ProblemSample'
+import ProblemComments from '../components/ProblemComments'
+import { getOrganization } from '../../organizations/data'
 import { problems } from '../data'
 import { problemDetails } from '../data/problemDetails'
 import { submissionLanguages } from '../data/submissionLanguages'
@@ -12,6 +14,7 @@ type ProblemDetailPageProps = {
 function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
   const problem = problems.find((item) => item.id === problemId)
   const detail = problemDetails[problemId]
+  const organization = getOrganization(new URLSearchParams(window.location.search).get('org') ?? '')
 
   if (!problem || !detail) {
     return (
@@ -32,7 +35,17 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
       <SiteHeader />
       <main className={styles.main}>
         <nav className={styles.breadcrumb} aria-label="Điều hướng đường dẫn">
-          <a href="/problems">Danh sách bài tập</a>
+          {organization ? (
+            <>
+              <a href="/organizations">Tổ chức</a>
+              <span aria-hidden="true">/</span>
+              <a href={`/organizations/${organization.id}`}>{organization.name}</a>
+              <span aria-hidden="true">/</span>
+              <a href={`/organizations/${organization.id}/problems`}>Danh sách bài</a>
+            </>
+          ) : (
+            <a href="/problems">Danh sách bài tập</a>
+          )}
           <span aria-hidden="true">/</span>
           <span>{problem.id}</span>
         </nav>
@@ -115,6 +128,7 @@ function ProblemDetailPage({ problemId }: ProblemDetailPageProps) {
             </section>
           </aside>
         </div>
+        <ProblemComments />
       </main>
     </div>
   )

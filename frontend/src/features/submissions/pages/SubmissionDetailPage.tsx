@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import SiteHeader from '../../../components/layout/SiteHeader'
 import { useAuth } from '../../auth/useAuth'
-import { getSubmission, isJudgingFinished, type SubmissionResult } from '../api'
+import { getSubmission, isJudgingFinished, languageNameById, type SubmissionResult } from '../api'
 import styles from './SubmissionDetailPage.module.css'
 
 const POLL_INTERVAL_MS = 2000
@@ -15,6 +15,16 @@ const statusLabels: Record<string, string> = {
   MLE: 'Quá bộ nhớ',
   RE: 'Lỗi khi chạy',
   CE: 'Lỗi biên dịch',
+}
+
+function sourceCodeBlock(submission: SubmissionResult) {
+  if (!submission.sourceCode) return null
+  return (
+    <>
+      <h2>Mã nguồn ({languageNameById[submission.languageId] ?? `#${submission.languageId}`})</h2>
+      <pre className={styles.output}>{submission.sourceCode}</pre>
+    </>
+  )
 }
 
 function SubmissionDetailPage({ submissionId }: { submissionId: string }) {
@@ -89,6 +99,7 @@ function SubmissionDetailPage({ submissionId }: { submissionId: string }) {
                 <pre className={styles.output}>{submission.compileOutput}</pre>
               </>
             )}
+            {sourceCodeBlock(submission)}
             <div className={styles.actions}>
               <a href="/submissions">Xem bảng chấm bài</a>
               <a href={`/problems/${submission.problemCode}`}>Về đề bài</a>

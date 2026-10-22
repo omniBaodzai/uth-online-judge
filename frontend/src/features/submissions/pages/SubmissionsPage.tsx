@@ -1,6 +1,9 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import Pagination from '../../../components/ui/Pagination'
 import SiteHeader from '../../../components/layout/SiteHeader'
+import { useAuth } from '../../auth/useAuth'
+import { problems } from '../../problems/data'
+import { isJudgingFinished, languageNameById, listSubmissions, type SubmissionResult } from '../api'
 import SubmissionFilter from '../components/SubmissionFilter'
 import SubmissionStats from '../components/SubmissionStats'
 import SubmissionTable from '../components/SubmissionTable'
@@ -13,10 +16,36 @@ import {
   submissionStatuses,
   submissions,
   type SubmissionFilters,
+  type Submission,
 } from '../data'
 import styles from './SubmissionsPage.module.css'
 
+function toRow(item: SubmissionResult): Submission {
+  const problem = problems.find((entry) => entry.id === item.problemCode.toUpperCase())
+  const created = new Date(item.createdAt)
+  return {
+    id: item.id,
+    problemId: item.problemCode,
+    problemTitle: problem?.title ?? item.problemCode,
+    tags: problem?.tags ?? [],
+    status: item.status as Submission['status'],
+    passedTests: item.passedTests,
+    totalTests: item.totalTests,
+    language: languageNameById[item.languageId] ?? `Judge0 #${item.languageId}`,
+    username: item.username ?? 'ẩn danh',
+    submittedAt: created.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }),
+    dateTime: item.createdAt,
+    runtimeMs: item.executionTime === null ? null : Math.round(item.executionTime * 1000),
+    memoryMb: item.memoryUsed === null ? null : item.memoryUsed / 1024,
+    organization: 'UTH Online Judge',
+    detailHref: `/submissions/${item.id}`,
+  }
+}
+
 function SubmissionsPage() {
+  const { request, isAuthenticated, isLoading } = useAuth()
+  const requestRef = useRef(request)
+  const [liveSubmissions, setLiveSubmissions] = useState<Submission[]>([])
   const searchParams = new URLSearchParams(window.location.search)
   const problemId = searchParams.get('problemId')?.toUpperCase() ?? ''
   const username = searchParams.get('username')?.toLocaleLowerCase('vi') ?? ''
@@ -25,7 +54,28 @@ function SubmissionsPage() {
   const [filters, setFilters] = useState<SubmissionFilters>(defaultSubmissionFilters)
   const [currentPage, setCurrentPage] = useState(1)
 
-  const filteredSubmissions = useMemo(() => submissions.filter((submission) => {
+  useEffect(() => {
+    requestRef.current = request
+  }, [request])
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return
+    let cancelled = false
+    listSubmissions(requestRef.current)
+      .then((result) => {
+        if (!cancelled) setLiveSubmissions(result.items.filter((item) => isJudgingFinished(item.status)).map(toRow))
+      })
+      .catch(() => {
+        if (!cancelled) setLiveSubmissions([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, isLoading])
+
+  const allSubmissions = useMemo(() => [...liveSubmissions, ...submissions], [liveSubmissions])
+
+  const filteredSubmissions = useMemo(() => allSubmissions.filter((submission) => {
     const matchesProblem = !problemId || submission.problemId === problemId
     const matchesUsername = !username || submission.username.toLocaleLowerCase('vi') === username
     const matchesStatus = filters.status === 'Tất cả trạng thái' || submission.status === filters.status
@@ -38,7 +88,7 @@ function SubmissionsPage() {
     if (first.status === 'AC' && second.status !== 'AC') return -1
     if (first.status !== 'AC' && second.status === 'AC') return 1
     return (first.runtimeMs ?? Number.MAX_SAFE_INTEGER) - (second.runtimeMs ?? Number.MAX_SAFE_INTEGER)
-  }), [bestFirst, filters, problemId, username])
+  }), [allSubmissions, bestFirst, filters, problemId, username])
 
   const totalPages = Math.ceil(filteredSubmissions.length / submissionPageSize)
   const visibleSubmissions = filteredSubmissions.slice(
@@ -107,12 +157,12 @@ function SubmissionsPage() {
             <SubmissionFilter
               values={draftFilters}
               statuses={submissionStatuses}
-              languages={submissionLanguages}
+              languages={[...new Set([...submissionLanguages, ...liveSubmissions.map((item) => item.language)])].sort()}
               organizations={submissionOrganizations}
               onChange={setDraftFilters}
               onSubmit={applyFilters}
             />
-            <SubmissionStats submissions={submissions} />
+            <SubmissionStats submissions={allSubmissions} />
           </aside>
         </div>
       </main>

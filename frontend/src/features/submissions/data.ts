@@ -15,6 +15,7 @@ export type Submission = {
   runtimeMs: number | null
   memoryMb: number | null
   organization: string
+  detailHref?: string
 }
 
 export type SubmissionFilters = {
