@@ -37,6 +37,58 @@ describe('Admin DTOs', () => {
     await expect(validate(problem)).resolves.toHaveLength(0);
   });
 
+  it('accepts decimal problem scores and rejects negative or over-precision values', async () => {
+    const valid = plainToInstance(AdminProblemDto, {
+      ...base, code: 'uth011', scoringEnabled: true, score: '75.25',
+    });
+    await expect(validate(valid)).resolves.toHaveLength(0);
+
+    for (const score of [-1, '75.251', 1_000_000]) {
+      const invalid = plainToInstance(AdminProblemDto, {
+        ...base, code: 'uth011', scoringEnabled: true, score,
+      });
+      const errors = await validate(invalid);
+      expect(errors.map((error) => error.property)).toContain('score');
+    }
+  });
+
+  it('allows scoring to be disabled without a maximum and requires one when enabled', async () => {
+    const unscored = plainToInstance(AdminProblemDto, {
+      ...base, code: 'uth011', scoringEnabled: false,
+    });
+    await expect(validate(unscored)).resolves.toHaveLength(0);
+
+    const missingMaximum = plainToInstance(AdminProblemDto, {
+      ...base, code: 'uth011', scoringEnabled: true,
+    });
+    expect((await validate(missingMaximum)).map((error) => error.property)).toContain('score');
+  });
+
+  it('accepts scoringEnabled through the strict global whitelist validation pipe', async () => {
+    const payload = plainToInstance(AdminProblemDto, {
+      ...base, code: 'uth011', scoringEnabled: false,
+    });
+    const errors = await validate(payload, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts decimal test-case points and rejects more than two decimal places', async () => {
+    const valid = plainToInstance(AdminTestCaseDto, {
+      name: 'weighted', input: '', expectedOutput: 'ok', kind: 'hidden', points: '12.25',
+    });
+    await expect(validate(valid)).resolves.toHaveLength(0);
+
+    const invalid = plainToInstance(AdminTestCaseDto, {
+      name: 'weighted', input: '', expectedOutput: 'ok', kind: 'hidden', points: '12.251',
+    });
+    const errors = await validate(invalid);
+    expect(errors.map((error) => error.property)).toContain('points');
+  });
+
   it('allows empty input and preserves whitespace output but rejects a missing output', async () => {
     const valid = plainToInstance(AdminTestCaseDto, {
       name: ' sample ',

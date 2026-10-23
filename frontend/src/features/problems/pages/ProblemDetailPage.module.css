@@ -1,7 +1,7 @@
 /* Nền giống phần Main của trang chủ. */
 .main {
   flex: 1;
-  padding: clamp(104px, 12vw, 128px) 0 clamp(42px, 6vw, 76px);
+  padding: clamp(124px, 12vw, 136px) 0 clamp(42px, 6vw, 76px);
   background-image:
     radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
     linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
@@ -67,23 +67,6 @@
   color: #2d4549;
   font-size: 16px;
   line-height: 1.75;
-}
-
-.breadcrumb {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
-.breadcrumb a {
-  color: var(--color-primary-dark);
-  text-decoration: none;
-}
-
-.breadcrumb a:hover {
-  text-decoration: underline;
 }
 
 .header {

@@ -1,8 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
 import { Inject } from '@nestjs/common';
 import { DATABASE_POOL } from '../databases/database.module.js';
+import { getProblemScoringConfiguration } from '../scoring/scoring-policy.js';
 import type { AdminProblemDto } from './dto/admin-problem.dto.js';
 import type { AdminTestCaseDto } from './dto/admin-test-case.dto.js';
 import type {
@@ -24,6 +25,8 @@ type ProblemRow = {
   constraints_text: string | null;
   time_limit_ms: number;
   memory_limit_mb: number;
+  scoring_enabled: boolean;
+  score: string | number;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   updated_at: Date;
   tags: string[];
@@ -44,7 +47,7 @@ type TestCaseRow = {
 const PROBLEM_FIELDS = `
   p.id, p.problem_code, p.title, p.summary, p.statement, p.difficulty,
   p.input_description, p.output_description, p.constraints_text,
-  p.time_limit_ms, p.memory_limit_mb, p.status, p.updated_at,
+  p.time_limit_ms, p.memory_limit_mb, p.scoring_enabled, p.score, p.status, p.updated_at,
   COALESCE((
     SELECT array_agg(t.name ORDER BY t.name)::text[]
     FROM problem_tags pt JOIN tags t ON t.id = pt.tag_id
@@ -127,15 +130,33 @@ export class AdminRepository {
     let savedId = id;
     try {
       await client.query('BEGIN');
-      const values = problemValues(input);
+      let current: { scoring_enabled: boolean; score: string } | undefined;
+      if (id) {
+        const existing = await client.query<{ scoring_enabled: boolean; score: string }>(
+          'SELECT scoring_enabled, score::text AS score FROM problems WHERE id = $1 FOR UPDATE',
+          [id],
+        );
+        current = existing.rows[0];
+        if (!current) throw new NotFoundException('Không tìm thấy bài tập.');
+      }
+      const scoringEnabled = input.scoringEnabled ?? current?.scoring_enabled ?? false;
+      const score = scoringEnabled
+        ? input.score ?? (current ? Number(current.score) : undefined)
+        : Number(current?.score ?? 100);
+      if (scoringEnabled && (
+        score === undefined || !Number.isFinite(score) || score < 0.01 || score > 999999.99
+      )) {
+        throw new BadRequestException('Điểm tối đa phải lớn hơn 0 và không vượt quá 999999.99.');
+      }
+      const values = problemValues(input, scoringEnabled, score ?? 100);
       if (id) {
         const updated = await client.query<{ id: string }>(
           `UPDATE problems
            SET problem_code = $2, title = $3, summary = $4, statement = $5,
                difficulty = $6, input_description = $7, output_description = $8,
                constraints_text = $9, time_limit_ms = $10, memory_limit_mb = $11,
-               status = $12::varchar, published_at = CASE
-                 WHEN $12::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
+               score = $12, scoring_enabled = $13, status = $14::varchar, published_at = CASE
+                 WHEN $14::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
                  ELSE published_at END,
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $1
@@ -148,9 +169,9 @@ export class AdminRepository {
           `INSERT INTO problems
              (problem_code, title, summary, statement, difficulty, input_description,
               output_description, constraints_text, time_limit_ms, memory_limit_mb,
-              status, created_by, published_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::varchar, $12,
-                   CASE WHEN $11::varchar = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END)
+                score, scoring_enabled, status, created_by, published_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::varchar, $14,
+                     CASE WHEN $13::varchar = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END)
            RETURNING id`,
           [...values, userId],
         );
@@ -162,6 +183,9 @@ export class AdminRepository {
       await this.replaceTags(client, savedId, input.tags);
       await this.replaceLanguages(client, savedId, input.languages);
       await this.replaceExamples(client, savedId, input.examples);
+      if ((input.status ?? 'draft') === 'published' && scoringEnabled) {
+        await assertScoringConfigured(client, savedId);
+      }
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
@@ -176,17 +200,35 @@ export class AdminRepository {
   }
 
   async setProblemStatus(id: string, status: AdminProblem['status']): Promise<void> {
-    const result = await this.database.query(
-      `UPDATE problems
-       SET status = $2::varchar,
-           published_at = CASE
-             WHEN $2::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
-             ELSE published_at END,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [id, status.toUpperCase()],
-    );
-    if (!result.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const problem = await client.query<{ id: string; scoring_enabled: boolean }>(
+        'SELECT id, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
+        [id],
+      );
+      if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+      if (status === 'published' && problem.rows[0]?.scoring_enabled) {
+        await assertScoringConfigured(client, id);
+      }
+      const result = await client.query(
+        `UPDATE problems
+         SET status = $2::varchar,
+             published_at = CASE
+               WHEN $2::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
+               ELSE published_at END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [id, status.toUpperCase()],
+      );
+      if (!result.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async deleteProblem(id: string): Promise<void> {
@@ -221,6 +263,34 @@ export class AdminRepository {
       'SELECT name FROM programming_languages WHERE is_enabled = TRUE ORDER BY name ASC',
     );
     return result.rows.map((row) => row.name);
+  }
+
+  async listConfiguredJudge0Ids(): Promise<Set<number>> {
+    const result = await this.database.query<{ judge0_language_id: number }>(
+      'SELECT judge0_language_id FROM programming_languages WHERE is_enabled = TRUE',
+    );
+    return new Set(result.rows.map((row) => row.judge0_language_id));
+  }
+
+  // Idempotent: re-adding an existing language re-enables it and refreshes its name.
+  async enableLanguage(
+    judge0LanguageId: number,
+    name: string,
+  ): Promise<{ judge0LanguageId: number; slug: string; name: string }> {
+    const result = await this.database.query<{
+      judge0_language_id: number;
+      slug: string;
+      name: string;
+    }>(
+      `INSERT INTO programming_languages (name, slug, judge0_language_id, is_enabled)
+       VALUES ($1, $2, $3, TRUE)
+       ON CONFLICT (judge0_language_id)
+       DO UPDATE SET name = EXCLUDED.name, is_enabled = TRUE, updated_at = CURRENT_TIMESTAMP
+       RETURNING judge0_language_id, slug, name`,
+      [name, slugForLanguage(name, judge0LanguageId), judge0LanguageId],
+    );
+    const row = result.rows[0];
+    return { judge0LanguageId: row.judge0_language_id, slug: row.slug, name: row.name };
   }
 
   async dashboard(): Promise<{
@@ -258,6 +328,55 @@ export class AdminRepository {
     return result.rows.map(mapTestCase);
   }
 
+  async distributeTestCasePoints(problemId: string): Promise<AdminTestCase[]> {
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const problem = await client.query<{ score: string; scoring_enabled: boolean }>(
+        'SELECT score::text AS score, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
+        [problemId],
+      );
+      const score = problem.rows[0]?.score;
+      if (score === undefined) throw new NotFoundException('Không tìm thấy bài tập.');
+      if (!problem.rows[0]?.scoring_enabled) {
+        throw new BadRequestException('Bật tính điểm trong biểu mẫu bài tập trước khi phân bổ điểm.');
+      }
+
+      const cases = await client.query<{ id: string; position: number }>(
+        `SELECT id, position FROM problem_test_cases
+         WHERE problem_id = $1 AND is_active = TRUE AND is_sample = FALSE
+         ORDER BY position ASC, id ASC`,
+        [problemId],
+      );
+      if (cases.rows.length === 0) {
+        throw new BadRequestException('Thêm ít nhất một test ẩn trước khi phân bổ điểm.');
+      }
+
+      const allocations = distributeScoreCents(score, cases.rows.length);
+      const values: Array<string | number> = [];
+      const tuples = cases.rows.map((testCase, index) => {
+        values.push(testCase.id, (allocations[index]! / 100).toFixed(2));
+        return `($${values.length - 1}::uuid, $${values.length}::numeric)`;
+      });
+      values.push(problemId);
+      await client.query(
+        `UPDATE problem_test_cases AS test_case
+         SET points = allocation.points
+         FROM (VALUES ${tuples.join(', ')}) AS allocation(id, points)
+         WHERE test_case.id = allocation.id
+           AND test_case.problem_id = $${values.length}`,
+        values,
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    return this.listTestCases(problemId);
+  }
+
   async saveTestCase(
     problemId: string,
     input: AdminTestCaseDto,
@@ -267,6 +386,11 @@ export class AdminRepository {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
+      const problem = await client.query<{ id: string; status: string; scoring_enabled: boolean }>(
+        'SELECT id, status, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
+        [problemId],
+      );
+      if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
       const isSample = input.kind === 'sample';
       let result;
       if (id) {
@@ -279,7 +403,7 @@ export class AdminRepository {
                      points, position, is_active`,
           [
             problemId, id, input.name.trim(), input.input, input.expectedOutput,
-            isSample, input.points ?? 0, input.position ?? null,
+            isSample, isSample ? 0 : input.points ?? 0, input.position ?? null,
           ],
         );
       } else {
@@ -295,13 +419,16 @@ export class AdminRepository {
                      points, position, is_active`,
           [
             problemId, input.name.trim(), input.input, input.expectedOutput,
-            isSample, input.points ?? 0, input.position ?? null,
+            isSample, isSample ? 0 : input.points ?? 0, input.position ?? null,
           ],
         );
       }
       const row = result.rows[0];
       if (!row) throw new NotFoundException('Không tìm thấy test case.');
       await client.query('UPDATE problems SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [problemId]);
+      if (problem.rows[0]?.status === 'PUBLISHED' && problem.rows[0].scoring_enabled) {
+        await assertScoringConfigured(client, problemId);
+      }
       await client.query('COMMIT');
       return mapTestCase(row);
     } catch (error) {
@@ -316,12 +443,30 @@ export class AdminRepository {
   }
 
   async deleteTestCase(problemId: string, id: string): Promise<void> {
-    const result = await this.database.query(
-      `DELETE FROM problem_test_cases WHERE problem_id = $1 AND id = $2`,
-      [problemId, id],
-    );
-    if (!result.rowCount) throw new NotFoundException('Không tìm thấy test case.');
-    await this.database.query('UPDATE problems SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [problemId]);
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const problem = await client.query<{ id: string; status: string; scoring_enabled: boolean }>(
+        'SELECT id, status, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
+        [problemId],
+      );
+      if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+      const result = await client.query(
+        `DELETE FROM problem_test_cases WHERE problem_id = $1 AND id = $2`,
+        [problemId, id],
+      );
+      if (!result.rowCount) throw new NotFoundException('Không tìm thấy test case.');
+      await client.query('UPDATE problems SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [problemId]);
+      if (problem.rows[0]?.status === 'PUBLISHED' && problem.rows[0].scoring_enabled) {
+        await assertScoringConfigured(client, problemId);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   private async ensureProblem(id: string): Promise<void> {
@@ -396,7 +541,11 @@ export class AdminRepository {
   }
 }
 
-function problemValues(input: AdminProblemDto): Array<string | number | null> {
+function problemValues(
+  input: AdminProblemDto,
+  scoringEnabled: boolean,
+  score: number,
+): Array<string | number | boolean | null> {
   return [
     input.code.trim(),
     input.title.trim(),
@@ -408,6 +557,8 @@ function problemValues(input: AdminProblemDto): Array<string | number | null> {
     input.constraints ?? null,
     Math.round(input.timeLimitSeconds * 1000),
     input.memoryLimitMb,
+    score,
+    scoringEnabled,
     (input.status ?? 'draft').toUpperCase(),
   ];
 }
@@ -427,6 +578,8 @@ function mapProblem(row: ProblemRow): AdminProblem {
     constraints: row.constraints_text ?? '',
     timeLimitSeconds: row.time_limit_ms / 1000,
     memoryLimitMb: row.memory_limit_mb,
+    scoringEnabled: row.scoring_enabled,
+    score: Number(row.score),
     examples: [],
     status: row.status.toLowerCase() as AdminProblem['status'],
     updatedAt: row.updated_at.toISOString(),
@@ -441,14 +594,49 @@ function mapTestCase(row: TestCaseRow): AdminTestCase {
     input: row.input_data,
     expectedOutput: row.expected_output,
     kind: row.is_sample ? 'sample' : 'hidden',
-    points: points === 0 ? null : points,
+    points,
     position: row.position,
   };
+}
+
+function distributeScoreCents(score: string, count: number): number[] {
+  const [whole = '0', fraction = ''] = score.split('.');
+  const totalCents = Number(whole) * 100 + Number(fraction.padEnd(2, '0').slice(0, 2));
+  const base = Math.floor(totalCents / count);
+  const remainder = totalCents % count;
+  return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
+}
+
+async function assertScoringConfigured(
+  client: Pick<PoolClient, 'query'>,
+  problemId: string,
+): Promise<void> {
+  const configuration = await getProblemScoringConfiguration(client, problemId);
+  if (!configuration) throw new NotFoundException('Không tìm thấy bài tập.');
+  if (!configuration.scoringEnabled) return;
+  if (configuration.scoredTestCount === 0 || !configuration.pointsMatch) {
+    throw new BadRequestException(
+      `Tổng điểm test ẩn (${configuration.assignedPoints.toFixed(2)}) phải bằng điểm tối đa (${configuration.maxScore.toFixed(2)}) để xuất bản và nhận bài nộp.`,
+    );
+  }
 }
 
 function uniqueNames(names: string[]): string[] {
   return [...new Map(names.map((name) => [name.trim().toLocaleLowerCase(), name.trim()])).values()]
     .filter(Boolean);
+}
+
+export function slugForLanguage(name: string, judge0LanguageId: number): string {
+  const prefix = `j0-${judge0LanguageId}-`;
+  const base = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\+/g, 'p')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'language';
+  return `${prefix}${base.slice(0, 100 - prefix.length)}`;
 }
 
 function slugForTag(name: string): string {

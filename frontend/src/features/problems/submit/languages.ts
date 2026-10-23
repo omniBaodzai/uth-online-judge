@@ -1,19 +1,11 @@
-export type LanguageId = 'cpp' | 'java' | 'python' | 'javascript'
-
 export type EditorLanguage = {
-  id: LanguageId
   label: string
   monacoId: string
   template: string
 }
 
-// Mã mẫu ban đầu cho từng ngôn ngữ.
-export const editorLanguages: EditorLanguage[] = [
-  {
-    id: 'cpp',
-    label: 'C++',
-    monacoId: 'cpp',
-    template: `#include <bits/stdc++.h>
+const templates = {
+  cpp: `#include <bits/stdc++.h>
 using namespace std;
 
 int main() {
@@ -24,12 +16,14 @@ int main() {
     return 0;
 }
 `,
-  },
-  {
-    id: 'java',
-    label: 'Java',
-    monacoId: 'java',
-    template: `import java.util.*;
+  c: `#include <stdio.h>
+
+int main(void) {
+    // Viết lời giải của bạn tại đây
+    return 0;
+}
+`,
+  java: `import java.util.*;
 
 public class Main {
     public static void main(String[] args) {
@@ -38,12 +32,7 @@ public class Main {
     }
 }
 `,
-  },
-  {
-    id: 'python',
-    label: 'Python',
-    monacoId: 'python',
-    template: `import sys
+  python: `import sys
 
 
 def main():
@@ -53,22 +42,20 @@ def main():
 
 main()
 `,
-  },
-  {
-    id: 'javascript',
-    label: 'JavaScript',
-    monacoId: 'javascript',
-    template: `const lines = require('fs').readFileSync(0, 'utf8').split('\\n');
+  javascript: `const lines = require('fs').readFileSync(0, 'utf8').split('\\n');
 
 // Viết lời giải của bạn tại đây
 `,
-  },
-]
-
-export function getLanguage(id: LanguageId): EditorLanguage {
-  return editorLanguages.find((language) => language.id === id) ?? editorLanguages[0]
 }
 
-export function isLanguageId(value: string | null): value is LanguageId {
-  return editorLanguages.some((language) => language.id === value)
+// Chỉ dùng để chọn mã mẫu và cách tô màu cú pháp. Việc ngôn ngữ nào được phép nộp
+// do máy chủ quyết định (danh sách của bài tập), không phụ thuộc vào hàm này.
+export function describeLanguage(name: string): EditorLanguage {
+  const lower = name.toLowerCase()
+  if (lower.startsWith('c++')) return { label: name, monacoId: 'cpp', template: templates.cpp }
+  if (/^c(\s|\()/.test(lower)) return { label: name, monacoId: 'cpp', template: templates.c }
+  if (lower.startsWith('java ') || lower.startsWith('java(')) return { label: name, monacoId: 'java', template: templates.java }
+  if (lower.startsWith('python')) return { label: name, monacoId: 'python', template: templates.python }
+  if (lower.startsWith('javascript')) return { label: name, monacoId: 'javascript', template: templates.javascript }
+  return { label: name, monacoId: 'plaintext', template: '' }
 }

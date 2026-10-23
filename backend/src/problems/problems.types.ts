@@ -12,6 +12,7 @@ export interface ProblemListItem {
   code: string;
   title: string;
   difficulty: Difficulty;
+  scoringEnabled: boolean;
   points: number;
   acceptanceRate: number;
   acCount: number;
@@ -47,6 +48,7 @@ export interface ProblemDetail {
   outputDescription: string | null;
   constraints: string | null;
   difficulty: Difficulty;
+  scoringEnabled: boolean;
   points: number;
   timeLimitMs: number;
   memoryLimitMb: number;

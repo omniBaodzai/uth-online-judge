@@ -36,13 +36,6 @@ function ProblemDetailPage() {
         <div className={styles.left}>
           <ProblemStatement
             problem={problem}
-            nav={
-              <nav className={styles.breadcrumb} aria-label="Điều hướng phụ">
-                <Link to="/problems">Bài tập</Link>
-                <span aria-hidden="true">/</span>
-                <span>{problem.code}</span>
-              </nav>
-            }
           />
 
           <section className={styles.panel} aria-labelledby="comments-title">
@@ -122,7 +115,7 @@ function ProblemDetailPage() {
                   <Icon><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></Icon>
                   Điểm
                 </dt>
-                <dd>{problem.points} điểm</dd>
+                <dd>{problem.scoringEnabled ? `${problem.points} điểm` : 'Không áp dụng'}</dd>
               </div>
               <div>
                 <dt>

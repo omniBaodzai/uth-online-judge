@@ -11,7 +11,7 @@ describe('ProblemsService', () => {
     listTags: vi.fn(),
     findPublishedByCode: vi.fn(),
     findSamples: vi.fn(),
-    listEnabledLanguages: vi.fn(),
+    listProblemLanguages: vi.fn(),
   };
   const service = new ProblemsService(repository as never);
 
@@ -49,7 +49,7 @@ describe('ProblemsService', () => {
     repository.findPublishedByCode.mockResolvedValue({ id: 'p1', code: 'UTH001', title: 'T' });
     repository.findTagsForProblems.mockResolvedValue(new Map([['p1', [{ name: 'Toán', slug: 'math' }]]]));
     repository.findSamples.mockResolvedValue([{ input: '1', output: '2' }]);
-    repository.listEnabledLanguages.mockResolvedValue([{ slug: 'cpp', name: 'C++', version: null }]);
+    repository.listProblemLanguages.mockResolvedValue([{ slug: 'cpp', name: 'C++', version: null }]);
 
     const detail = await service.getByCode('UTH001', null);
 

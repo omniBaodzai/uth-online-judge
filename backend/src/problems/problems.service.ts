@@ -35,7 +35,7 @@ export class ProblemsService {
     const [tags, examples, languages] = await Promise.all([
       this.repository.findTagsForProblems([id]),
       this.repository.findSamples(id),
-      this.repository.listEnabledLanguages(),
+      this.repository.listProblemLanguages(id),
     ]);
     return { ...problem, tags: tags.get(id) ?? [], examples, languages };
   }

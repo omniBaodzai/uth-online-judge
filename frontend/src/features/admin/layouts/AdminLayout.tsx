@@ -1,29 +1,18 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAdmin } from '../useAdmin'
 import { useAuth } from '../../auth/useAuth'
 import { AdminIcon } from '../components/AdminIcons'
+import Breadcrumb from '../../../components/navigation/Breadcrumb'
 import uthLogo from '../../../assets/uth_logo.png'
 import styles from '../admin.module.css'
 
-const pageNames: Record<string, string> = {
-  '/admin': 'Tổng quan',
-  '/admin/problems': 'Quản lý bài tập',
-  '/admin/users': 'Quản lý người dùng',
-}
-
 function AdminLayout() {
-  const { pathname } = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const { notice, setNotice } = useAdmin()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const title = pathname.includes('/test-cases')
-    ? 'Quản lý test case'
-    : pathname.includes('/edit') || pathname.endsWith('/new')
-      ? pathname.endsWith('/new') ? 'Tạo bài tập' : 'Chỉnh sửa bài tập'
-      : pageNames[pathname] ?? 'Khu vực Admin'
 
   async function signOut() {
     try {
@@ -63,7 +52,7 @@ function AdminLayout() {
           <button className={styles.mobileMenu} type="button" aria-label="Mở menu điều hướng" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}>
             <AdminIcon name="menu" size={21} />
           </button>
-          <div className={styles.breadcrumbs}><span>Admin</span><AdminIcon name="chevron" size={14} /><strong>{title}</strong></div>
+          <Breadcrumb />
           <div className={styles.profileWrap}>
             <button className={styles.profileButton} type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}>
               <span className={styles.avatar}>AD</span><span className={styles.profileText}><strong>{user?.full_name || user?.username || 'Quản trị viên'}</strong><small>{user?.email}</small></span>

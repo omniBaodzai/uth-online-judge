@@ -12,7 +12,10 @@ export interface Judge0RawSubmission {
   compile_output?: string | null;
   message?: string | null;
   time?: string | null;
+  wall_time?: string | number | null;
   memory?: number | null;
+  created_at?: string | null;
+  finished_at?: string | null;
 }
 
 // Internal application models.
@@ -69,5 +72,7 @@ export interface Judge0SubmissionResult {
   compileOutput: string | null;
   message: string | null;
   timeSeconds: number | null;
+  wallTimeSeconds: number | null;
   memoryKb: number | null;
+  submissionDurationMs: number | null;
 }

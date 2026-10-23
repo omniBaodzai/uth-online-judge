@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { CodeEditor } from './MonacoEditor'
-import { editorLanguages, getLanguage, isLanguageId, type LanguageId } from './languages'
+import { describeLanguage } from './languages'
 import { ApiError } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import { submitSolution } from './submission-service'
@@ -8,13 +9,16 @@ import styles from './CodeEditorPanel.module.css'
 
 const MonacoEditor = lazy(() => import('./MonacoEditor'))
 
-type Drafts = Record<LanguageId, string>
+export type AllowedLanguage = { slug: string; name: string }
 
-type Draft = { language: LanguageId; codes: Partial<Drafts> }
+type Drafts = Record<string, string>
+
+type Draft = { language: string; codes: Drafts }
 
 type CodeEditorPanelProps = {
   problemCode: string
   userId: string
+  languages: AllowedLanguage[]
 }
 
 class EditorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -39,38 +43,43 @@ function draftKey(userId: string, problemCode: string) {
   return `uth_draft:${userId}:${problemCode}`
 }
 
-function loadDraft(key: string): Draft | null {
+// Chỉ giữ lại bản nháp của những ngôn ngữ bài tập hiện đang cho phép.
+function loadDraft(key: string, allowed: AllowedLanguage[]): Draft | null {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? 'null')
     if (!parsed || typeof parsed !== 'object') return null
     const { language, codes } = parsed as { language?: string; codes?: Record<string, unknown> }
-    if (!isLanguageId(language ?? null) || !codes || typeof codes !== 'object') return null
-    const safe: Partial<Drafts> = {}
-    for (const item of editorLanguages) {
-      if (typeof codes[item.id] === 'string') safe[item.id] = codes[item.id] as string
+    if (!codes || typeof codes !== 'object') return null
+    const safe: Drafts = {}
+    for (const item of allowed) {
+      if (typeof codes[item.slug] === 'string') safe[item.slug] = codes[item.slug] as string
     }
-    return { language: language as LanguageId, codes: safe }
+    const selected = allowed.some((item) => item.slug === language) ? (language as string) : allowed[0]?.slug
+    return selected ? { language: selected, codes: safe } : null
   } catch {
     return null
   }
 }
 
-function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
+function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProps) {
   const key = draftKey(userId, problemCode)
-  const [initialDraft] = useState(() => loadDraft(key))
-  const [language, setLanguage] = useState<LanguageId>(initialDraft?.language ?? 'cpp')
-  const [codes, setCodes] = useState<Partial<Drafts>>(initialDraft?.codes ?? {})
+  const [initialDraft] = useState(() => loadDraft(key, languages))
+  const [language, setLanguage] = useState<string>(initialDraft?.language ?? languages[0]?.slug ?? '')
+  const [codes, setCodes] = useState<Drafts>(initialDraft?.codes ?? {})
   const [fullscreen, setFullscreen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
+  const submittingRef = useRef(false)
   const editorRef = useRef<CodeEditor | null>(null)
   const { request } = useAuth()
+  const navigate = useNavigate()
 
-  const current = getLanguage(language)
+  const selected = languages.find((item) => item.slug === language)
+  const current = describeLanguage(selected?.name ?? '')
   const code = codes[language] ?? current.template
   const isModified = code !== current.template
-  const canFormat = language === 'javascript'
+  const canFormat = current.monacoId === 'javascript'
 
   // Lưu bản nháp mã nguồn ở trình duyệt (không chứa token hay thông tin xác thực).
   useEffect(() => {
@@ -107,7 +116,7 @@ function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
     editorRef.current = editor
   }, [])
 
-  function changeLanguage(next: LanguageId) {
+  function changeLanguage(next: string) {
     setLanguage(next)
     setConfirmReset(false)
     setNotice('')
@@ -129,14 +138,17 @@ function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
   }
 
   async function handleSubmit() {
+    if (!selected || submittingRef.current) return
+    submittingRef.current = true
     setSubmitting(true)
     setNotice('')
     try {
-      const result = await submitSolution(request, { problemCode, language, sourceCode: code })
-      setNotice(`Đã ghi nhận bài giải (mã ${result.id}, trạng thái: đang chờ). Hệ thống chấm bài chưa được tích hợp nên bài chưa được chấm.`)
+      const result = await submitSolution(request, { problemCode, language: selected.slug, sourceCode: code })
+      navigate(`/submissions/${encodeURIComponent(result.id)}`)
     } catch (error) {
       setNotice(error instanceof ApiError ? error.message : 'Không thể gửi bài giải. Vui lòng thử lại.')
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
@@ -153,10 +165,12 @@ function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
             <select
               id="language-select"
               value={language}
-              onChange={(event) => changeLanguage(event.target.value as LanguageId)}
+              onChange={(event) => changeLanguage(event.target.value)}
+              disabled={languages.length === 0}
             >
-              {editorLanguages.map((item) => (
-                <option key={item.id} value={item.id}>{item.label}</option>
+              {languages.length === 0 && <option value="">Chưa có ngôn ngữ</option>}
+              {languages.map((item) => (
+                <option key={item.slug} value={item.slug}>{item.name}</option>
               ))}
             </select>
           </div>
@@ -193,10 +207,13 @@ function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
         </EditorBoundary>
       </div>
 
+      {languages.length === 0 && (
+        <p className={styles.notice} role="alert">Bài tập này chưa được cấu hình ngôn ngữ nộp bài. Vui lòng liên hệ quản trị viên.</p>
+      )}
       {notice && <p className={styles.notice} role="status">{notice}</p>}
 
       <div className={styles.actions}>
-        <span className={styles.currentLang}>Đang chọn: <strong>{current.label}</strong></span>
+        <span className={styles.currentLang}>Đang chọn: <strong>{selected ? current.label : '—'}</strong></span>
         {confirmReset ? (
           <div className={styles.confirm} role="alert">
             <span>Đặt lại sẽ xóa code bạn đã viết. Tiếp tục?</span>
@@ -210,7 +227,7 @@ function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
               type="button"
               className={styles.primary}
               onClick={handleSubmit}
-              disabled={submitting || !code.trim()}
+              disabled={submitting || !selected || !code.trim()}
             >
               {submitting ? 'Đang gửi…' : 'Gửi bài giải'}
             </button>

@@ -12,6 +12,7 @@ export type ProblemDetail = {
   title: string
   status: ProblemStatus
   hasSolution: boolean
+  scoringEnabled: boolean
   description: string[]
   input: string[]
   constraints: string[]
@@ -23,6 +24,7 @@ export type ProblemDetail = {
   author: string | null
   topics: string[]
   languages: string[]
+  languageOptions: { slug: string; name: string }[]
 }
 
 export const reportTypes = [
@@ -58,6 +60,7 @@ export function toProblemDetail(data: ProblemDetailResponse): ProblemDetail {
     title: data.title,
     status: data.status,
     hasSolution: data.hasSolution,
+    scoringEnabled: data.scoringEnabled,
     description: paragraphs(data.statement),
     input: paragraphs(data.inputDescription),
     constraints: lines(data.constraints),
@@ -69,5 +72,6 @@ export function toProblemDetail(data: ProblemDetailResponse): ProblemDetail {
     author: data.author,
     topics: data.tags.map((tag) => tag.name),
     languages: data.languages.map((language) => language.name),
+    languageOptions: data.languages.map(({ slug, name }) => ({ slug, name })),
   }
 }

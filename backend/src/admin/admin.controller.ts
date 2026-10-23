@@ -15,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { AddJudge0LanguageDto } from './dto/admin-language.dto.js';
 import { AdminProblemDto, AdminProblemStatusDto } from './dto/admin-problem.dto.js';
 import { AdminTestCaseDto } from './dto/admin-test-case.dto.js';
 import { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.js';
@@ -42,6 +43,17 @@ export class AdminController {
       this.admin.listLanguages(),
     ]);
     return { tags, languages };
+  }
+
+  @Get('languages/judge0')
+  judge0Languages() {
+    return this.admin.listJudge0Languages();
+  }
+
+  @Post('languages')
+  @HttpCode(HttpStatus.OK)
+  addLanguage(@Body() dto: AddJudge0LanguageDto) {
+    return this.admin.addJudge0Language(dto.judge0LanguageId);
   }
 
   @Get('problems')
@@ -87,6 +99,11 @@ export class AdminController {
   @Post('problems/:id/test-cases')
   createTestCase(@Param('id') problemId: string, @Body() input: AdminTestCaseDto) {
     return this.admin.saveTestCase(problemId, input);
+  }
+
+  @Post('problems/:id/test-cases/distribute-points')
+  distributeTestCasePoints(@Param('id') problemId: string) {
+    return this.admin.distributeTestCasePoints(problemId);
   }
 
   @Patch('problems/:id/test-cases/:caseId')

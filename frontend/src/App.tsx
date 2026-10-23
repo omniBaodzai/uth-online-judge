@@ -7,6 +7,8 @@ import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
 import SubmitSolutionPage from './features/problems/pages/SubmitSolutionPage'
 import { RequireAuth } from './features/auth/components/RequireAuth'
 import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
+import SubmissionDetailsPage from './features/submissions/pages/SubmissionDetailsPage'
+import MyProblemSubmissionsPage from './features/submissions/pages/MyProblemSubmissionsPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
 import AppLayout from './components/layout/AppLayout'
@@ -54,10 +56,17 @@ function App() {
           />
           <Route path="problems/:code/pdf" element={<PlaceholderPage title="Đề bài dạng PDF" />} />
           <Route path="problems/:code/submissions" element={<PlaceholderPage title="Danh sách bài nộp" />} />
-          <Route path="problems/:code/submissions/me" element={<PlaceholderPage title="Bài nộp của tôi" />} />
+          <Route
+            path="problems/:code/submissions/me"
+            element={<RequireAuth><MyProblemSubmissionsPage /></RequireAuth>}
+          />
           <Route path="problems/:code/submissions/best" element={<PlaceholderPage title="Bài nộp tốt nhất" />} />
           <Route path="problems/:code/solution" element={<PlaceholderPage title="Lời giải bài tập" />} />
           <Route path="contests" element={<PlaceholderPage title="Cuộc thi" />} />
+          <Route
+            path="submissions/:submissionId"
+            element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}
+          />
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
           <Route path="*" element={<Navigate to="/" replace />} />

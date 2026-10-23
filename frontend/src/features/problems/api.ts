@@ -12,6 +12,7 @@ export type ProblemListItem = {
   code: string
   title: string
   difficulty: 'EASY' | 'MEDIUM' | 'HARD'
+  scoringEnabled: boolean
   points: number
   acceptanceRate: number
   acCount: number
@@ -46,6 +47,7 @@ export type ProblemDetailResponse = {
   outputDescription: string | null
   constraints: string | null
   difficulty: 'EASY' | 'MEDIUM' | 'HARD'
+  scoringEnabled: boolean
   points: number
   timeLimitMs: number
   memoryLimitMb: number

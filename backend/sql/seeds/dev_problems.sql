@@ -45,6 +45,13 @@ SELECT p.id, t.id FROM problems p, tags t
 WHERE p.problem_code = 'UTH001' AND t.slug = 'math'
 ON CONFLICT DO NOTHING;
 
+INSERT INTO problem_languages (problem_id, language_id)
+SELECT p.id, l.id
+FROM problems p
+JOIN programming_languages l ON l.slug IN ('cpp', 'java', 'python', 'javascript')
+WHERE p.problem_code = 'UTH001'
+ON CONFLICT DO NOTHING;
+
 -- Một test mẫu (hiển thị) và một test ẩn (không bao giờ trả về qua API).
 INSERT INTO problem_test_cases (problem_id, test_name, input_data, expected_output, is_sample, points, position)
 SELECT p.id, 'sample-1', '3 5', '8', TRUE, 0, 1 FROM problems p WHERE p.problem_code = 'UTH001'

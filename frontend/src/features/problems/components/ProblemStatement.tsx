@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import type { ProblemDetail, ProblemExample } from '../detail-data'
 import { statusLabels, type ProblemStatus } from '../data'
 import styles from '../pages/ProblemDetailPage.module.css'
@@ -56,15 +56,13 @@ function Example({ index, example }: { index: number; example: ProblemExample })
 
 type ProblemStatementProps = {
   problem: ProblemDetail
-  nav: ReactNode
   className?: string
 }
 
 // Nội dung đề bài dùng chung cho trang chi tiết và trang gửi bài giải.
-function ProblemStatement({ problem, nav, className = '' }: ProblemStatementProps) {
+function ProblemStatement({ problem, className = '' }: ProblemStatementProps) {
   return (
     <article className={`${styles.panel} ${styles.statement} ${className}`}>
-      {nav}
       <header className={styles.header}>
         <h1>
           <span className={styles.codeTag}>{problem.code}</span> — {problem.title}

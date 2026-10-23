@@ -1,7 +1,7 @@
 /* Nền giống phần Main của trang chủ. */
 .main {
   flex: 1;
-  padding: clamp(104px, 12vw, 128px) 0 clamp(42px, 6vw, 76px);
+  padding: clamp(124px, 12vw, 136px) 0 clamp(42px, 6vw, 76px);
   background-image:
     radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
     linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
@@ -397,4 +397,3 @@
     width: calc(100% - 32px);
   }
 }
-

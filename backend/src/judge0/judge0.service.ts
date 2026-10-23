@@ -1,7 +1,10 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Judge0Client, type FetchFn } from './judge0.client.js';
 import { JUDGE0_CONFIG, loadJudge0Config, type Judge0Config } from './judge0.config.js';
-import { Judge0InvalidResponseError, Judge0TimeoutError } from './judge0.errors.js';
+import {
+  Judge0InvalidResponseError,
+  Judge0SubmissionTimeoutError,
+} from './judge0.errors.js';
 import {
   JUDGE0_STATUS,
   Judge0Verdict,
@@ -18,6 +21,7 @@ const TOKEN_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 
 @Injectable()
 export class Judge0Service {
+  private readonly logger = new Logger(Judge0Service.name);
   private resolved?: { config: Judge0Config; client: Judge0Client };
 
   constructor(
@@ -46,7 +50,14 @@ export class Judge0Service {
     const data = await this.deps.client.request('GET', '/languages');
     if (!Array.isArray(data)) throw new Judge0InvalidResponseError('Unexpected /languages response from Judge0.');
     return data.map((item) => {
-      if (!isRecord(item) || typeof item.id !== 'number' || typeof item.name !== 'string') {
+      if (
+        !isRecord(item)
+        || typeof item.id !== 'number'
+        || !Number.isSafeInteger(item.id)
+        || item.id <= 0
+        || typeof item.name !== 'string'
+        || !item.name.trim()
+      ) {
         throw new Judge0InvalidResponseError('Unexpected language entry from Judge0.');
       }
       return { id: item.id, name: item.name };
@@ -54,37 +65,165 @@ export class Judge0Service {
   }
 
   async createSubmission(input: CreateJudge0SubmissionInput): Promise<string> {
-    const body: Record<string, unknown> = {
-      language_id: input.languageId,
-      source_code: input.sourceCode,
-    };
-    if (input.stdin !== undefined) body.stdin = input.stdin;
-    if (input.expectedOutput !== undefined) body.expected_output = input.expectedOutput;
-    if (input.cpuTimeLimitSeconds !== undefined) body.cpu_time_limit = input.cpuTimeLimitSeconds;
-    if (input.memoryLimitKb !== undefined) body.memory_limit = input.memoryLimitKb;
-
-    const data = await this.deps.client.request('POST', '/submissions?base64_encoded=false&wait=false', body);
+    const startedAt = performance.now();
+    const data = await this.deps.client.request(
+      'POST',
+      '/submissions?base64_encoded=false&wait=false',
+      toJudge0Submission(input),
+    );
     if (!isRecord(data) || typeof data.token !== 'string' || !TOKEN_PATTERN.test(data.token)) {
       throw new Judge0InvalidResponseError('Judge0 did not return a valid submission token.');
     }
+    this.logger.log(`Judge0 create request httpMs=${elapsedMs(startedAt)}`);
     return data.token;
+  }
+
+  async createSubmissionBatch(inputs: CreateJudge0SubmissionInput[]): Promise<string[]> {
+    if (inputs.length === 0 || inputs.length > 4) {
+      throw new Judge0InvalidResponseError('Judge0 batch size must be between 1 and 4.');
+    }
+    const startedAt = performance.now();
+    const data = await this.deps.client.request(
+      'POST',
+      '/submissions/batch?base64_encoded=false',
+      { submissions: inputs.map(toJudge0Submission) },
+    );
+    if (!Array.isArray(data) || data.length !== inputs.length) {
+      throw new Judge0InvalidResponseError('Judge0 returned invalid batch submission tokens.');
+    }
+    const tokens: string[] = [];
+    for (const item of data) {
+      if (!isRecord(item) || typeof item.token !== 'string' || !TOKEN_PATTERN.test(item.token)) {
+        throw new Judge0InvalidResponseError('Judge0 returned invalid batch submission tokens.');
+      }
+      tokens.push(item.token);
+    }
+    if (new Set(tokens).size !== tokens.length) {
+      throw new Judge0InvalidResponseError('Judge0 returned duplicate batch submission tokens.');
+    }
+    this.logger.log(`Judge0 batch create count=${tokens.length} httpMs=${elapsedMs(startedAt)}`);
+    return tokens;
   }
 
   async getSubmission(token: string): Promise<Judge0SubmissionResult> {
     if (!TOKEN_PATTERN.test(token)) throw new Judge0InvalidResponseError('Invalid Judge0 token.');
-    const data = await this.deps.client.request('GET', `/submissions/${encodeURIComponent(token)}?base64_encoded=false`);
+    const data = await this.deps.client.request(
+      'GET',
+      `/submissions/${encodeURIComponent(token)}?base64_encoded=false&fields=token,status,stdout,stderr,compile_output,message,time,wall_time,memory,created_at,finished_at`,
+    );
     return mapSubmission(token, data);
   }
 
   // Polls with a bounded number of attempts; never loops indefinitely.
-  async waitForResult(token: string): Promise<Judge0SubmissionResult> {
+  async waitForResult(token: string, timeoutMs?: number): Promise<Judge0SubmissionResult> {
     const { maxPollAttempts, pollIntervalMs } = this.deps.config;
-    for (let attempt = 1; attempt <= maxPollAttempts; attempt += 1) {
+    const deadline = timeoutMs === undefined ? undefined : Date.now() + timeoutMs;
+    const effectivePollIntervalMs = Math.max(500, pollIntervalMs);
+    const attemptsForTimeout = timeoutMs === undefined
+      ? maxPollAttempts
+      : Math.min(720, Math.max(maxPollAttempts, Math.ceil(timeoutMs / effectivePollIntervalMs)));
+    const startedAt = performance.now();
+    let requestMs = 0;
+
+    for (let attempt = 1; attempt <= attemptsForTimeout; attempt += 1) {
+      if (deadline !== undefined && Date.now() >= deadline) break;
+      const requestStartedAt = performance.now();
       const result = await this.getSubmission(token);
-      if (result.isFinished) return result;
-      if (attempt < maxPollAttempts) await sleep(pollIntervalMs);
+      requestMs += elapsedMs(requestStartedAt);
+      if (result.isFinished) {
+        this.logger.log(
+          `Judge0 poll finished verdict=${result.verdict} polls=${attempt} pollElapsedMs=${elapsedMs(startedAt)} httpMs=${requestMs} judge0DurationMs=${result.submissionDurationMs ?? 'unknown'} executionMs=${toMs(result.timeSeconds)} wallMs=${toMs(result.wallTimeSeconds)}`,
+        );
+        return result;
+      }
+      if (attempt < attemptsForTimeout) {
+        const remainingMs = deadline === undefined
+          ? nextPollDelay(pollIntervalMs, attempt)
+          : Math.max(0, deadline - Date.now());
+        if (remainingMs > 0) {
+          await sleep(Math.min(nextPollDelay(pollIntervalMs, attempt), remainingMs));
+        }
+      }
     }
-    throw new Judge0TimeoutError(`Judge0 submission did not finish after ${maxPollAttempts} polls.`);
+    this.logger.warn(
+      `Judge0 poll deadline reached polls=${attemptsForTimeout} pollElapsedMs=${elapsedMs(startedAt)} httpMs=${requestMs}`,
+    );
+    throw new Judge0SubmissionTimeoutError(
+      `Judge0 submission did not finish after ${attemptsForTimeout} polls.`,
+    );
+  }
+
+  async waitForResults(
+    tokens: string[],
+    timeoutMs: number,
+    onCompleted?: (results: Judge0SubmissionResult[]) => Promise<void>,
+  ): Promise<{ results: Judge0SubmissionResult[]; timedOut: boolean }> {
+    if (
+      tokens.length === 0
+      || tokens.length > 4
+      || tokens.some((token) => !TOKEN_PATTERN.test(token))
+      || new Set(tokens).size !== tokens.length
+    ) {
+      throw new Judge0InvalidResponseError('Invalid Judge0 batch polling tokens.');
+    }
+
+    const { maxPollAttempts, pollIntervalMs } = this.deps.config;
+    const intervalMs = Math.max(500, pollIntervalMs);
+    const deadline = Date.now() + timeoutMs;
+    const maxAttempts = Math.min(720, Math.max(maxPollAttempts, Math.ceil(timeoutMs / intervalMs)));
+    const startedAt = performance.now();
+    let requestMs = 0;
+    let attempts = 0;
+    const completed = new Set<string>();
+    const latest = new Map<string, Judge0SubmissionResult>();
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (Date.now() >= deadline) break;
+      attempts += 1;
+      const pendingTokens = tokens.filter((token) => !completed.has(token));
+      const query = new URLSearchParams({
+        tokens: pendingTokens.join(','),
+        base64_encoded: 'false',
+        fields: 'token,status,time,wall_time,memory,created_at,finished_at',
+      });
+      const requestStartedAt = performance.now();
+      const data = await this.deps.client.request('GET', `/submissions/batch?${query}`);
+      requestMs += elapsedMs(requestStartedAt);
+      const batch = parseBatchResults(data, pendingTokens);
+      const newlyCompleted: Judge0SubmissionResult[] = [];
+
+      for (const result of batch) {
+        latest.set(result.token, result);
+        if (result.isFinished) {
+          completed.add(result.token);
+          newlyCompleted.push(result);
+        }
+      }
+      if (newlyCompleted.length > 0 && onCompleted) await onCompleted(newlyCompleted);
+
+      if (completed.size === tokens.length) {
+        this.logger.log(
+          `Judge0 batch poll finished count=${tokens.length} polls=${attempts} pollElapsedMs=${elapsedMs(startedAt)} httpMs=${requestMs} judge0LifetimeMs=${sumMetric(tokens.map((token) => latest.get(token)?.submissionDurationMs ?? null))} executionMs=${sumMetric(tokens.map((token) => toMsNumber(latest.get(token)?.timeSeconds ?? null)))} wallMs=${sumMetric(tokens.map((token) => toMsNumber(latest.get(token)?.wallTimeSeconds ?? null)))}`,
+        );
+        return { results: tokens.map((token) => latest.get(token)!), timedOut: false };
+      }
+
+      if (attempt < maxAttempts) {
+        const remainingMs = Math.max(0, deadline - Date.now());
+        if (remainingMs > 0) {
+          await sleep(Math.min(nextPollDelay(pollIntervalMs, attempt), remainingMs));
+        }
+      }
+    }
+
+    const timedOut = completed.size !== tokens.length;
+    this.logger.warn(
+      `Judge0 batch poll ${timedOut ? 'deadline reached' : 'finished'} count=${tokens.length} completed=${completed.size} polls=${attempts} pollElapsedMs=${elapsedMs(startedAt)} httpMs=${requestMs}`,
+    );
+    return {
+      results: tokens.map((token) => latest.get(token)).filter(isDefined),
+      timedOut,
+    };
   }
 }
 
@@ -116,8 +255,12 @@ function mapSubmission(token: string, data: unknown): Judge0SubmissionResult {
   const raw = data as Judge0RawSubmission;
   const statusId = data.status.id;
   const time = raw.time == null ? null : Number(raw.time);
-  if (time !== null && !Number.isFinite(time)) {
-    throw new Judge0InvalidResponseError('Judge0 returned an invalid time value.');
+  const wallTime = raw.wall_time == null ? null : Number(raw.wall_time);
+  if (
+    (time !== null && (!Number.isFinite(time) || time < 0))
+    || (wallTime !== null && (!Number.isFinite(wallTime) || wallTime < 0))
+  ) {
+    throw new Judge0InvalidResponseError('Judge0 returned an invalid execution time value.');
   }
   const verdict = mapVerdict(statusId);
   return {
@@ -131,12 +274,85 @@ function mapSubmission(token: string, data: unknown): Judge0SubmissionResult {
     compileOutput: raw.compile_output ?? null,
     message: raw.message ?? null,
     timeSeconds: time,
+    wallTimeSeconds: wallTime,
     memoryKb: typeof raw.memory === 'number' ? raw.memory : null,
+    submissionDurationMs: durationBetween(raw.created_at, raw.finished_at),
   };
+}
+
+function toJudge0Submission(input: CreateJudge0SubmissionInput): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    language_id: input.languageId,
+    source_code: input.sourceCode,
+  };
+  if (input.stdin !== undefined) body.stdin = input.stdin;
+  if (input.expectedOutput !== undefined) body.expected_output = input.expectedOutput;
+  if (input.cpuTimeLimitSeconds !== undefined) body.cpu_time_limit = input.cpuTimeLimitSeconds;
+  if (input.memoryLimitKb !== undefined) body.memory_limit = input.memoryLimitKb;
+  return body;
+}
+
+function parseBatchResults(data: unknown, expectedTokens: string[]): Judge0SubmissionResult[] {
+  if (!isRecord(data) || !Array.isArray(data.submissions)) {
+    throw new Judge0InvalidResponseError('Unexpected Judge0 batch response.');
+  }
+  const byToken = new Map<string, Judge0SubmissionResult>();
+  for (const item of data.submissions) {
+    if (!isRecord(item) || typeof item.token !== 'string' || !TOKEN_PATTERN.test(item.token)) {
+      throw new Judge0InvalidResponseError('Judge0 returned an invalid batch result token.');
+    }
+    if (byToken.has(item.token)) {
+      throw new Judge0InvalidResponseError('Judge0 returned duplicate batch result tokens.');
+    }
+    byToken.set(item.token, mapSubmission(item.token, item));
+  }
+  if (
+    byToken.size !== expectedTokens.length
+    || expectedTokens.some((token) => !byToken.has(token))
+  ) {
+    throw new Judge0InvalidResponseError('Judge0 batch response did not contain each requested token exactly once.');
+  }
+  return expectedTokens.map((token) => byToken.get(token)!);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function durationBetween(start: string | null | undefined, end: string | null | undefined): number | null {
+  if (!start || !end) return null;
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  return Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs
+    ? endMs - startMs
+    : null;
+}
+
+function nextPollDelay(baseMs: number, attempt: number): number {
+  const backoffStep = Math.floor((attempt - 1) / 5);
+  return Math.min(3_000, Math.max(500, baseMs) * (backoffStep + 1));
+}
+
+function elapsedMs(startedAt: number): number {
+  return Math.round(performance.now() - startedAt);
+}
+
+function toMs(seconds: number | null): number | 'unknown' {
+  return seconds === null ? 'unknown' : Math.round(seconds * 1000);
+}
+
+function toMsNumber(seconds: number | null): number | null {
+  return seconds === null ? null : Math.round(seconds * 1000);
+}
+
+function sumMetric(values: Array<number | null>): number | 'unknown' {
+  return values.some((value) => value === null)
+    ? 'unknown'
+    : values.reduce<number>((total, value) => total + (value ?? 0), 0);
+}
+
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
 }
 
 function sleep(ms: number): Promise<void> {

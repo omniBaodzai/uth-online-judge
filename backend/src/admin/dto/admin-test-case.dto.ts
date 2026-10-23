@@ -22,9 +22,9 @@ export class AdminTestCaseDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  @Max(1000)
+  @Max(999999.99)
   points?: number | null;
 
   @IsOptional()

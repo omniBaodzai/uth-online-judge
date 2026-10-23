@@ -29,7 +29,7 @@ export function loadJudge0Config(env: NodeJS.ProcessEnv = process.env): Judge0Co
   return {
     baseUrl: raw.replace(/\/+$/, ''),
     requestTimeoutMs: positiveInt(env.JUDGE0_REQUEST_TIMEOUT_MS, 10_000),
-    pollIntervalMs: positiveInt(env.JUDGE0_POLL_INTERVAL_MS, 1_000),
+    pollIntervalMs: positiveInt(env.JUDGE0_POLL_INTERVAL_MS, 500),
     maxPollAttempts: positiveInt(env.JUDGE0_MAX_POLL_ATTEMPTS, 30),
   };
 }

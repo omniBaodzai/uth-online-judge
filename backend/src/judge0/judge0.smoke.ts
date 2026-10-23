@@ -23,4 +23,33 @@ describe('Judge0 smoke (real server)', () => {
     );
     expect(wrong.verdict).toBe(Judge0Verdict.WrongAnswer);
   }, 60_000);
+
+  it('benchmarks a representative three-case C++ batch', async () => {
+    const sourceCode = '#include <iostream>\nint main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<"\\n";}';
+    const cases = [
+      { stdin: '3 5', expectedOutput: '8' },
+      { stdin: '2 7', expectedOutput: '9' },
+      { stdin: '-4 3', expectedOutput: '-1' },
+    ];
+    const startedAt = performance.now();
+    const tokens = await service.createSubmissionBatch(cases.map((testCase) => ({
+      languageId: 54,
+      sourceCode,
+      stdin: testCase.stdin,
+      expectedOutput: testCase.expectedOutput,
+    })));
+    const outcome = await service.waitForResults(tokens, 120_000);
+    const totalMs = Math.round(performance.now() - startedAt);
+
+    expect(outcome.timedOut).toBe(false);
+    expect(outcome.results).toHaveLength(3);
+    expect(outcome.results.every((result) => result.verdict === Judge0Verdict.Accepted)).toBe(true);
+    console.info('[Judge0 benchmark]', JSON.stringify({
+      testCases: cases.length,
+      totalMs,
+      judge0DurationsMs: outcome.results.map((result) => result.submissionDurationMs),
+      executionMs: outcome.results.map((result) => result.timeSeconds === null ? null : Math.round(result.timeSeconds * 1000)),
+      wallMs: outcome.results.map((result) => result.wallTimeSeconds === null ? null : Math.round(result.wallTimeSeconds * 1000)),
+    }));
+  }, 180_000);
 });

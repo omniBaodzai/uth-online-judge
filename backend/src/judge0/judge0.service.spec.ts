@@ -2,6 +2,7 @@ import { loadJudge0Config } from './judge0.config.js';
 import {
   Judge0ConfigError,
   Judge0InvalidResponseError,
+  Judge0SubmissionTimeoutError,
   Judge0TimeoutError,
   Judge0UnavailableError,
 } from './judge0.errors.js';
@@ -30,8 +31,10 @@ describe('Judge0Service', () => {
   it('lists languages and rejects malformed entries', async () => {
     const ok = build(vi.fn().mockResolvedValue(json([{ id: 54, name: 'C++ (GCC 9.2.0)' }])));
     await expect(ok.getLanguages()).resolves.toEqual([{ id: 54, name: 'C++ (GCC 9.2.0)' }]);
-    const bad = build(vi.fn().mockResolvedValue(json([{ id: 'x' }])));
-    await expect(bad.getLanguages()).rejects.toBeInstanceOf(Judge0InvalidResponseError);
+    for (const entry of [{ id: 'x' }, { id: 0, name: 'Unknown' }, { id: 54.5, name: 'Invalid' }, { id: 54, name: ' ' }]) {
+      const bad = build(vi.fn().mockResolvedValue(json([entry])));
+      await expect(bad.getLanguages()).rejects.toBeInstanceOf(Judge0InvalidResponseError);
+    }
   });
 
   it('creates an asynchronous submission with snake_case fields', async () => {
@@ -48,6 +51,26 @@ describe('Judge0Service', () => {
     });
   });
 
+  it('creates a bounded Judge0 batch and validates unique tokens', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(json([{ token: 'token-1' }, { token: 'token-2' }], 201));
+    await expect(build(fetchFn).createSubmissionBatch([
+      { languageId: 54, sourceCode: 'int main(){}', stdin: '1', expectedOutput: '1' },
+      { languageId: 54, sourceCode: 'int main(){}', stdin: '2', expectedOutput: '2' },
+    ])).resolves.toEqual(['token-1', 'token-2']);
+    expect(fetchFn.mock.calls[0][0]).toBe('http://judge0.test:2358/submissions/batch?base64_encoded=false');
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toEqual({
+      submissions: [
+        { language_id: 54, source_code: 'int main(){}', stdin: '1', expected_output: '1' },
+        { language_id: 54, source_code: 'int main(){}', stdin: '2', expected_output: '2' },
+      ],
+    });
+    await expect(build(vi.fn()).createSubmissionBatch([])).rejects.toBeInstanceOf(Judge0InvalidResponseError);
+    await expect(build(vi.fn().mockResolvedValue(json([{ token: 'same' }, { token: 'same' }]))).createSubmissionBatch([
+      { languageId: 54, sourceCode: 'x' },
+      { languageId: 54, sourceCode: 'x' },
+    ])).rejects.toBeInstanceOf(Judge0InvalidResponseError);
+  });
+
   it('rejects a missing or unsafe token on creation', async () => {
     await expect(build(vi.fn().mockResolvedValue(json({}))).createSubmission({ languageId: 54, sourceCode: 'x' }))
       .rejects.toBeInstanceOf(Judge0InvalidResponseError);
@@ -58,7 +81,7 @@ describe('Judge0Service', () => {
   it('maps a finished submission result', async () => {
     const fetchFn = vi.fn().mockResolvedValue(json(finished));
     const result = await build(fetchFn).getSubmission('abc-1');
-    expect(fetchFn.mock.calls[0][0]).toBe('http://judge0.test:2358/submissions/abc-1?base64_encoded=false');
+    expect(fetchFn.mock.calls[0][0]).toBe('http://judge0.test:2358/submissions/abc-1?base64_encoded=false&fields=token,status,stdout,stderr,compile_output,message,time,wall_time,memory,created_at,finished_at');
     expect(result).toMatchObject({
       token: 'abc-1', statusId: 3, verdict: Judge0Verdict.Accepted, isFinished: true,
       stdout: '8\n', stderr: null, timeSeconds: 0.012, memoryKb: 1024,
@@ -99,10 +122,90 @@ describe('Judge0Service', () => {
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
+  it('polls a batch in token order and reports execution timing metadata', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(json({
+      submissions: [
+        {
+          token: 'token-2',
+          status: { id: 3, description: 'Accepted' },
+          time: '0.007',
+          wall_time: '0.020',
+          memory: 1000,
+          created_at: '2026-10-23T10:00:00.000Z',
+          finished_at: '2026-10-23T10:00:01.250Z',
+        },
+        {
+          token: 'token-1',
+          status: { id: 4, description: 'Wrong Answer' },
+          time: '0.010',
+          wall_time: '0.030',
+          memory: 1200,
+        },
+      ],
+    }));
+    const results = await build(fetchFn).waitForResults(['token-1', 'token-2'], 2_000);
+
+    expect(fetchFn).toHaveBeenCalledOnce();
+    expect(new URL(fetchFn.mock.calls[0][0]).pathname).toBe('/submissions/batch');
+    expect(results.timedOut).toBe(false);
+    expect(results.results.map((item) => item.token)).toEqual(['token-1', 'token-2']);
+    expect(results.results[0]).toMatchObject({ verdict: Judge0Verdict.WrongAnswer, wallTimeSeconds: 0.03 });
+    expect(results.results[1]).toMatchObject({
+      verdict: Judge0Verdict.Accepted,
+      wallTimeSeconds: 0.02,
+      submissionDurationMs: 1_250,
+    });
+  });
+
+  it('persists completed batch cases once and polls only the remaining tokens', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchFn = vi.fn()
+        .mockResolvedValueOnce(json({
+          submissions: [
+            { token: 'token-1', status: { id: 3, description: 'Accepted' }, time: '0.01' },
+            { token: 'token-2', status: { id: 2, description: 'Processing' } },
+          ],
+        }))
+        .mockResolvedValueOnce(json({
+          submissions: [{ token: 'token-2', status: { id: 4, description: 'Wrong Answer' }, time: '0.02' }],
+        }));
+      const onCompleted = vi.fn().mockResolvedValue(undefined);
+      const waiting = build(fetchFn).waitForResults(['token-1', 'token-2'], 5_000, onCompleted);
+      await vi.advanceTimersByTimeAsync(500);
+      const outcome = await waiting;
+
+      expect(outcome.timedOut).toBe(false);
+      expect(outcome.results.map((item) => item.verdict))
+        .toEqual([Judge0Verdict.Accepted, Judge0Verdict.WrongAnswer]);
+      expect(onCompleted).toHaveBeenCalledTimes(2);
+      expect(onCompleted.mock.calls.map(([items]) => items.map((item) => item.token)))
+        .toEqual([['token-1'], ['token-2']]);
+      expect(new URL(fetchFn.mock.calls[1][0]).searchParams.get('tokens')).toBe('token-2');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects incomplete or mismatched Judge0 batch responses', async () => {
+    const service = build(vi.fn().mockResolvedValue(json({
+      submissions: [{ token: 'someone-else', status: { id: 3, description: 'Accepted' } }],
+    })));
+    await expect(service.waitForResults(['token-1'], 2_000)).rejects.toBeInstanceOf(Judge0InvalidResponseError);
+  });
+
   it('stops polling after the configured attempts', async () => {
     const fetchFn = vi.fn().mockImplementation(async () => json({ status: { id: 2, description: 'Processing' } }));
-    await expect(build(fetchFn).waitForResult('abc-1')).rejects.toBeInstanceOf(Judge0TimeoutError);
+    await expect(build(fetchFn).waitForResult('abc-1')).rejects.toBeInstanceOf(Judge0SubmissionTimeoutError);
     expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('extends polling to the bounded execution timeout when requested', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(json(finished));
+    await expect(build(fetchFn).waitForResult('abc-1', 10_000)).resolves.toMatchObject({
+      verdict: Judge0Verdict.Accepted,
+    });
+    expect(fetchFn).toHaveBeenCalledOnce();
   });
 });
 
@@ -128,8 +231,8 @@ describe('loadJudge0Config', () => {
 
   it('uses defaults and accepts positive integer overrides', () => {
     const defaults = loadJudge0Config({ JUDGE0_API_URL: 'http://h' });
-    expect(defaults).toMatchObject({ requestTimeoutMs: 10000, pollIntervalMs: 1000, maxPollAttempts: 30 });
+    expect(defaults).toMatchObject({ requestTimeoutMs: 10000, pollIntervalMs: 500, maxPollAttempts: 30 });
     const custom = loadJudge0Config({ JUDGE0_API_URL: 'http://h', JUDGE0_MAX_POLL_ATTEMPTS: '5', JUDGE0_POLL_INTERVAL_MS: '-1' });
-    expect(custom).toMatchObject({ maxPollAttempts: 5, pollIntervalMs: 1000 });
+    expect(custom).toMatchObject({ maxPollAttempts: 5, pollIntervalMs: 500 });
   });
 });

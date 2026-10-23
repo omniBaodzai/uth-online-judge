@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import ProblemStatement from '../components/ProblemStatement'
 import ProblemStateMessage from '../components/ProblemStateMessage'
@@ -55,11 +55,6 @@ function SubmitSolutionPage() {
           >
             <ProblemStatement
               problem={problem}
-              nav={
-                <nav className={detail.breadcrumb} aria-label="Điều hướng phụ">
-                  <Link to={`/problems/${problem.code}`}>← Quay lại chi tiết bài tập</Link>
-                </nav>
-              }
             />
           </div>
           <div
@@ -68,7 +63,7 @@ function SubmitSolutionPage() {
             aria-labelledby="tab-editor"
             className={`${styles.editorPane} ${tab === 'editor' ? '' : styles.inactive}`}
           >
-            {user && <CodeEditorPanel problemCode={problem.code} userId={user.id} />}
+            {user && <CodeEditorPanel problemCode={problem.code} userId={user.id} languages={problem.languageOptions} />}
           </div>
         </div>
       </div>

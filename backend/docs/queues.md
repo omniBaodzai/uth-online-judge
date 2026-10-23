@@ -1,5 +1,17 @@
 # BullMQ demo queue
 
+## Submission judging queue
+
+The `judging` queue is registered alongside the existing demo queue and is consumed by `JudgingProcessor` in the NestJS backend. `POST /submissions` stores the submission and an immutable snapshot of active test cases and problem limits in one PostgreSQL transaction, then enqueues only `{ submissionId }`. On startup, `JudgingRecoveryService` re-enqueues pending/queued submissions with snapshots using the same idempotent job ID; legacy pending submissions are snapshotted by the migration, while those without active test cases are marked `INTERNAL_ERROR` instead of remaining stuck. The worker is bounded by `JUDGING_CONCURRENCY` (default 2, maximum 8), uses three exponential-backoff attempts for transient failures, and creates/polls Judge0 CE batch submissions in bounded groups controlled by `JUDGING_BATCH_SIZE` (default 3, maximum 4). Each Judge0 test remains an isolated submission with its own verdict and snapshot; batches only reduce request/poll round trips and allow Judge0 to schedule cases concurrently. Polling uses `JUDGE0_POLL_INTERVAL_MS` (default 500 ms) with bounded backoff up to 3 seconds, and a per-batch CPU limit plus a 30-second grace period (hard cap 12 minutes). If a batch remains queued or processing until its deadline, completed case results and score remain persisted and unfinished snapshots are finalized as internal errors. Compilation errors stop creation of subsequent batches; remaining cases are recorded as compilation errors. Transient failures retry with per-case upserts; already completed snapshot results are skipped to avoid re-execution and duplicate scoring.
+
+Submission and worker logs include elapsed durations for enqueue, queue wait, database stages, Judge0 HTTP/poll time, Judge0-reported submission lifetime, execution/wall time, and worker total time. The submission details page emits request and response-to-render timings to the browser console in development only. Logs deliberately omit source code, test inputs, expected outputs, and Judge0 tokens.
+
+Apply `backend/sql/migrations/006_submission_judging.sql` before starting the updated backend. It adds the submission-time maximum score and immutable test-case snapshots; existing results are backfilled without deleting submission data. Snapshot inputs and expected outputs are backend-only and are never returned by student-facing submission queries.
+
+Judge0 CE statuses 7–12 remain runtime errors. This integration does not infer memory-limit errors from approximate memory usage.
+
+New submissions move through `PENDING` → `QUEUED` → `RUNNING` → terminal verdict. Queue enqueue errors are recorded as `INTERNAL_ERROR`; exhausted job retries retain already persisted per-case results and finalize the submission as `INTERNAL_ERROR`.
+
 ## Concepts
 - **Redis**: the in-memory store where BullMQ keeps all queue data. Only the backend talks to it (internal Docker network, port not published).
 - **Queue** (`demo`): a named list of pending work. The backend *adds* jobs to it.

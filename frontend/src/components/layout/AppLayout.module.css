@@ -1,7 +1,17 @@
 .shell {
+  position: relative;
   display: flex;
   min-height: 100svh;
   flex-direction: column;
+}
+
+.breadcrumbSlot {
+  position: absolute;
+  z-index: 2;
+  top: 82px;
+  left: 50%;
+  width: min(1240px, calc(100% - 64px));
+  transform: translateX(-50%);
 }
 
 .content {
@@ -27,4 +37,11 @@
 
 .skipLink:focus {
   transform: translateY(0);
+}
+
+@media (max-width: 600px) {
+  .breadcrumbSlot {
+    top: 78px;
+    width: calc(100% - 40px);
+  }
 }

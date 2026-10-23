@@ -25,6 +25,8 @@ function emptyDraft(): ProblemDraft {
     constraints: '',
     timeLimitSeconds: 1,
     memoryLimitMb: 256,
+    scoringEnabled: false,
+    score: 100,
     examples: [{ id: `example-${crypto.randomUUID()}`, input: '', output: '' }],
     status: 'draft',
   }
@@ -99,6 +101,7 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
   const { request, setNotice } = useAdmin()
   const [initialDraft] = useState<ProblemDraft>(() => problem ? toDraft(problem) : emptyDraft())
   const [draft, setDraft] = useState<ProblemDraft>(initialDraft)
+  const [configuredLanguages, setConfiguredLanguages] = useState(languageOptions)
   const [codeError, setCodeError] = useState('')
   const [pendingPublish, setPendingPublish] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -236,17 +239,31 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
             />
             <MultiValuePicker
               label="Ngôn ngữ hỗ trợ"
-              placeholder="Nhập ngôn ngữ, ví dụ: Rust"
-              suggestions={languageOptions}
+              placeholder="Chọn ngôn ngữ đã bật"
+              suggestions={configuredLanguages}
               values={draft.languages}
               onChange={(values) => update('languages', values)}
               allowCustom={false}
             />
-            {languageOptions.length === 0 && (
+            {configuredLanguages.length === 0 && (
               <p className={styles.fieldHint} role="status">
-                Chưa có ngôn ngữ nào được bật. Hãy cấu hình các ngôn ngữ hỗ trợ trong cơ sở dữ liệu trước khi gắn chúng vào bài tập.
+                Chưa có ngôn ngữ nào được bật. Tải danh sách từ Judge0 bên dưới để thêm ngôn ngữ hỗ trợ.
               </p>
             )}
+            <Judge0LanguagePicker
+              onAdded={(language) => {
+                setConfiguredLanguages((current) => (
+                  current.some((name) => name.toLocaleLowerCase() === language.name.toLocaleLowerCase())
+                    ? current
+                    : [...current, language.name].sort((left, right) => left.localeCompare(right))
+                ))
+                setDraft((current) => (
+                  current.languages.some((name) => name.toLocaleLowerCase() === language.name.toLocaleLowerCase())
+                    ? current
+                    : { ...current, languages: [...current.languages, language.name] }
+                ))
+              }}
+            />
           </div>
         </section>
 
@@ -276,8 +293,36 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
 
         <section className={`${styles.panel} ${styles.formSection}`}>
           <h2>Ràng buộc và giới hạn chấm</h2>
-          <p className={styles.sectionHint}>Các giới hạn này được lưu cùng bài tập và sẽ dùng cho hệ thống chấm ở giai đoạn tích hợp tiếp theo.</p>
+          <p className={styles.sectionHint}>Bạn có thể chấm theo verdict mà không dùng điểm, hoặc bật tính điểm và phân bổ đủ trọng số cho test ẩn.</p>
           <div className={styles.formGrid}>
+            <div className={styles.field}>
+              <label htmlFor="problem-scoring-enabled">
+                <input
+                  id="problem-scoring-enabled"
+                  type="checkbox"
+                  checked={draft.scoringEnabled}
+                  onChange={(event) => update('scoringEnabled', event.target.checked)}
+                />
+                {' '}Áp dụng tính điểm
+              </label>
+              <p className={styles.fieldHint}>Khi tắt, bài vẫn được chấm verdict và test case bình thường. Các bài đã tồn tại giữ chế độ cũ sau migration; bỏ chọn mục này để không yêu cầu điểm test.</p>
+            </div>
+            {draft.scoringEnabled && (
+              <div className={styles.field}>
+                <label htmlFor="problem-score">Điểm tối đa <span className={styles.requiredMark}>*</span></label>
+                <input
+                  id="problem-score"
+                  type="number"
+                  min="0.01"
+                  max="999999.99"
+                  step="0.01"
+                  required
+                  value={draft.score}
+                  onChange={(event) => update('score', Number(event.target.value))}
+                />
+                <p className={styles.fieldHint}>Tổng điểm các test ẩn phải khớp điểm tối đa. Có thể phân bổ thủ công hoặc dùng phân bổ đều.</p>
+              </div>
+            )}
             <div className={styles.field}><label htmlFor="constraints">Ràng buộc</label><textarea id="constraints" rows={3} value={draft.constraints} onChange={(event) => update('constraints', event.target.value)} /></div>
             <div className={styles.formGrid}>
               <div className={styles.field}><label htmlFor="time-limit">Giới hạn thời gian (giây) <span className={styles.requiredMark}>*</span></label><input id="time-limit" type="number" min="0.1" max="30" step="0.1" required value={draft.timeLimitSeconds} onChange={(event) => update('timeLimitSeconds', Number(event.target.value))} /></div>
@@ -318,6 +363,133 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
         />
       )}
     </>
+  )
+}
+
+type Judge0Language = { id: number; name: string; configured: boolean }
+type EnabledLanguage = { judge0LanguageId: number; slug: string; name: string }
+
+function Judge0LanguagePicker({ onAdded }: { onAdded: (language: EnabledLanguage) => void }) {
+  const { request } = useAdmin()
+  const [languages, setLanguages] = useState<Judge0Language[]>([])
+  const [selectedId, setSelectedId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const selected = languages.find((language) => String(language.id) === selectedId)
+
+  useEffect(() => {
+    let active = true
+    request<Judge0Language[]>('/admin/languages/judge0')
+      .then((result) => {
+        if (active) setLanguages(result)
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setError(cause instanceof ApiError
+            ? cause.message
+            : 'Không thể tải danh sách ngôn ngữ từ Judge0.')
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [request, reloadKey])
+
+  async function enableSelectedLanguage() {
+    if (!selected || selected.configured) return
+    setAdding(true)
+    setError('')
+    setNotice('')
+    try {
+      const enabled = await request<EnabledLanguage>('/admin/languages', {
+        method: 'POST',
+        body: JSON.stringify({ judge0LanguageId: selected.id }),
+      })
+      setLanguages((current) => current.map((language) => (
+        language.id === enabled.judge0LanguageId ? { ...language, configured: true } : language
+      )))
+      onAdded(enabled)
+      setNotice(`Đã bật ${enabled.name} và thêm vào danh sách ngôn ngữ của bài.`)
+      setSelectedId('')
+    } catch (cause) {
+      setError(cause instanceof ApiError
+        ? cause.message
+        : 'Không thể bật ngôn ngữ. Vui lòng thử lại.')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  return (
+    <div className={styles.field}>
+      <label htmlFor="judge0-language-select">Thêm ngôn ngữ từ Judge0</label>
+      {loading ? (
+        <p className={styles.fieldHint} role="status">Đang tải danh sách ngôn ngữ…</p>
+      ) : (
+        <>
+          {languages.length > 0 && (
+            <select
+              id="judge0-language-select"
+              value={selectedId}
+              onChange={(event) => {
+                setSelectedId(event.target.value)
+                setNotice('')
+              }}
+              disabled={adding}
+            >
+              <option value="">Chọn ngôn ngữ Judge0</option>
+              {languages.map((language) => (
+                <option key={language.id} value={language.id}>
+                  {language.name} (Judge0 #{language.id}){language.configured ? ' — đã bật' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+          {languages.length === 0 && !error && (
+            <p className={styles.fieldHint} role="status">Judge0 hiện không cung cấp ngôn ngữ nào.</p>
+          )}
+          {selected?.configured && (
+            <p className={styles.fieldHint}>Ngôn ngữ này đã bật trong hệ thống; hãy chọn ở danh sách phía trên.</p>
+          )}
+          {selected && !selected.configured && (
+            <button
+              className={styles.buttonSecondary}
+              type="button"
+              onClick={() => void enableSelectedLanguage()}
+              disabled={adding}
+            >
+              {adding ? 'Đang bật…' : 'Bật và thêm vào bài này'}
+            </button>
+          )}
+        </>
+      )}
+      <p className={styles.fieldHint}>
+        Danh sách được lấy trực tiếp từ Judge0; mỗi mã Judge0 được ánh xạ sang slug ứng dụng lưu trong cơ sở dữ liệu.
+      </p>
+      {error && (
+        <div>
+          <p className={styles.fieldError} role="alert">{error}</p>
+          <button
+            className={styles.buttonSecondary}
+            type="button"
+            onClick={() => {
+              setLoading(true)
+              setError('')
+              setNotice('')
+              setReloadKey((key) => key + 1)
+            }}
+            disabled={loading || adding}
+          >
+            Tải lại danh sách
+          </button>
+        </div>
+      )}
+      {notice && <p className={styles.fieldHint} role="status">{notice}</p>}
+    </div>
   )
 }
 

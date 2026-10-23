@@ -33,6 +33,7 @@ function AdminTestCasesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [draft, setDraft] = useState<CaseForm>(blankCase)
   const [deleteTarget, setDeleteTarget] = useState<AdminTestCase | null>(null)
+  const [confirmDistribution, setConfirmDistribution] = useState(false)
 
   const fetchData = useCallback(() => Promise.all([
         request<AdminProblem>(`/admin/problems/${id}`),
@@ -50,6 +51,13 @@ function AdminTestCasesPage() {
       setLoading(false)
     }
   }, [fetchData])
+
+  const hiddenCases = cases.filter((testCase) => testCase.kind === 'hidden')
+  const assignedPoints = hiddenCases.reduce((total, testCase) => total + (testCase.points ?? 0), 0)
+  const scoringMatches = problem !== null
+    && problem.scoringEnabled
+    && hiddenCases.length > 0
+    && Math.round(assignedPoints * 100) === Math.round(problem.score * 100)
 
   useEffect(() => {
     let active = true
@@ -123,6 +131,28 @@ function AdminTestCasesPage() {
     }
   }
 
+  async function distributePoints() {
+    const currentProblem = problem
+    if (!currentProblem || !currentProblem.scoringEnabled) return
+    const hiddenCount = hiddenCases.length
+    setBusy(true)
+    setError('')
+    try {
+      const updated = await request<AdminTestCase[]>(
+        `/admin/problems/${id}/test-cases/distribute-points`,
+        { method: 'POST' },
+      )
+      setCases(updated)
+      setConfirmDistribution(false)
+      setNotice(`Đã phân bổ ${currentProblem.score.toFixed(2)} điểm đều cho ${hiddenCount} test ẩn.`)
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'Không thể phân bổ điểm test.')
+      setConfirmDistribution(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (loading) return <p className={styles.emptyState} aria-live="polite">Đang tải test case…</p>
   if (!problem) {
     return (
@@ -148,6 +178,41 @@ function AdminTestCasesPage() {
         <AdminIcon name="lock" size={16} />
         <span>Test case được tải qua API chỉ dành cho Admin. API học viên chỉ trả về ví dụ công khai, không bao giờ trả dữ liệu test ẩn.</span>
       </div>
+      <section className={styles.panel} aria-label="Cấu hình phân bổ điểm">
+        <div className={styles.panelHeading}>
+          <div>
+            <h2>Phân bổ điểm</h2>
+            {problem.scoringEnabled ? (
+              <>
+                <p>
+                  Tổng test ẩn: <strong>{assignedPoints.toFixed(2)}</strong> / {problem.score.toFixed(2)} điểm
+                  {' · '}{hiddenCases.length} test được tính điểm.
+                </p>
+                <p className={styles.fieldHint}>
+                  Ví dụ công khai không tính điểm. Để xuất bản, tổng điểm test ẩn phải bằng điểm tối đa.
+                </p>
+              </>
+            ) : (
+              <p className={styles.fieldHint}>Tính điểm đang tắt. Các test case vẫn được chấm verdict, thời gian và bộ nhớ.</p>
+            )}
+          </div>
+          <button
+            className={styles.buttonSecondary}
+            type="button"
+            onClick={() => setConfirmDistribution(true)}
+            disabled={busy || !problem.scoringEnabled || hiddenCases.length === 0}
+          >
+            Phân bổ đều
+          </button>
+        </div>
+        {problem.scoringEnabled && hiddenCases.length > 0 && (
+          <p className={scoringMatches ? styles.fieldHint : styles.fieldError} role={scoringMatches ? 'status' : 'alert'}>
+            {scoringMatches
+              ? 'Phân bổ hiện tại khớp với điểm tối đa.'
+              : 'Điểm hiện tại chưa khớp. Hãy chỉnh từng test ẩn hoặc dùng “Phân bổ đều”.'}
+          </p>
+        )}
+      </section>
       {error && <p className={styles.formMessage} role="alert">{error}</p>}
       {formOpen && (
         <form className={styles.testForm} onSubmit={(event) => void save(event)}>
@@ -159,7 +224,7 @@ function AdminTestCasesPage() {
             </div>
             <div className={styles.field}>
               <label htmlFor="case-kind">Loại test case</label>
-              <select id="case-kind" value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as TestCaseKind }))}>
+              <select id="case-kind" value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as TestCaseKind, points: event.target.value === 'sample' ? null : current.points }))}>
                 <option value="sample">Ví dụ công khai</option>
                 <option value="hidden">Test ẩn</option>
               </select>
@@ -173,10 +238,17 @@ function AdminTestCasesPage() {
               <label htmlFor="case-output">Expected output <span className={styles.requiredMark}>*</span></label>
               <textarea id="case-output" required rows={6} value={draft.expectedOutput} onChange={(event) => setDraft((current) => ({ ...current, expectedOutput: event.target.value }))} />
             </div>
-            <div className={styles.field}>
-              <label htmlFor="case-points">Điểm (không bắt buộc)</label>
-              <input id="case-points" type="number" min="0" max="1000" step="1" value={draft.points ?? ''} onChange={(event) => setDraft((current) => ({ ...current, points: event.target.value === '' ? null : Number(event.target.value) }))} />
-            </div>
+            {draft.kind === 'hidden' && (
+              <div className={styles.field}>
+                <label htmlFor="case-points">Điểm test ẩn</label>
+                <input id="case-points" type="number" min="0" max="999999.99" step="0.01" value={draft.points ?? ''} onChange={(event) => setDraft((current) => ({ ...current, points: event.target.value === '' ? null : Number(event.target.value) }))} />
+                <p className={styles.fieldHint}>
+                  {problem.scoringEnabled
+                    ? 'Có thể dùng điểm thập phân tối đa 2 chữ số. Để trống tương đương 0 điểm.'
+                    : 'Không bắt buộc khi tắt tính điểm; giá trị đã lưu được giữ nguyên nhưng không ảnh hưởng kết quả.'}
+                </p>
+              </div>
+            )}
           </div>
           <div className={styles.rowActions}>
             <button className={styles.buttonSecondary} type="button" disabled={busy} onClick={() => { setFormOpen(false); setError('') }}>Hủy</button>
@@ -195,7 +267,13 @@ function AdminTestCasesPage() {
           {cases.map((testCase) => (
             <article className={styles.testCaseCard} key={testCase.id}>
               <div className={styles.testCardHeader}>
-                <div><strong>{testCase.name}</strong><small>{testCase.points === null ? 'Chưa gán điểm' : `${testCase.points} điểm`}</small></div>
+                <div><strong>{testCase.name}</strong><small>
+                  {testCase.kind === 'sample'
+                    ? 'Ví dụ công khai · không tính điểm'
+                    : problem.scoringEnabled
+                      ? `${(testCase.points ?? 0).toFixed(2)} điểm`
+                      : 'Điểm không áp dụng'}
+                </small></div>
                 <span className={`${styles.badge} ${testCase.kind === 'sample' ? styles.kindSample : styles.kindHidden}`}>
                   {testCase.kind === 'sample' ? 'Ví dụ công khai' : <span className={styles.privacyLabel}><AdminIcon name="lock" size={12} /> Test ẩn</span>}
                 </span>
@@ -218,6 +296,16 @@ function AdminTestCasesPage() {
           danger
           onConfirm={() => void confirmDelete()}
           onCancel={() => !busy && setDeleteTarget(null)}
+        />
+      )}
+      {confirmDistribution && (
+        <ConfirmDialog
+          title="Phân bổ đều điểm test ẩn?"
+          description={`Thao tác này sẽ thay thế toàn bộ điểm thủ công của ${hiddenCases.length} test ẩn bằng cách chia đều ${problem.score.toFixed(2)} điểm. Ví dụ công khai không bị thay đổi.`}
+          confirmLabel="Phân bổ điểm"
+          busy={busy}
+          onConfirm={() => void distributePoints()}
+          onCancel={() => !busy && setConfirmDistribution(false)}
         />
       )}
     </>

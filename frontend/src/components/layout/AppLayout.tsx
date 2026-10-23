@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom'
 import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
 import FloatingActions from '../floating/FloatingActions'
+import Breadcrumb from '../navigation/Breadcrumb'
+import BreadcrumbProvider from '../navigation/BreadcrumbProvider'
 import styles from './AppLayout.module.css'
 
 function AppLayout() {
@@ -18,9 +20,14 @@ function AppLayout() {
         Bỏ qua điều hướng, đến nội dung chính
       </a>
       <SiteHeader />
-      <div className={styles.content}>
-        <Outlet />
-      </div>
+      <BreadcrumbProvider>
+        <div className={styles.breadcrumbSlot}>
+          <Breadcrumb />
+        </div>
+        <div className={styles.content}>
+          <Outlet />
+        </div>
+      </BreadcrumbProvider>
       <SiteFooter />
       <FloatingActions />
     </div>

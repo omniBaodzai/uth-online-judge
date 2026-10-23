@@ -192,7 +192,7 @@ function ProblemsPage() {
                             {p.title}
                           </Link>
                         </td>
-                        <td className={styles.num}>{p.points}</td>
+                        <td className={styles.num}>{p.scoringEnabled ? p.points : '—'}</td>
                         <td className={styles.num}>{p.acceptanceRate.toFixed(1)}%</td>
                         <td className={styles.num}>{p.acCount.toLocaleString('vi-VN')}</td>
                         <td className={styles.center}>

@@ -1,0 +1,80 @@
+.breadcrumb {
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumb li {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb a,
+.breadcrumb span {
+  overflow-wrap: anywhere;
+}
+
+.breadcrumb a {
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb a:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.breadcrumb [aria-current='page'] {
+  color: var(--color-ink);
+  font-weight: 650;
+}
+
+.separator {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.breadcrumb[data-variant='admin'] {
+  flex: 1;
+  color: #819194;
+}
+
+.breadcrumb[data-variant='admin'] a {
+  color: var(--admin-primary-dark, #066a6d);
+}
+
+.breadcrumb[data-variant='admin'] [aria-current='page'] {
+  color: var(--admin-ink, #193437);
+}
+
+@media (max-width: 480px) {
+  .breadcrumb {
+    font-size: 12px;
+  }
+}

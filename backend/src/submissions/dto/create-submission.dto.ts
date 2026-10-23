@@ -4,9 +4,9 @@ import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
 export const MAX_SOURCE_CODE_LENGTH = 65536;
 
 export class CreateSubmissionDto {
-  @ApiProperty({ example: 'UTH001', maxLength: 30 })
+  @ApiProperty({ example: 'UTH001', maxLength: 50 })
   @IsString({ message: 'Mã bài tập phải là chuỗi ký tự.' })
-  @Matches(/^[A-Za-z0-9_-]{1,30}$/, { message: 'Mã bài tập không hợp lệ.' })
+  @Matches(/^[A-Za-z0-9_-]{1,50}$/, { message: 'Mã bài tập không hợp lệ.' })
   problemCode!: string;
 
   @ApiProperty({ example: 'cpp', description: 'Slug của ngôn ngữ trong bảng programming_languages' })

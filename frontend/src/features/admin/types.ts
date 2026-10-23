@@ -22,6 +22,8 @@ export type AdminProblem = {
   constraints: string
   timeLimitSeconds: number
   memoryLimitMb: number
+  scoringEnabled: boolean
+  score: number
   examples: ProblemExample[]
   status: AdminProblemStatus
   updatedAt: string

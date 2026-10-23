@@ -1,20 +1,107 @@
-import type { LanguageId } from './languages'
-
 export type SubmissionPayload = {
   problemCode: string
-  language: LanguageId
+  language: string
   sourceCode: string
 }
 
 export type SubmissionResult = { id: string; status: string; submittedAt: string }
 
+export type SubmissionTestResult = {
+  position: number
+  status: string | null
+  executionTimeMs: number | null
+  memoryUsedKb: number | null
+  pointsAwarded: number
+  maxPoints: number
+}
+
+export type SubmissionDetails = {
+  id: string
+  problemCode: string
+  problemTitle: string
+  username: string | null
+  language: string
+  sourceCode: string
+  status: string
+  scoringEnabled: boolean
+  score: number
+  maxScore: number
+  executionTimeMs: number | null
+  memoryUsedKb: number | null
+  submittedAt: string
+  judgedAt: string | null
+  testResults: SubmissionTestResult[]
+}
+
+export type ProblemSubmissionListItem = {
+  id: string
+  status: string
+  language: string
+  scoringEnabled: boolean
+  score: number | null
+  maxScore: number | null
+  executionTimeMs: number | null
+  memoryUsedKb: number | null
+  submittedAt: string
+}
+
+export type ProblemSubmissionPage = {
+  problem: {
+    code: string
+    title: string
+    scoringEnabled: boolean
+  }
+  items: ProblemSubmissionListItem[]
+  total: number
+  statistics: {
+    total: number
+    accepted: number
+    wrongAnswer: number
+    compilationError: number
+    acceptanceRate: number
+    verdictCounts: Record<string, number>
+    languages: string[]
+  }
+}
+
+export type ProblemSubmissionFilters = {
+  page: number
+  pageSize: number
+  status?: string
+  language?: string
+}
+
 type RequestFn = <T>(path: string, init?: RequestInit) => Promise<T>
 
-// Gửi bài lên backend. Bài chỉ được ghi nhận ở trạng thái PENDING, chưa được chấm.
+// Gửi bài lên backend để xếp hàng chấm bất đồng bộ.
 export function submitSolution(request: RequestFn, payload: SubmissionPayload): Promise<SubmissionResult> {
   return request<SubmissionResult>('/submissions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+}
+
+export function getSubmissionDetails(
+  request: RequestFn,
+  submissionId: string,
+): Promise<SubmissionDetails> {
+  return request<SubmissionDetails>(`/submissions/${encodeURIComponent(submissionId)}`)
+}
+
+export function getMyProblemSubmissions(
+  request: RequestFn,
+  problemCode: string,
+  filters: ProblemSubmissionFilters,
+): Promise<ProblemSubmissionPage> {
+  const query = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: String(filters.pageSize),
+  })
+  if (filters.status) query.set('status', filters.status)
+  if (filters.language) query.set('language', filters.language)
+
+  return request<ProblemSubmissionPage>(
+    `/submissions/mine/${encodeURIComponent(problemCode)}?${query.toString()}`,
+  )
 }

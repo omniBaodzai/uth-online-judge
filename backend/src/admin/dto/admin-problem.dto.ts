@@ -2,6 +2,8 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
+  IsDefined,
   IsIn,
   IsInt,
   IsNumber,
@@ -13,6 +15,7 @@ import {
   MaxLength,
   Min,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 
 export const PROBLEM_CODE_PATTERN = /^[a-z0-9_]{1,50}$/;
@@ -96,6 +99,18 @@ export class AdminProblemDto {
   @Min(16)
   @Max(65536)
   memoryLimitMb!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  scoringEnabled?: boolean;
+
+  @ValidateIf((problem: AdminProblemDto) => problem.scoringEnabled === true)
+  @IsDefined({ message: 'Điểm tối đa là bắt buộc khi bật tính điểm.' })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  @Max(999999.99)
+  score?: number;
 
   @IsArray()
   @ArrayMaxSize(100)

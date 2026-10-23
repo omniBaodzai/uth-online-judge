@@ -41,7 +41,8 @@ const HAS_SOLUTION_SQL = `
 
 const LIST_BASE_SQL = `
   WITH base AS (
-    SELECT p.id, p.problem_code, p.title, p.difficulty, p.score, p.published_at,
+    SELECT p.id, p.problem_code, p.title, p.difficulty, p.scoring_enabled,
+           p.score, p.published_at,
            COALESCE(st.ac_users, 0) AS ac_count,
            CASE WHEN COALESCE(st.judged, 0) = 0 THEN 0
                 ELSE ROUND(100.0 * st.accepted / st.judged, 1) END AS acceptance_rate,
@@ -64,6 +65,7 @@ type ListRow = {
   problem_code: string;
   title: string;
   difficulty: Difficulty;
+  scoring_enabled: boolean;
   score: string;
   published_at: Date | null;
   ac_count: string;
@@ -81,6 +83,7 @@ type DetailRow = {
   output_description: string | null;
   constraints_text: string | null;
   difficulty: Difficulty;
+  scoring_enabled: boolean;
   score: string;
   time_limit_ms: number;
   memory_limit_mb: number;
@@ -148,6 +151,7 @@ export class ProblemsRepository {
         code: row.problem_code,
         title: row.title,
         difficulty: row.difficulty,
+        scoringEnabled: row.scoring_enabled,
         points: Number(row.score),
         acceptanceRate: Number(row.acceptance_rate),
         acCount: Number(row.ac_count),
@@ -190,7 +194,8 @@ export class ProblemsRepository {
   ): Promise<Omit<ProblemDetail, 'tags' | 'examples' | 'languages'> & { id: string } | null> {
     const result = await this.database.query<DetailRow>(
       `SELECT p.id, p.problem_code, p.title, p.statement, p.input_description, p.output_description,
-              p.constraints_text, p.difficulty, p.score, p.time_limit_ms, p.memory_limit_mb,
+              p.constraints_text, p.difficulty, p.scoring_enabled, p.score,
+              p.time_limit_ms, p.memory_limit_mb,
               p.published_at,
               COALESCE(u.username, u.full_name) AS author,
               ${HAS_SOLUTION_SQL} AS has_solution,
@@ -212,6 +217,7 @@ export class ProblemsRepository {
       outputDescription: row.output_description,
       constraints: row.constraints_text,
       difficulty: row.difficulty,
+      scoringEnabled: row.scoring_enabled,
       points: Number(row.score),
       timeLimitMs: row.time_limit_ms,
       memoryLimitMb: row.memory_limit_mb,
@@ -234,9 +240,14 @@ export class ProblemsRepository {
     return result.rows.map((row) => ({ input: row.input_data, output: row.expected_output }));
   }
 
-  async listEnabledLanguages(): Promise<LanguageSummary[]> {
+  async listProblemLanguages(problemId: string): Promise<LanguageSummary[]> {
     const result = await this.database.query<LanguageSummary>(
-      'SELECT slug, name, version FROM programming_languages WHERE is_enabled = TRUE ORDER BY name',
+      `SELECT l.slug, l.name, l.version
+       FROM problem_languages pl
+       JOIN programming_languages l ON l.id = pl.language_id
+       WHERE pl.problem_id = $1 AND l.is_enabled = TRUE
+       ORDER BY l.name`,
+      [problemId],
     );
     return result.rows;
   }
