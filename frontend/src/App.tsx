@@ -20,6 +20,13 @@ import AdminProblemFormPage from './features/admin/pages/AdminProblemFormPage'
 import AdminProblemsPage from './features/admin/pages/AdminProblemsPage'
 import AdminTestCasesPage from './features/admin/pages/AdminTestCasesPage'
 import AdminUsersPage from './features/admin/pages/AdminUsersPage'
+import AdminNewsPage from './features/admin/pages/AdminNewsPage'
+import AdminNewsFormPage from './features/admin/pages/AdminNewsFormPage'
+import NewsListPage from './features/community/pages/NewsListPage'
+import NewsDetailPage from './features/community/pages/NewsDetailPage'
+import DiscussionListPage from './features/community/pages/DiscussionListPage'
+import DiscussionDetailPage from './features/community/pages/DiscussionDetailPage'
+import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
 import { AdminProvider } from './features/admin/AdminContext'
 import { RequireAdmin } from './features/admin/components/RequireAdmin'
 import './App.css'
@@ -38,6 +45,9 @@ function App() {
               <Route path="problems/:id/edit" element={<AdminProblemFormPage />} />
               <Route path="problems/:id/test-cases" element={<AdminTestCasesPage />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="news" element={<AdminNewsPage />} />
+              <Route path="news/new" element={<AdminNewsFormPage />} />
+              <Route path="news/:id/edit" element={<AdminNewsFormPage />} />
             </Route>
           </Route>
         </Route>
@@ -69,6 +79,11 @@ function App() {
           />
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
+          <Route path="news" element={<NewsListPage />} />
+          <Route path="news/:slug" element={<NewsDetailPage />} />
+          <Route path="discussions" element={<DiscussionListPage />} />
+          <Route path="discussions/new" element={<RequireAuth><DiscussionNewPage /></RequireAuth>} />
+          <Route path="discussions/:id" element={<DiscussionDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

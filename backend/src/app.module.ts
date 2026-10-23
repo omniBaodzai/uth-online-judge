@@ -8,9 +8,10 @@ import { ProblemsModule } from './problems/problems.module.js';
 import { SubmissionsModule } from './submissions/submissions.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { Judge0Module } from './judge0/judge0.module.js';
+import { CommunityModule } from './community/community.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, DemoQueueModule, ProblemsModule, SubmissionsModule, AdminModule, Judge0Module],
+  imports: [DatabaseModule, AuthModule, DemoQueueModule, ProblemsModule, SubmissionsModule, AdminModule, Judge0Module, CommunityModule],
   controllers: [AppController],
   providers: [AppService],
 })

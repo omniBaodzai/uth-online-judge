@@ -1,35 +1,70 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
+import { Link } from 'react-router-dom'
 import Pagination from '../../../components/ui/Pagination'
-import { discussionItems, newsItems, type FeedItem } from '../data'
+import { request } from '../../auth/api'
+import {
+  buildQuery,
+  type DiscussionListItem,
+  type NewsListItem,
+  type PageResult,
+} from '../../community/api'
+import { mapDiscussion, mapNews, type FeedEntryData } from '../../community/feed'
+import { formatDate, toDateBlock, totalPages } from '../../community/format'
 import styles from './CommunityFeed.module.css'
 
 type FeedTab = 'news' | 'discussion'
 
+type FeedState = {
+  items: FeedEntryData[]
+  total: number
+  status: 'loading' | 'ready' | 'error'
+}
+
 const pageSize = 3
 
-const tabs: Array<{ id: FeedTab; label: string; items: FeedItem[] }> = [
-  { id: 'news', label: 'Tin tức', items: newsItems },
-  { id: 'discussion', label: 'Thảo luận', items: discussionItems },
-]
+const tabLabels: Record<FeedTab, string> = { news: 'Tin tức', discussion: 'Thảo luận' }
+
+function useFeed(tab: FeedTab, page: number): FeedState & { retry: () => void } {
+  const [state, setState] = useState<FeedState>({ items: [], total: 0, status: 'loading' })
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const path = tab === 'news' ? '/news' : '/discussions'
+    setState((previous) => ({ ...previous, status: 'loading' }))
+    request<PageResult<NewsListItem | DiscussionListItem>>(`${path}${buildQuery({ page, pageSize })}`, {
+      signal: controller.signal,
+    })
+      .then((result) => {
+        const items =
+          tab === 'news'
+            ? (result.items as NewsListItem[]).map(mapNews)
+            : (result.items as DiscussionListItem[]).map(mapDiscussion)
+        setState({ items, total: result.total, status: 'ready' })
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setState((previous) => ({ ...previous, status: 'error' }))
+      })
+    return () => controller.abort()
+  }, [tab, page, attempt])
+
+  return { ...state, retry: () => setAttempt((value) => value + 1) }
+}
 
 function CommunityFeed() {
   const [activeTab, setActiveTab] = useState<FeedTab>('news')
-  const [currentPage, setCurrentPage] = useState(1)
-  const items = tabs.find((tab) => tab.id === activeTab)?.items ?? []
-  const totalPages = Math.ceil(items.length / pageSize)
-  const visibleItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-
-  function selectTab(tab: FeedTab) {
-    setActiveTab(tab)
-    setCurrentPage(1)
-  }
+  const [pages, setPages] = useState<Record<FeedTab, number>>({ news: 1, discussion: 1 })
+  const news = useFeed('news', pages.news)
+  const discussion = useFeed('discussion', pages.discussion)
+  const feeds: Record<FeedTab, FeedState & { retry: () => void }> = { news, discussion }
+  const active = feeds[activeTab]
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
 
     event.preventDefault()
     const nextTab = activeTab === 'news' ? 'discussion' : 'news'
-    selectTab(nextTab)
+    setActiveTab(nextTab)
     document.getElementById(`${nextTab}-tab`)?.focus()
   }
 
@@ -43,20 +78,20 @@ function CommunityFeed() {
           aria-label="Chọn nội dung cộng đồng"
           onKeyDown={handleTabKeyDown}
         >
-          {tabs.map((tab) => (
+          {(Object.keys(tabLabels) as FeedTab[]).map((id) => (
             <button
-              className={`${styles.tab} ${activeTab === tab.id ? styles.activeTab : ''}`}
-              id={`${tab.id}-tab`}
+              className={`${styles.tab} ${activeTab === id ? styles.activeTab : ''}`}
+              id={`${id}-tab`}
               type="button"
               role="tab"
-              aria-selected={activeTab === tab.id}
+              aria-selected={activeTab === id}
               aria-controls="community-feed-panel"
-              tabIndex={activeTab === tab.id ? 0 : -1}
-              onClick={() => selectTab(tab.id)}
-              key={tab.id}
+              tabIndex={activeTab === id ? 0 : -1}
+              onClick={() => setActiveTab(id)}
+              key={id}
             >
-              {tab.label}
-              <span className={styles.tabCount}>{tab.items.length}</span>
+              {tabLabels[id]}
+              <span className={styles.tabCount}>{feeds[id].status === 'error' ? '–' : feeds[id].total}</span>
             </button>
           ))}
         </div>
@@ -68,46 +103,54 @@ function CommunityFeed() {
         role="tabpanel"
         aria-labelledby={`${activeTab}-tab`}
         aria-live="polite"
+        aria-busy={active.status === 'loading'}
       >
-        {visibleItems.length === 0 ? (
+        {active.status === 'error' ? (
+          <div className={styles.empty}>
+            <strong>Không thể tải nội dung</strong>
+            <p>Vui lòng kiểm tra kết nối và thử lại.</p>
+            <button className={styles.retry} type="button" onClick={active.retry}>
+              Thử lại
+            </button>
+          </div>
+        ) : active.status === 'loading' && active.items.length === 0 ? (
+          <div className={styles.empty}>
+            <p>Đang tải nội dung…</p>
+          </div>
+        ) : active.items.length === 0 ? (
           <div className={styles.empty}>
             <strong>Chưa có nội dung</strong>
             <p>
               {activeTab === 'news'
                 ? 'Tin tức mới sẽ xuất hiện tại đây.'
-                : 'Chưa có chủ đề thảo luận nào. Hãy quay lại sau.'}
+                : 'Chưa có chủ đề thảo luận nào. Hãy là người đầu tiên đặt câu hỏi.'}
             </p>
           </div>
         ) : (
-          visibleItems.map((item) => (
+          active.items.map((item) => (
             <FeedEntry item={item} isDiscussion={activeTab === 'discussion'} key={item.id} />
           ))
         )}
       </div>
 
-      <Pagination
-        className={styles.pager}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        label={activeTab === 'news' ? 'tin tức' : 'thảo luận'}
-      />
+      <div className={styles.footer}>
+        <Link className={styles.viewAll} to={activeTab === 'news' ? '/news' : '/discussions'}>
+          Xem tất cả
+        </Link>
+        <Pagination
+          className={styles.pager}
+          currentPage={pages[activeTab]}
+          totalPages={totalPages(active.total, pageSize)}
+          onPageChange={(page) => setPages((previous) => ({ ...previous, [activeTab]: page }))}
+          label={activeTab === 'news' ? 'tin tức' : 'thảo luận'}
+        />
+      </div>
     </section>
   )
 }
 
-// Ngày có dạng YYYY-MM-DD nên tách thành ngày/tháng cho cột bên trái.
-function DateBlock({ dateTime }: { dateTime: string }) {
-  const [, month = '', day = ''] = dateTime.split('-')
-  return (
-    <div className={styles.dateBlock} aria-hidden="true">
-      <strong>{day.slice(0, 2)}</strong>
-      <span>Th{Number(month)}</span>
-    </div>
-  )
-}
-
-function FeedEntry({ item, isDiscussion }: { item: FeedItem; isDiscussion: boolean }) {
+function FeedEntry({ item, isDiscussion }: { item: FeedEntryData; isDiscussion: boolean }) {
+  const { day, month } = toDateBlock(item.dateTime)
   return (
     <article className={styles.entry}>
       {isDiscussion ? (
@@ -116,15 +159,22 @@ function FeedEntry({ item, isDiscussion }: { item: FeedItem; isDiscussion: boole
           <span>phản hồi</span>
         </div>
       ) : (
-        <DateBlock dateTime={item.dateTime} />
+        <div className={styles.dateBlock} aria-hidden="true">
+          <strong>{day}</strong>
+          <span>{month}</span>
+        </div>
       )}
       <div className={styles.entryBody}>
-        <h3 className={styles.entryTitle}>{item.title}</h3>
+        <h3 className={styles.entryTitle}>
+          <Link className={styles.entryLink} to={item.to}>
+            {item.title}
+          </Link>
+        </h3>
         <p className={styles.entrySummary}>{item.summary}</p>
         <p className={styles.entryMeta}>
-          <span className={styles.category}>{item.category}</span>
+          {item.category ? <span className={styles.category}>{item.category}</span> : null}
           <span>{item.author}</span>
-          <time dateTime={item.dateTime}>{item.date}</time>
+          <time dateTime={item.dateTime ?? undefined}>{formatDate(item.dateTime)}</time>
         </p>
       </div>
     </article>

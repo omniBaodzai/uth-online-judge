@@ -38,6 +38,9 @@ function AdminLayout() {
           <NavLink to="/admin/problems" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
             <AdminIcon name="book" /><span>Bài tập</span>
           </NavLink>
+          <NavLink to="/admin/news" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
+            <AdminIcon name="news" /><span>Tin tức</span>
+          </NavLink>
           <NavLink to="/admin/users" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
             <AdminIcon name="users" /><span>Người dùng</span>
           </NavLink>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type AdminIconName = 'grid' | 'book' | 'plus' | 'search' | 'chevron' | 'edit' | 'tests' | 'archive' | 'trash' | 'close' | 'lock' | 'eye' | 'home' | 'menu' | 'users'
+export type AdminIconName = 'grid' | 'book' | 'plus' | 'search' | 'chevron' | 'edit' | 'tests' | 'archive' | 'trash' | 'close' | 'lock' | 'eye' | 'home' | 'menu' | 'users' | 'news'
 
 const paths: Record<AdminIconName, ReactNode> = {
   grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
@@ -18,6 +18,7 @@ const paths: Record<AdminIconName, ReactNode> = {
   home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" /></>,
   menu: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8" /></>,
+  news: <><path d="M4 4h13a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z" /><path d="M19 9h2v9a2 2 0 0 1-2 2M8 8h7M8 12h7M8 16h4" /></>,
 }
 
 export function AdminIcon({ name, size = 18 }: { name: AdminIconName; size?: number }) {

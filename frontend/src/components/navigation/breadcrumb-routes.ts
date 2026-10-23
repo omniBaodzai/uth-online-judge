@@ -20,6 +20,10 @@ const admin: BreadcrumbItem = { label: 'Admin', to: '/admin' }
 const problemList: BreadcrumbItem = { label: 'Bài tập', to: '/problems' }
 const adminProblemList: BreadcrumbItem = { label: 'Bài tập', to: '/admin/problems' }
 
+const newsList: BreadcrumbItem = { label: 'Tin tức', to: '/news' }
+const discussionList: BreadcrumbItem = { label: 'Thảo luận', to: '/discussions' }
+const adminNewsList: BreadcrumbItem = { label: 'Tin tức', to: '/admin/news' }
+
 function problemDetail(code: string): BreadcrumbItem {
   return {
     label: 'Chi tiết bài tập',
@@ -48,6 +52,11 @@ const routes: RouteDefinition[] = [
     },
   },
   { pattern: '/submissions', build: () => [home, { label: 'Bài nộp' }] },
+  { pattern: '/news/:slug', build: () => [home, newsList, { label: 'Chi tiết tin tức' }] },
+  { pattern: '/news', build: () => [home, { label: 'Tin tức' }] },
+  { pattern: '/discussions/new', build: () => [home, discussionList, { label: 'Tạo chủ đề' }] },
+  { pattern: '/discussions/:id', build: () => [home, discussionList, { label: 'Chi tiết thảo luận' }] },
+  { pattern: '/discussions', build: () => [home, { label: 'Thảo luận' }] },
   { pattern: '/profile/edit', build: () => [home, { label: 'Hồ sơ', to: '/profile' }, { label: 'Chỉnh sửa hồ sơ' }] },
   { pattern: '/profile', build: () => [home, { label: 'Hồ sơ' }] },
   { pattern: '/contests', build: () => [home, { label: 'Cuộc thi' }] },
@@ -56,6 +65,9 @@ const routes: RouteDefinition[] = [
   { pattern: '/admin/problems/:id/edit', build: () => [admin, adminProblemList, { label: 'Chỉnh sửa bài tập' }] },
   { pattern: '/admin/problems/:id/test-cases', build: () => [admin, adminProblemList, { label: 'Quản lý test case' }] },
   { pattern: '/admin/problems', build: () => [admin, { label: 'Bài tập' }] },
+  { pattern: '/admin/news/new', build: () => [admin, adminNewsList, { label: 'Tạo tin tức' }] },
+  { pattern: '/admin/news/:id/edit', build: () => [admin, adminNewsList, { label: 'Chỉnh sửa tin tức' }] },
+  { pattern: '/admin/news', build: () => [admin, { label: 'Tin tức' }] },
   { pattern: '/admin/users', build: () => [admin, { label: 'Người dùng' }] },
   { pattern: '/admin', build: () => [admin, { label: 'Tổng quan' }] },
 ]
