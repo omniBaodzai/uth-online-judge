@@ -1,8 +1,12 @@
 import 'reflect-metadata';
+import { NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import { GlobalSubmissionsQueryDto } from './dto/global-submissions.dto.js';
 import { buildGlobalStatistics, escapeLikePattern } from './global-submissions.js';
+import { SubmissionsController } from './submissions.controller.js';
 import { SubmissionsRepository } from './submissions.repository.js';
 import { SubmissionsService } from './submissions.service.js';
 
@@ -114,7 +118,7 @@ describe('SubmissionsRepository.findGlobalSubmissions', () => {
     });
 
     const [sql, params] = query.mock.calls[0] as [string, unknown[]];
-    expect(params).toEqual(['WRONG_ANSWER', 'C++', "%a'; DROP TABLE users;--\\%%", 20, 20, 'viewer-1']);
+    expect(params).toEqual(['WRONG_ANSWER', 'C++', "%a'; DROP TABLE users;--\\%%", 20, 20, 'viewer-1', null]);
     expect(sql).not.toContain('DROP TABLE');
     expect(sql).toContain('ORDER BY submitted_at DESC, id DESC');
   });
@@ -152,5 +156,89 @@ describe('SubmissionsService.getGlobalSubmissions', () => {
 
     await service.getGlobalSubmissions('user-9', input);
     expect(findGlobalSubmissions).toHaveBeenCalledWith('user-9', input);
+  });
+
+  it('allows anonymous visitors', async () => {
+    const findGlobalSubmissions = vi.fn().mockResolvedValue({ items: [] });
+    const service = new SubmissionsService({ findGlobalSubmissions } as never, {} as never);
+
+    await service.getGlobalSubmissions(null, { page: 1, pageSize: 10 });
+    expect(findGlobalSubmissions).toHaveBeenCalledWith(null, { page: 1, pageSize: 10 });
+  });
+
+  it('returns 404 for an unknown or unpublished problem code', async () => {
+    const service = new SubmissionsService(
+      { findGlobalSubmissions: vi.fn().mockResolvedValue(null) } as never,
+      {} as never,
+    );
+    await expect(
+      service.getGlobalSubmissions(null, { page: 1, pageSize: 10, problemCode: 'NOPE' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('problem-specific global submissions', () => {
+  const query = vi.fn();
+  const repository = new SubmissionsRepository({ query } as never);
+
+  beforeEach(() => query.mockReset());
+
+  it('rejects malformed problem codes', async () => {
+    const { errors } = await validateQuery({ problemCode: 'uth012; DROP' });
+    expect(errors.length).toBeGreaterThan(0);
+    expect((await validateQuery({ problemCode: 'uth012' })).errors).toHaveLength(0);
+  });
+
+  it('returns null without querying submissions when the problem is not published', async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    const result = await repository.findGlobalSubmissions(null, { page: 1, pageSize: 10, problemCode: 'draft1' });
+
+    expect(result).toBeNull();
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toContain("status = 'PUBLISHED'");
+  });
+
+  it('scopes list, statistics and languages to the problem and treats guests as non-owners', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ problem_code: 'uth012', title: 'Tính tổng hai số nguyên' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          items: [{
+            id: 'a', status: 'ACCEPTED', submitted_at: '2026-10-23T10:00:00Z', username: 'alice',
+            problem_code: 'uth012', problem_title: 'Tính tổng hai số nguyên', language: 'C++',
+            execution_time_ms: 26, memory_used_kb: 1024, is_owner: false,
+          }],
+          total: 31,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ status: 'ACCEPTED', count: 1 }, { status: 'WRONG_ANSWER', count: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ name: 'C++' }] });
+
+    const page = await repository.findGlobalSubmissions(null, { page: 2, pageSize: 10, problemCode: 'UTH012' });
+
+    expect(page?.problem).toEqual({ code: 'uth012', title: 'Tính tổng hai số nguyên' });
+    expect(page).toMatchObject({ total: 31, statistics: { total: 4, accepted: 1, acceptanceRate: 25 } });
+    expect(page?.items[0].canViewDetails).toBe(false);
+
+    const [, listParams] = query.mock.calls[1] as [string, unknown[]];
+    expect(listParams[5]).toBeNull();
+    expect(listParams[6]).toBe('uth012');
+    for (const index of [2, 3]) {
+      const [sql, params] = query.mock.calls[index] as [string, unknown[]];
+      expect(sql).toContain('problem_code = $1');
+      expect(params).toEqual(['uth012']);
+    }
+  });
+});
+
+describe('SubmissionsController access', () => {
+  const guardsOf = (method: string) =>
+    (Reflect.getMetadata('__guards__', (SubmissionsController.prototype as never)[method]) ?? []) as unknown[];
+
+  it('keeps the public list open to guests but protects every other route', () => {
+    expect(guardsOf('list')).toEqual([OptionalJwtAuthGuard]);
+    for (const method of ['create', 'getMineForProblem', 'get']) {
+      expect(guardsOf(method)).toEqual([JwtAuthGuard]);
+    }
   });
 });

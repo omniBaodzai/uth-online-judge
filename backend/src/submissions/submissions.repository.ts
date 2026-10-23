@@ -7,6 +7,7 @@ import {
   escapeLikePattern,
   type GlobalSubmissionItem,
   type GlobalSubmissionPage,
+  type GlobalSubmissionQuery,
 } from './global-submissions.js';
 
 export interface CreatedSubmission {
@@ -263,11 +264,24 @@ export class SubmissionsRepository {
   // Chỉ bài nộp của bài tập đã PUBLISHED mới xuất hiện; không bao giờ trả mã nguồn,
   // test ẩn, judge0_token hay thông tin cá nhân ngoài username.
   async findGlobalSubmissions(
-    viewerId: string,
-    query: { page: number; pageSize: number; q?: string; status?: string; language?: string },
-  ): Promise<GlobalSubmissionPage> {
+    viewerId: string | null,
+    query: GlobalSubmissionQuery,
+  ): Promise<GlobalSubmissionPage | null> {
+    let problem: { code: string; title: string } | null = null;
+    if (query.problemCode) {
+      const found = await this.database.query<{ problem_code: string; title: string }>(
+        `SELECT problem_code, title FROM problems
+         WHERE UPPER(problem_code) = UPPER($1) AND status = 'PUBLISHED'`,
+        [query.problemCode],
+      );
+      const row = found.rows[0];
+      if (!row) return null;
+      problem = { code: row.problem_code, title: row.title };
+    }
+
     const search = query.q ? `%${escapeLikePattern(query.q)}%` : null;
     const offset = (query.page - 1) * query.pageSize;
+    const problemCode = problem?.code ?? null;
 
     const [listResult, statisticsResult, languagesResult] = await Promise.all([
       this.database.query<{ items: GlobalSubmissionRow[]; total: number }>(
@@ -281,6 +295,7 @@ export class SubmissionsRepository {
            JOIN programming_languages l ON l.id = s.language_id
            WHERE ($1::text IS NULL OR s.status = $1)
              AND ($2::text IS NULL OR l.name = $2)
+             AND ($7::text IS NULL OR p.problem_code = $7)
              AND ($3::text IS NULL
                   OR p.problem_code ILIKE $3 ESCAPE '\\'
                   OR p.title ILIKE $3 ESCAPE '\\'
@@ -300,26 +315,30 @@ export class SubmissionsRepository {
                   'problem_title', problem_title, 'language', language,
                   'execution_time_ms', execution_time_ms,
                   'memory_used_kb', memory_used_kb,
-                  'is_owner', user_id = $6::uuid
+                  'is_owner', COALESCE(user_id = $6::uuid, FALSE)
                 ) ORDER BY submitted_at DESC, id DESC)
               FROM page_rows),
              '[]'::json
            ) AS items,
            (SELECT COUNT(*)::int FROM filtered) AS total`,
-        [query.status ?? null, query.language ?? null, search, query.pageSize, offset, viewerId],
+        [query.status ?? null, query.language ?? null, search, query.pageSize, offset, viewerId, problemCode],
       ),
       this.database.query<{ status: string; count: number }>(
         `SELECT s.status, COUNT(*)::int AS count
          FROM submissions s
          JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+         WHERE ($1::text IS NULL OR p.problem_code = $1)
          GROUP BY s.status`,
+        [problemCode],
       ),
       this.database.query<{ name: string }>(
         `SELECT DISTINCT l.name
          FROM submissions s
          JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
          JOIN programming_languages l ON l.id = s.language_id
+         WHERE ($1::text IS NULL OR p.problem_code = $1)
          ORDER BY l.name`,
+        [problemCode],
       ),
     ]);
 
@@ -346,6 +365,7 @@ export class SubmissionsRepository {
       pageSize: query.pageSize,
       statistics: buildGlobalStatistics(statisticsResult.rows),
       filters: { languages: languagesResult.rows.map((row) => row.name) },
+      problem,
     };
   }
 

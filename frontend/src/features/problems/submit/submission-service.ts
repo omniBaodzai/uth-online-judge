@@ -96,6 +96,7 @@ export type GlobalSubmissionPage = {
     verdictCounts: Record<string, number>
   }
   filters: { languages: string[] }
+  problem: { code: string; title: string } | null
 }
 
 export type GlobalSubmissionFilters = {
@@ -104,6 +105,7 @@ export type GlobalSubmissionFilters = {
   q?: string
   status?: string
   language?: string
+  problemCode?: string
 }
 
 type RequestFn = <T>(path: string, init?: RequestInit) => Promise<T>
@@ -136,6 +138,7 @@ export function getGlobalSubmissions(
   if (filters.q) query.set('q', filters.q)
   if (filters.status) query.set('status', filters.status)
   if (filters.language) query.set('language', filters.language)
+  if (filters.problemCode) query.set('problemCode', filters.problemCode)
 
   return request<GlobalSubmissionPage>(`/submissions?${query.toString()}`, { signal })
 }

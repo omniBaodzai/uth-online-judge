@@ -26,6 +26,17 @@ export interface GlobalSubmissionPage {
   pageSize: number;
   statistics: GlobalSubmissionStatistics;
   filters: { languages: string[] };
+  // Chỉ có khi lọc theo một bài tập.
+  problem: { code: string; title: string } | null;
+}
+
+export interface GlobalSubmissionQuery {
+  page: number;
+  pageSize: number;
+  q?: string;
+  problemCode?: string;
+  status?: string;
+  language?: string;
 }
 
 // Vô hiệu hóa ký tự đại diện của ILIKE để từ khóa người dùng chỉ được hiểu theo nghĩa đen.

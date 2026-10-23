@@ -55,7 +55,7 @@ function App() {
             element={<RequireAuth><SubmitSolutionPage /></RequireAuth>}
           />
           <Route path="problems/:code/pdf" element={<PlaceholderPage title="Đề bài dạng PDF" />} />
-          <Route path="problems/:code/submissions" element={<PlaceholderPage title="Danh sách bài nộp" />} />
+          <Route path="problems/:code/submissions" element={<SubmissionsPage />} />
           <Route
             path="problems/:code/submissions/me"
             element={<RequireAuth><MyProblemSubmissionsPage /></RequireAuth>}
@@ -67,7 +67,7 @@ function App() {
             path="submissions/:submissionId"
             element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}
           />
-          <Route path="submissions" element={<RequireAuth><SubmissionsPage /></RequireAuth>} />
+          <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

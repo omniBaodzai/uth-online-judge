@@ -19,6 +19,15 @@ test('includes the problem parent when composing the submit route', () => {
   ])
 })
 
+test('builds the public problem submissions breadcrumb from the route code', () => {
+  assert.deepEqual(getBreadcrumbItems('/problems/uth012/submissions'), [
+    { label: 'Trang chủ', to: '/' },
+    { label: 'Bài tập', to: '/problems' },
+    { label: 'Chi tiết bài tập (uth012)', to: '/problems/uth012' },
+    { label: 'Danh sách bài nộp' },
+  ])
+})
+
 test('builds the submission details hierarchy from the submission problem code', () => {
   const path = '/submissions/253dfc57-c0cf-4305-8699-a3b3939d3d08'
   for (const code of ['uth012', 'abc99']) {

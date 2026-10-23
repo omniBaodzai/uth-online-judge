@@ -13,7 +13,7 @@ import {
   JUDGING_QUEUE,
   type JudgeSubmissionJobData,
 } from '../queues/judging-queue.constants.js';
-import type { GlobalSubmissionPage } from './global-submissions.js';
+import type { GlobalSubmissionPage, GlobalSubmissionQuery } from './global-submissions.js';
 import {
   SubmissionsRepository,
   type CreatedSubmission,
@@ -81,11 +81,13 @@ export class SubmissionsService {
     return submission;
   }
 
-  getGlobalSubmissions(
-    viewerId: string,
-    query: { page: number; pageSize: number; q?: string; status?: string; language?: string },
+  async getGlobalSubmissions(
+    viewerId: string | null,
+    query: GlobalSubmissionQuery,
   ): Promise<GlobalSubmissionPage> {
-    return this.repository.findGlobalSubmissions(viewerId, query);
+    const page = await this.repository.findGlobalSubmissions(viewerId, query);
+    if (!page) throw new NotFoundException('Không tìm thấy bài tập.');
+    return page;
   }
 
   async getProblemSubmissions(

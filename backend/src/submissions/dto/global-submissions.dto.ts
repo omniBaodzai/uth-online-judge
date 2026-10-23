@@ -24,6 +24,11 @@ export class GlobalSubmissionsQueryDto {
   q?: string;
 
   @IsOptional()
+  @IsString({ message: 'Mã bài tập phải là chuỗi ký tự.' })
+  @Matches(/^[A-Za-z0-9_-]{1,50}$/, { message: 'Mã bài tập không hợp lệ.' })
+  problemCode?: string;
+
+  @IsOptional()
   @IsIn(SUBMISSION_STATUSES, { message: 'Trạng thái bài nộp không hợp lệ.' })
   status?: (typeof SUBMISSION_STATUSES)[number];
 
