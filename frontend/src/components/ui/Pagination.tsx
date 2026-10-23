@@ -5,6 +5,7 @@ type PaginationProps = {
   totalPages: number
   onPageChange: (page: number) => void
   label: string
+  className?: string
 }
 
 function Pagination({
@@ -12,11 +13,15 @@ function Pagination({
   totalPages,
   onPageChange,
   label,
+  className,
 }: PaginationProps) {
   if (totalPages <= 1) return null
 
   return (
-    <nav className={styles.pagination} aria-label={`Phân trang ${label}`}>
+    <nav
+      className={`${styles.pagination} ${className ?? ''}`}
+      aria-label={`Phân trang ${label}`}
+    >
       <button
         className={styles.pageButton}
         type="button"
