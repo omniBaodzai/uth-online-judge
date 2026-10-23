@@ -1,0 +1,155 @@
+@property --fire-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --fire-b {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.fire {
+  position: absolute;
+  inset: -2px;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* Hai vòng viền mảnh xoay ngược chiều nhau tạo hiệu ứng lửa chảy liên tục. */
+.ring,
+.ringCounter,
+.heat {
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+
+.ring {
+  background: conic-gradient(
+    from var(--fire-a),
+    #ff7a00 0%,
+    #ffc933 12%,
+    #ff5a00 26%,
+    #ffb52e 41%,
+    #ffef9a 48%,
+    #ff8a00 58%,
+    #e84a00 74%,
+    #ffc933 88%,
+    #ff7a00 100%
+  );
+  animation: spin-a 5.5s linear infinite, flicker 1.3s ease-in-out infinite;
+}
+
+.ringCounter {
+  background: conic-gradient(
+    from var(--fire-b),
+    transparent 0%,
+    rgba(255, 238, 150, 0.95) 8%,
+    transparent 20%,
+    transparent 52%,
+    rgba(255, 170, 40, 0.9) 64%,
+    transparent 78%
+  );
+  mix-blend-mode: screen;
+  animation: spin-b 3.8s linear infinite;
+}
+
+.heat {
+  inset: -2px;
+  padding: 4px;
+  background: conic-gradient(
+    from var(--fire-b),
+    rgba(255, 110, 0, 0.5),
+    rgba(255, 190, 50, 0.15) 30%,
+    rgba(255, 90, 0, 0.45) 55%,
+    rgba(255, 190, 50, 0.15) 80%,
+    rgba(255, 110, 0, 0.5)
+  );
+  filter: blur(3px);
+  opacity: 0.6;
+  animation: spin-b 7s linear infinite, flicker 1.9s ease-in-out infinite reverse;
+}
+
+.spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffd45c;
+  box-shadow: 0 0 4px 1px rgba(255, 150, 20, 0.8);
+  opacity: 0;
+  animation: spark 3s ease-out infinite;
+}
+
+.fire[data-paused='true'] * {
+  animation-play-state: paused;
+}
+
+@keyframes spin-a {
+  to {
+    --fire-a: 360deg;
+  }
+}
+
+@keyframes spin-b {
+  to {
+    --fire-b: -360deg;
+  }
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  30% {
+    opacity: 0.82;
+  }
+
+  55% {
+    opacity: 0.96;
+  }
+
+  75% {
+    opacity: 0.78;
+  }
+}
+
+@keyframes spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(4px, -16px) scale(0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .ringCounter,
+  .heat {
+    animation: none;
+  }
+
+  .spark {
+    display: none;
+  }
+}

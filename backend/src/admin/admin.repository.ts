@@ -134,8 +134,8 @@ export class AdminRepository {
            SET problem_code = $2, title = $3, summary = $4, statement = $5,
                difficulty = $6, input_description = $7, output_description = $8,
                constraints_text = $9, time_limit_ms = $10, memory_limit_mb = $11,
-               status = $12, published_at = CASE
-                 WHEN $12 = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
+               status = $12::varchar, published_at = CASE
+                 WHEN $12::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
                  ELSE published_at END,
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $1
@@ -149,8 +149,8 @@ export class AdminRepository {
              (problem_code, title, summary, statement, difficulty, input_description,
               output_description, constraints_text, time_limit_ms, memory_limit_mb,
               status, created_by, published_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                   CASE WHEN $11 = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::varchar, $12,
+                   CASE WHEN $11::varchar = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END)
            RETURNING id`,
           [...values, userId],
         );
@@ -178,9 +178,9 @@ export class AdminRepository {
   async setProblemStatus(id: string, status: AdminProblem['status']): Promise<void> {
     const result = await this.database.query(
       `UPDATE problems
-       SET status = $2,
+       SET status = $2::varchar,
            published_at = CASE
-             WHEN $2 = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
+             WHEN $2::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
              ELSE published_at END,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
@@ -398,7 +398,7 @@ export class AdminRepository {
 
 function problemValues(input: AdminProblemDto): Array<string | number | null> {
   return [
-    input.code.trim().toUpperCase(),
+    input.code.trim(),
     input.title.trim(),
     input.summary?.trim() || null,
     input.statement,

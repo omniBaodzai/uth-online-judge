@@ -54,6 +54,37 @@ describe('AdminRepository', () => {
     expect(values).toEqual([`%x\\%'; DROP TABLE problems; --%`, 'DRAFT', 'EASY']);
   });
 
+  it('casts the status parameter consistently when creating and updating problems', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => (
+        sql.includes('INSERT INTO problems') || sql.includes('UPDATE problems')
+          ? { rows: [{ id: 'p1' }], rowCount: 1 }
+          : { rows: [], rowCount: 1 }
+      )),
+      release: vi.fn(),
+    };
+    const repository = new AdminRepository({ connect: vi.fn().mockResolvedValue(client) } as never);
+    vi.spyOn(repository, 'findProblem').mockResolvedValue({} as never);
+    const input = {
+      code: 'uth011', title: 'T', statement: 'S', difficulty: 'easy', tags: [], languages: [],
+      timeLimitSeconds: 1, memoryLimitMb: 256, examples: [], status: 'published',
+    } as never;
+
+    await repository.saveProblem(input, 'user-1');
+    await repository.saveProblem(input, 'user-1', 'p1');
+
+    const sqls = client.query.mock.calls.map(([sql]) => String(sql));
+    const insert = sqls.find((sql) => sql.includes('INSERT INTO problems'))!;
+    const update = sqls.find((sql) => sql.includes('UPDATE problems'))!;
+    expect(insert).toContain('$11::varchar');
+    expect(insert).not.toMatch(/\$11(?!::varchar|\d)/);
+    expect(update).toContain('$12::varchar');
+    expect(update).not.toMatch(/\$12(?!::varchar)/);
+    const insertParams = client.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO problems'))![1] as unknown[];
+    expect(insertParams[0]).toBe('uth011');
+    expect(insertParams[10]).toBe('PUBLISHED');
+  });
+
   it('preserves exact input and output whitespace when saving a test case', async () => {
     const created = {
       id: 'case-1',

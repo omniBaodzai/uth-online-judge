@@ -5,7 +5,7 @@ import { useAdmin } from '../useAdmin'
 import { AdminIcon } from '../components/AdminIcons'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import MultiValuePicker from '../components/MultiValuePicker'
-import { difficultyLabels } from '../utils'
+import { difficultyLabels, validateProblemCode } from '../utils'
 import type { AdminCatalog, AdminProblem, AdminDifficulty, ProblemDraft, ProblemExample } from '../types'
 import styles from '../admin.module.css'
 
@@ -13,7 +13,7 @@ const difficultyOptions: AdminDifficulty[] = ['easy', 'medium', 'hard']
 
 function emptyDraft(): ProblemDraft {
   return {
-    code: 'UTH011',
+    code: 'uth011',
     title: '',
     summary: '',
     statement: '',
@@ -138,14 +138,15 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
   async function persist(status: 'draft' | 'published') {
     const cleanDraft: ProblemDraft = {
       ...draft,
-      code: draft.code.trim().toUpperCase(),
+      code: draft.code.trim(),
       title: draft.title.trim(),
       summary: draft.summary?.trim() || null,
       examples: draft.examples.map((example: ProblemExample) => ({ ...example })),
       status,
     }
-    if (!/^UTH\d{3,}$/.test(cleanDraft.code)) {
-      setCodeError('Mã bài cần theo định dạng UTH theo sau bởi ít nhất 3 chữ số.')
+    const codeMessage = validateProblemCode(cleanDraft.code)
+    if (codeMessage) {
+      setCodeError(codeMessage)
       document.getElementById('problem-code')?.focus()
       return
     }
@@ -205,13 +206,12 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
               <input
                 id="problem-code"
                 required
-                pattern="UTH[0-9]{3,}"
-                title="Mã bài có định dạng UTH theo sau bởi ít nhất 3 chữ số."
+                maxLength={50}
                 aria-describedby={codeError ? 'problem-code-error' : 'problem-code-hint'}
                 value={draft.code}
-                onChange={(event) => { update('code', event.target.value.toUpperCase()); setCodeError('') }}
+                onChange={(event) => { update('code', event.target.value); setCodeError('') }}
               />
-              {codeError ? <p id="problem-code-error" className={styles.fieldError} role="alert">{codeError}</p> : <p id="problem-code-hint" className={styles.fieldHint}>Ví dụ: UTH001. Mã bài phải duy nhất.</p>}
+              {codeError ? <p id="problem-code-error" className={styles.fieldError} role="alert">{codeError}</p> : <p id="problem-code-hint" className={styles.fieldHint}>Chỉ gồm a-z, 0-9 và dấu _ (tối đa 50 ký tự). Ví dụ: uth011, tong_hai_so. Mã bài phải duy nhất.</p>}
             </div>
             <div className={styles.field}>
               <label htmlFor="problem-summary">Mô tả ngắn</label>

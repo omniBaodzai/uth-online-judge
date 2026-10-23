@@ -1,5 +1,4 @@
 .card {
-  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: var(--color-surface);
@@ -30,11 +29,12 @@
 .list {
   display: grid;
   margin: 0;
-  padding: 6px 8px 8px;
+  padding: 22px 16px 10px;
   list-style: none;
 }
 
 .person {
+  position: relative;
   display: grid;
   grid-template-columns: 24px 36px minmax(0, 1fr) auto;
   align-items: center;
@@ -54,6 +54,15 @@
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   text-align: center;
+}
+
+.top1 {
+  margin-bottom: 14px;
+  background: #fff;
+}
+
+.top1:hover {
+  background: #fff;
 }
 
 .top1 .rank {

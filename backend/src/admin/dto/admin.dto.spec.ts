@@ -5,7 +5,21 @@ import { AdminProblemDto } from './admin-problem.dto.js';
 import { AdminTestCaseDto } from './admin-test-case.dto.js';
 
 describe('Admin DTOs', () => {
-  it('normalizes problem codes and accepts user-defined tags', async () => {
+  const base = {
+    title: 'T', statement: 'S', difficulty: 'easy', tags: [], languages: [],
+    timeLimitSeconds: 1, memoryLimitMb: 256, examples: [],
+  };
+
+  it.each(['uth011', 'tong_hai_so', 'bai_tap_01', 'a'.repeat(50)])('accepts problem code %s', async (code) => {
+    await expect(validate(plainToInstance(AdminProblemDto, { ...base, code }))).resolves.toHaveLength(0);
+  });
+
+  it.each(['UTH011', 'bài_tập', 'bai tap', 'bai-tap', '', 'a'.repeat(51)])('rejects problem code "%s"', async (code) => {
+    const errors = await validate(plainToInstance(AdminProblemDto, { ...base, code }));
+    expect(errors.map((error) => error.property)).toContain('code');
+  });
+
+  it('trims problem codes and accepts user-defined tags', async () => {
     const problem = plainToInstance(AdminProblemDto, {
       code: ' uth004 ',
       title: ' Example problem ',
@@ -18,7 +32,7 @@ describe('Admin DTOs', () => {
       examples: [],
     });
 
-    expect(problem.code).toBe('UTH004');
+    expect(problem.code).toBe('uth004');
     expect(problem.title).toBe('Example problem');
     await expect(validate(problem)).resolves.toHaveLength(0);
   });

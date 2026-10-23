@@ -15,6 +15,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+export const PROBLEM_CODE_PATTERN = /^[a-z0-9_]{1,50}$/;
+export const PROBLEM_CODE_MESSAGE =
+  'Mã bài chỉ được chứa chữ thường a-z, số 0-9 và dấu gạch dưới (_), tối đa 50 ký tự; không dùng chữ hoa, dấu tiếng Việt, khoảng trắng hoặc ký tự đặc biệt.';
+
 export class AdminExampleDto {
   @IsString()
   @MaxLength(100_000)
@@ -26,10 +30,9 @@ export class AdminExampleDto {
 }
 
 export class AdminProblemDto {
-  @Transform(({ value }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
-  @IsString()
-  @MaxLength(30)
-  @Matches(/^UTH\d{3,}$/)
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsString({ message: 'Mã bài là bắt buộc.' })
+  @Matches(PROBLEM_CODE_PATTERN, { message: PROBLEM_CODE_MESSAGE })
   code!: string;
 
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)

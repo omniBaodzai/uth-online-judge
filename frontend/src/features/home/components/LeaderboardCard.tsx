@@ -1,4 +1,5 @@
 import type { RankedPerson } from '../data'
+import FlameBorder from './FlameBorder'
 import styles from './LeaderboardCard.module.css'
 
 type LeaderboardCardProps = {
@@ -32,6 +33,7 @@ function LeaderboardCard({ title, description, people, id }: LeaderboardCardProp
             className={`${styles.person} ${index < 3 ? styles[`top${index + 1}`] : ''}`}
             key={person.handle}
           >
+            {index === 0 ? <FlameBorder /> : null}
             <span className={styles.rank} aria-label={`Hạng ${index + 1}`}>
               {index + 1}
             </span>
