@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
+import FloatingActions from '../floating/FloatingActions'
 import styles from './AppLayout.module.css'
 
 function AppLayout() {
@@ -21,6 +22,7 @@ function AppLayout() {
         <Outlet />
       </div>
       <SiteFooter />
+      <FloatingActions />
     </div>
   )
 }

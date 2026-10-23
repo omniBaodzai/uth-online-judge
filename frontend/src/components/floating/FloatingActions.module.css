@@ -1,0 +1,143 @@
+.dock {
+  position: fixed;
+  z-index: 40;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.fab,
+.contactButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 60, 62, .28);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.fab {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.contactButton {
+  min-height: 44px;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.fab:hover,
+.contactButton:hover {
+  background: var(--color-primary-dark);
+}
+
+.fab:focus-visible,
+.contactButton:focus-visible,
+.contactMenu :is(a, button):focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .4);
+  outline-offset: 2px;
+}
+
+.contact {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.contactMenu {
+  width: min(300px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid #d8e6e5;
+  border-radius: 14px;
+  background: #fff;
+  color: #1d3a3c;
+  box-shadow: 0 16px 40px rgba(15, 40, 42, .22);
+}
+
+.contactHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 16px;
+}
+
+.contactHead button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #5b7173;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.contactHead button:hover {
+  background: #eff6f6;
+}
+
+.contactOrg {
+  margin: 2px 0 10px;
+  color: #5b7173;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.contactMenu ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+  list-style: none;
+}
+
+.contactMenu li a {
+  display: grid;
+  min-height: 44px;
+  gap: 2px;
+  padding: 9px 12px;
+  border: 1px solid #e3eded;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.contactMenu li a:hover {
+  border-color: var(--color-primary);
+  background: #f2fafa;
+}
+
+.contactMenu li a span {
+  color: var(--color-primary-dark);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.contactMenu li a small {
+  color: #5b7173;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab,
+  .contactButton {
+    transition: none;
+  }
+}

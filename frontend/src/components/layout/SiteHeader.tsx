@@ -80,9 +80,15 @@ function SiteHeader() {
 
   return (
     <header className={styles.header}>
-      <Link className={styles.brand} to="/" aria-label="UTH Online Judge - Trang chủ">
+      {/* Thẻ <a> thường để tải lại toàn trang, kể cả khi đang ở trang chủ. */}
+      <a
+        className={styles.brand}
+        href="/"
+        aria-label="UTH Online Judge - Trang chủ"
+        onClick={() => window.scrollTo(0, 0)}
+      >
         <img src={uthLogo} alt="Trường đại học Giao thông vận tải Thành phố Hồ Chí Minh" />
-      </Link>
+      </a>
 
       <div
         className={`${styles.menuPanel} ${menuOpen ? styles.menuPanelOpen : ''}`}
