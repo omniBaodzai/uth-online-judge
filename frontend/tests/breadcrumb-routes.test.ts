@@ -6,7 +6,7 @@ test('builds meaningful breadcrumbs for a problem detail route', () => {
   assert.deepEqual(getBreadcrumbItems('/problems/UTH011'), [
     { label: 'Trang chủ', to: '/' },
     { label: 'Bài tập', to: '/problems' },
-    { label: 'Chi tiết bài tập (UTH011)' },
+    { label: 'Chi tiết bài tập' },
   ])
 })
 
@@ -14,7 +14,7 @@ test('includes the problem parent when composing the submit route', () => {
   assert.deepEqual(getBreadcrumbItems('/problems/UTH011/submit'), [
     { label: 'Trang chủ', to: '/' },
     { label: 'Bài tập', to: '/problems' },
-    { label: 'Chi tiết bài tập (UTH011)', to: '/problems/UTH011' },
+    { label: 'Chi tiết bài tập', to: '/problems/UTH011' },
     { label: 'Gửi bài giải' },
   ])
 })
@@ -23,7 +23,7 @@ test('builds the public problem submissions breadcrumb from the route code', () 
   assert.deepEqual(getBreadcrumbItems('/problems/uth012/submissions'), [
     { label: 'Trang chủ', to: '/' },
     { label: 'Bài tập', to: '/problems' },
-    { label: 'Chi tiết bài tập (uth012)', to: '/problems/uth012' },
+    { label: 'Chi tiết bài tập', to: '/problems/uth012' },
     { label: 'Danh sách bài nộp' },
   ])
 })
@@ -35,7 +35,7 @@ test('builds the submission details hierarchy from the submission problem code',
     assert.deepEqual(items.map(({ label, to }) => [label, to]), [
       ['Trang chủ', '/'],
       ['Bài tập', '/problems'],
-      [`Chi tiết bài tập (${code})`, `/problems/${code}`],
+      [`Chi tiết bài tập`, `/problems/${code}`],
       ['Gửi bài giải', `/problems/${code}/submit`],
       ['Chi tiết bài nộp', undefined],
     ])
@@ -50,7 +50,7 @@ test('shows My Submissions as the parent when opened from that list', () => {
   assert.deepEqual(items.map(({ label, to }) => [label, to]), [
     ['Trang chủ', '/'],
     ['Bài tập', '/problems'],
-    ['Chi tiết bài tập (uth012)', '/problems/uth012'],
+    ['Chi tiết bài tập', '/problems/uth012'],
     ['Bài nộp của tôi', '/problems/uth012/submissions/me'],
     ['Chi tiết bài nộp', undefined],
   ])

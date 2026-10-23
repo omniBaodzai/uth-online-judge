@@ -49,6 +49,17 @@
   font-size: 15px;
 }
 
+.problemLink {
+  color: var(--color-primary, #0b5cab);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.problemLink:hover,
+.problemLink:focus-visible {
+  text-decoration: underline;
+}
+
 .filters {
   grid-area: filters;
   display: flex;

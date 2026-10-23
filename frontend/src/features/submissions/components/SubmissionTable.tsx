@@ -6,12 +6,14 @@ type SubmissionTableProps = {
   items: Submission[]
   isLoading?: boolean
   hasFilters: boolean
+  // Trang theo từng bài tập đã nêu tên bài ở tiêu đề nên không lặp lại cột này.
+  hideProblem?: boolean
 }
 
 const dateFormat = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
 const timeFormat = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
-function SubmissionTable({ items, isLoading = false, hasFilters }: SubmissionTableProps) {
+function SubmissionTable({ items, isLoading = false, hasFilters, hideProblem = false }: SubmissionTableProps) {
   if (isLoading) {
     return (
       <ul className={styles.skeletons} aria-label="Đang tải dữ liệu" aria-busy="true">
@@ -39,7 +41,7 @@ function SubmissionTable({ items, isLoading = false, hasFilters }: SubmissionTab
             <th scope="col">Kết quả</th>
             <th scope="col">Thời gian nộp</th>
             <th scope="col">Coder</th>
-            <th scope="col">Tên bài tập</th>
+            {!hideProblem && <th scope="col">Tên bài tập</th>}
             <th scope="col">Ngôn ngữ</th>
             <th scope="col" className={styles.num}>Thời gian chạy</th>
             <th scope="col" className={styles.num}>Bộ nhớ</th>
@@ -76,12 +78,14 @@ function SubmissionTable({ items, isLoading = false, hasFilters }: SubmissionTab
                 </td>
                 {/* Chưa có route hồ sơ công khai nên chưa gắn liên kết cho coder. */}
                 <td className={styles.coder}>{item.username ?? 'Ẩn danh'}</td>
-                <td>
-                  <Link className={styles.problem} to={`/problems/${encodeURIComponent(item.problemCode)}`}>
-                    {item.problemTitle}
-                  </Link>
-                  <span className={styles.code}>{item.problemCode}</span>
-                </td>
+                {!hideProblem && (
+                  <td>
+                    <Link className={styles.problem} to={`/problems/${encodeURIComponent(item.problemCode)}`}>
+                      {item.problemTitle}
+                    </Link>
+                    <span className={styles.code}>{item.problemCode}</span>
+                  </td>
+                )}
                 <td className={styles.lang}>{item.language}</td>
                 <td className={styles.num}>{formatExecutionTime(item.executionTimeMs)}</td>
                 <td className={styles.num}>{formatMemory(item.memoryUsedKb)}</td>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { ApiError, request as publicRequest } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import FilterDropdown from '../../problems/components/FilterDropdown'
@@ -105,14 +105,20 @@ function SubmissionsPage() {
     <main className={styles.main} id="main-content">
       <div className={styles.grid}>
         <header className={styles.header}>
-          <h1>Danh sách bài nộp</h1>
           {problemCode ? (
-            <p>
-              Bài {data?.problem?.code ?? problemCode}
-              {data?.problem ? ` — ${data.problem.title}` : ''}
-            </p>
+            <>
+              <h1>
+                Danh sách bài nộp của bài{' '}
+                <Link to={`/problems/${encodeURIComponent(data?.problem?.code ?? problemCode)}`} className={styles.problemLink}>
+                  {data?.problem ? data.problem.title : problemCode}
+                </Link>
+              </h1>
+            </>
           ) : (
-            <p>Theo dõi kết quả chấm và lịch sử nộp bài của các coder.</p>
+            <>
+              <h1>Danh sách bài nộp</h1>
+              <p>Theo dõi kết quả chấm và lịch sử nộp bài của các coder.</p>
+            </>
           )}
         </header>
 
@@ -168,7 +174,7 @@ function SubmissionsPage() {
               <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Thử lại</button>
             </div>
           )}
-          <SubmissionTable items={data?.items ?? []} isLoading={isLoading} hasFilters={hasFilters} />
+          <SubmissionTable items={data?.items ?? []} isLoading={isLoading} hasFilters={hasFilters} hideProblem={Boolean(problemCode)} />
           <div className={styles.footer}>
             <SubmissionPagination {...paginationProps} />
           </div>

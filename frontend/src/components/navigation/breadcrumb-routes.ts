@@ -22,7 +22,7 @@ const adminProblemList: BreadcrumbItem = { label: 'Bài tập', to: '/admin/prob
 
 function problemDetail(code: string): BreadcrumbItem {
   return {
-    label: `Chi tiết bài tập (${code})`,
+    label: 'Chi tiết bài tập',
     to: `/problems/${encodeURIComponent(code)}`,
   }
 }
@@ -34,7 +34,7 @@ const routes: RouteDefinition[] = [
   { pattern: '/problems/:code/submissions', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Danh sách bài nộp' }] },
   { pattern: '/problems/:code/solution', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Lời giải bài tập' }] },
   { pattern: '/problems/:code/pdf', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Đề bài dạng PDF' }] },
-  { pattern: '/problems/:code', build: ({ code }) => [home, problemList, { label: `Chi tiết bài tập (${code})` }] },
+  { pattern: '/problems/:code', build: () => [home, problemList, { label: 'Chi tiết bài tập' }] },
   { pattern: '/problems', build: () => [home, { label: 'Bài tập' }] },
   {
     pattern: '/submissions/:submissionId',
