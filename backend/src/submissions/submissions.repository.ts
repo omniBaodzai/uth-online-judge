@@ -2,6 +2,12 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
 import { getProblemScoringConfiguration } from '../scoring/scoring-policy.js';
+import {
+  buildGlobalStatistics,
+  escapeLikePattern,
+  type GlobalSubmissionItem,
+  type GlobalSubmissionPage,
+} from './global-submissions.js';
 
 export interface CreatedSubmission {
   id: string;
@@ -63,6 +69,19 @@ export interface ProblemSubmissionPage {
   items: ProblemSubmissionListItem[];
   total: number;
   statistics: ProblemSubmissionStatistics;
+}
+
+interface GlobalSubmissionRow {
+  id: string;
+  status: string;
+  submitted_at: string;
+  username: string | null;
+  problem_code: string;
+  problem_title: string;
+  language: string;
+  execution_time_ms: number | null;
+  memory_used_kb: number | null;
+  is_owner: boolean;
 }
 
 @Injectable()
@@ -238,6 +257,95 @@ export class SubmissionsRepository {
         pointsAwarded: row.scoring_enabled ? Number(result.points_awarded ?? 0) : 0,
         maxPoints: row.scoring_enabled ? Number(result.max_points) : 0,
       })),
+    };
+  }
+
+  // Chỉ bài nộp của bài tập đã PUBLISHED mới xuất hiện; không bao giờ trả mã nguồn,
+  // test ẩn, judge0_token hay thông tin cá nhân ngoài username.
+  async findGlobalSubmissions(
+    viewerId: string,
+    query: { page: number; pageSize: number; q?: string; status?: string; language?: string },
+  ): Promise<GlobalSubmissionPage> {
+    const search = query.q ? `%${escapeLikePattern(query.q)}%` : null;
+    const offset = (query.page - 1) * query.pageSize;
+
+    const [listResult, statisticsResult, languagesResult] = await Promise.all([
+      this.database.query<{ items: GlobalSubmissionRow[]; total: number }>(
+        `WITH filtered AS (
+           SELECT s.id, s.status, s.submitted_at, s.user_id, u.username,
+                  p.problem_code, p.title AS problem_title, l.name AS language,
+                  s.execution_time_ms, s.memory_used_kb
+           FROM submissions s
+           JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+           JOIN users u ON u.id = s.user_id
+           JOIN programming_languages l ON l.id = s.language_id
+           WHERE ($1::text IS NULL OR s.status = $1)
+             AND ($2::text IS NULL OR l.name = $2)
+             AND ($3::text IS NULL
+                  OR p.problem_code ILIKE $3 ESCAPE '\\'
+                  OR p.title ILIKE $3 ESCAPE '\\'
+                  OR u.username ILIKE $3 ESCAPE '\\')
+         ),
+         page_rows AS (
+           SELECT * FROM filtered
+           ORDER BY submitted_at DESC, id DESC
+           LIMIT $4 OFFSET $5
+         )
+         SELECT
+           COALESCE(
+             (SELECT json_agg(
+                json_build_object(
+                  'id', id, 'status', status, 'submitted_at', submitted_at,
+                  'username', username, 'problem_code', problem_code,
+                  'problem_title', problem_title, 'language', language,
+                  'execution_time_ms', execution_time_ms,
+                  'memory_used_kb', memory_used_kb,
+                  'is_owner', user_id = $6::uuid
+                ) ORDER BY submitted_at DESC, id DESC)
+              FROM page_rows),
+             '[]'::json
+           ) AS items,
+           (SELECT COUNT(*)::int FROM filtered) AS total`,
+        [query.status ?? null, query.language ?? null, search, query.pageSize, offset, viewerId],
+      ),
+      this.database.query<{ status: string; count: number }>(
+        `SELECT s.status, COUNT(*)::int AS count
+         FROM submissions s
+         JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+         GROUP BY s.status`,
+      ),
+      this.database.query<{ name: string }>(
+        `SELECT DISTINCT l.name
+         FROM submissions s
+         JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+         JOIN programming_languages l ON l.id = s.language_id
+         ORDER BY l.name`,
+      ),
+    ]);
+
+    const list = listResult.rows[0];
+    if (!list) throw new Error('Không thể tải danh sách bài nộp.');
+
+    const items: GlobalSubmissionItem[] = list.items.map((row) => ({
+      id: row.id,
+      status: row.status,
+      submittedAt: row.submitted_at,
+      username: row.username,
+      problemCode: row.problem_code,
+      problemTitle: row.problem_title,
+      language: row.language,
+      executionTimeMs: row.execution_time_ms,
+      memoryUsedKb: row.memory_used_kb,
+      canViewDetails: row.is_owner,
+    }));
+
+    return {
+      items,
+      total: Number(list.total),
+      page: query.page,
+      pageSize: query.pageSize,
+      statistics: buildGlobalStatistics(statisticsResult.rows),
+      filters: { languages: languagesResult.rows.map((row) => row.name) },
     };
   }
 

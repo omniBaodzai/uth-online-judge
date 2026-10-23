@@ -1,6 +1,30 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getSubmissionVerdictDistribution } from '../src/features/submissions/data/submission-verdicts.ts'
+import {
+  getSubmissionVerdictDistribution,
+  getSubmissionVerdictLegend,
+} from '../src/features/submissions/data/submission-verdicts.ts'
+
+test('legend keeps the six core verdicts and adds present extras consistent with the total', () => {
+  const counts = { ACCEPTED: 3, WRONG_ANSWER: 1, QUEUED: 1, INTERNAL_ERROR: 1, MYSTERY: 2 }
+  const legend = getSubmissionVerdictLegend(counts, 8)
+
+  assert.deepEqual(
+    legend.slice(0, 6).map((item) => item.abbr),
+    ['AC', 'WA', 'TLE', 'MLE', 'RE', 'CE'],
+  )
+  assert.deepEqual(legend.slice(6).map((item) => item.abbr), ['Q', 'IE', '?'])
+  assert.equal(legend.reduce((sum, item) => sum + item.count, 0), 8)
+  assert.equal(legend.find((item) => item.abbr === 'AC')?.percentage, 37.5)
+  assert.equal(legend.find((item) => item.abbr === 'TLE')?.count, 0)
+})
+
+test('legend is all zero and never divides by zero for an empty dataset', () => {
+  const legend = getSubmissionVerdictLegend({}, 0)
+  assert.equal(legend.length, 6)
+  assert.ok(legend.every((item) => item.count === 0 && item.percentage === 0))
+  assert.deepEqual(getSubmissionVerdictDistribution({}, 0), [])
+})
 
 test('calculates verdict percentages from all submission totals', () => {
   const distribution = getSubmissionVerdictDistribution({

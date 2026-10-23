@@ -67,7 +67,7 @@ function App() {
             path="submissions/:submissionId"
             element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}
           />
-          <Route path="submissions" element={<SubmissionsPage />} />
+          <Route path="submissions" element={<RequireAuth><SubmissionsPage /></RequireAuth>} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

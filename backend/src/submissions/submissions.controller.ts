@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
+import { GlobalSubmissionsQueryDto } from './dto/global-submissions.dto.js';
 import { ProblemSubmissionsParamsDto, ProblemSubmissionsQueryDto } from './dto/problem-submissions.dto.js';
 import { SubmissionsService } from './submissions.service.js';
 
@@ -33,6 +34,12 @@ export class SubmissionsController {
   create(@Body() dto: CreateSubmissionDto, @Req() request: AuthenticatedRequest) {
     // userId lấy từ token, không bao giờ từ body.
     return this.submissions.create(request.user.id, dto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Bảng chấm bài chung: danh sách và thống kê bài nộp (không có mã nguồn)' })
+  list(@Query() query: GlobalSubmissionsQueryDto, @Req() request: AuthenticatedRequest) {
+    return this.submissions.getGlobalSubmissions(request.user.id, query);
   }
 
   @Get('mine/:problemCode')

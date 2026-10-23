@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
-const SUBMISSION_STATUSES = [
+export const SUBMISSION_STATUSES = [
   'PENDING',
   'QUEUED',
   'RUNNING',

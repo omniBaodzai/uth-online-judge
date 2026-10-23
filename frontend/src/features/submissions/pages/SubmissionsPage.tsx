@@ -1,65 +1,89 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { ApiError } from '../../auth/api'
+import { useAuth } from '../../auth/useAuth'
 import FilterDropdown from '../../problems/components/FilterDropdown'
+import { getGlobalSubmissions, type GlobalSubmissionPage } from '../../problems/submit/submission-service'
 import SubmissionPagination from '../components/SubmissionPagination'
 import SubmissionStatsChart from '../components/SubmissionStatsChart'
 import SubmissionTable from '../components/SubmissionTable'
-import {
-  countVerdicts,
-  languageOptions,
-  sampleSubmissions,
-  submissionPageSizes,
-  verdictMeta,
-  verdictOptions,
-  type Submission,
-} from '../data'
+import { submissionPageSizes, verdictFilterOptions } from '../data'
 import styles from './SubmissionsPage.module.css'
 
-// Đổi giá trị để xem trước trạng thái tải khi chưa có API.
-const isLoading = false
-const submissions: Submission[] = sampleSubmissions
-
-const verdictFilterOptions = verdictOptions.map((value) => ({ value, label: `${value} — ${verdictMeta[value].name}` }))
-const languageFilterOptions = languageOptions.map((value) => ({ value, label: value }))
-
-function normalize(text: string) {
-  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase()
-}
+const SEARCH_DEBOUNCE_MS = 300
 
 function SubmissionsPage() {
+  const { request } = useAuth()
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [verdict, setVerdict] = useState<string[]>([])
   const [language, setLanguage] = useState<string[]>([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(submissionPageSizes[0])
+  const [data, setData] = useState<GlobalSubmissionPage | null>(null)
+  const [settled, setSettled] = useState<{ key: string; error: string } | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
-  const stats = useMemo(() => countVerdicts(submissions), [])
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [query])
 
-  const filtered = useMemo(() => {
-    const keyword = normalize(query.trim())
-    return submissions.filter((item) => {
-      if (verdict.length && item.verdict !== verdict[0]) return false
-      if (language.length && item.language !== language[0]) return false
-      if (!keyword) return true
-      return normalize(`${item.problemTitle} ${item.problemCode} ${item.coder}`).includes(keyword)
-    })
-  }, [query, verdict, language])
+  const selectedVerdict = verdict[0]
+  const selectedLanguage = language[0]
+  const requestKey = JSON.stringify([page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage, retryKey])
+  const isLoading = settled?.key !== requestKey
+  const error = settled?.key === requestKey ? settled.error : ''
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
-  const pageItems = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  // Mỗi lần đổi bộ lọc sẽ hủy yêu cầu cũ để kết quả muộn không ghi đè kết quả mới.
+  useEffect(() => {
+    const controller = new AbortController()
+    getGlobalSubmissions(
+      request,
+      { page, pageSize, q: debouncedQuery, status: selectedVerdict, language: selectedLanguage },
+      controller.signal,
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return
+        // Nếu dữ liệu thu hẹp khiến trang hiện tại không còn tồn tại, quay về trang cuối.
+        if (result.items.length === 0 && result.total > 0 && page > 1) {
+          setPage(Math.ceil(result.total / pageSize))
+          return
+        }
+        setData(result)
+        setSettled({ key: requestKey, error: '' })
+      })
+      .catch((requestError: unknown) => {
+        if (controller.signal.aborted) return
+        setSettled({
+          key: requestKey,
+          error:
+            requestError instanceof ApiError
+              ? requestError.message
+              : 'Không thể tải danh sách bài nộp. Vui lòng thử lại.',
+        })
+      })
+    return () => controller.abort()
+  }, [request, requestKey, page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage])
+
+  const languageFilterOptions = useMemo(
+    () => (data?.filters.languages ?? []).map((value) => ({ value, label: value })),
+    [data?.filters.languages],
+  )
+
   const hasFilters = query !== '' || verdict.length > 0 || language.length > 0
 
   function resetFilters() {
     setQuery('')
+    setDebouncedQuery('')
     setVerdict([])
     setLanguage([])
     setPage(1)
   }
 
   const paginationProps = {
-    currentPage,
+    currentPage: page,
     pageSize,
-    totalItems: filtered.length,
+    totalItems: data?.total ?? 0,
     pageSizes: submissionPageSizes,
     label: 'bài nộp',
     onPageChange: setPage,
@@ -68,6 +92,8 @@ function SubmissionsPage() {
       setPage(1)
     },
   }
+
+  const statistics = data?.statistics
 
   return (
     <main className={styles.main} id="main-content">
@@ -87,6 +113,7 @@ function SubmissionsPage() {
                 type="search"
                 aria-label="Tìm bài nộp"
                 placeholder="Tìm tên bài tập, mã bài hoặc coder..."
+                maxLength={100}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value)
@@ -122,14 +149,24 @@ function SubmissionsPage() {
           </div>
 
         <div className={styles.card}>
-          <SubmissionTable items={pageItems} isLoading={isLoading} hasFilters={hasFilters} />
+          {error && (
+            <div className={styles.error} role="alert">
+              <span>{error}</span>
+              <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Thử lại</button>
+            </div>
+          )}
+          <SubmissionTable items={data?.items ?? []} isLoading={isLoading} hasFilters={hasFilters} />
           <div className={styles.footer}>
             <SubmissionPagination {...paginationProps} />
           </div>
         </div>
 
         <aside className={styles.right}>
-          <SubmissionStatsChart counts={stats} />
+          <SubmissionStatsChart
+            total={statistics?.total ?? 0}
+            accepted={statistics?.accepted ?? 0}
+            verdictCounts={statistics?.verdictCounts ?? {}}
+          />
         </aside>
       </div>
     </main>

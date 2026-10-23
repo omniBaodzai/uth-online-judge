@@ -71,6 +71,41 @@ export type ProblemSubmissionFilters = {
   language?: string
 }
 
+export type GlobalSubmissionItem = {
+  id: string
+  status: string
+  submittedAt: string
+  username: string | null
+  problemCode: string
+  problemTitle: string
+  language: string
+  executionTimeMs: number | null
+  memoryUsedKb: number | null
+  canViewDetails: boolean
+}
+
+export type GlobalSubmissionPage = {
+  items: GlobalSubmissionItem[]
+  total: number
+  page: number
+  pageSize: number
+  statistics: {
+    total: number
+    accepted: number
+    acceptanceRate: number
+    verdictCounts: Record<string, number>
+  }
+  filters: { languages: string[] }
+}
+
+export type GlobalSubmissionFilters = {
+  page: number
+  pageSize: number
+  q?: string
+  status?: string
+  language?: string
+}
+
 type RequestFn = <T>(path: string, init?: RequestInit) => Promise<T>
 
 // Gửi bài lên backend để xếp hàng chấm bất đồng bộ.
@@ -87,6 +122,22 @@ export function getSubmissionDetails(
   submissionId: string,
 ): Promise<SubmissionDetails> {
   return request<SubmissionDetails>(`/submissions/${encodeURIComponent(submissionId)}`)
+}
+
+export function getGlobalSubmissions(
+  request: RequestFn,
+  filters: GlobalSubmissionFilters,
+  signal?: AbortSignal,
+): Promise<GlobalSubmissionPage> {
+  const query = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: String(filters.pageSize),
+  })
+  if (filters.q) query.set('q', filters.q)
+  if (filters.status) query.set('status', filters.status)
+  if (filters.language) query.set('language', filters.language)
+
+  return request<GlobalSubmissionPage>(`/submissions?${query.toString()}`, { signal })
 }
 
 export function getMyProblemSubmissions(

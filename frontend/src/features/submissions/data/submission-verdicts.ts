@@ -20,6 +20,28 @@ export type SubmissionVerdictDistributionItem = {
   percentage: number
 }
 
+const CORE_LEGEND_STATUSES = [
+  'ACCEPTED',
+  'WRONG_ANSWER',
+  'TIME_LIMIT_EXCEEDED',
+  'MEMORY_LIMIT_EXCEEDED',
+  'RUNTIME_ERROR',
+  'COMPILATION_ERROR',
+]
+
+// Chú giải luôn có 6 kết quả chính (kể cả khi bằng 0); các trạng thái khác chỉ hiện khi có bài nộp.
+export function getSubmissionVerdictLegend(
+  verdictCounts: Record<string, number>,
+  total: number,
+): SubmissionVerdictDistributionItem[] {
+  const present = new Map(getSubmissionVerdictDistribution(verdictCounts, total).map((item) => [item.status, item]))
+  const core = submissionVerdicts
+    .filter(({ status }) => CORE_LEGEND_STATUSES.includes(status))
+    .map(({ status, abbr, label, color }) => present.get(status) ?? { status, abbr, label, color, count: 0, percentage: 0 })
+  const extras = [...present.values()].filter((item) => !CORE_LEGEND_STATUSES.includes(item.status))
+  return [...core, ...extras]
+}
+
 export function getSubmissionVerdictDistribution(
   verdictCounts: Record<string, number>,
   total: number,

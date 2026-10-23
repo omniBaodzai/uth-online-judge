@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { verdictMeta, type Submission } from '../data'
+import { formatExecutionTime, formatMemory, getVerdictBadge, type Submission } from '../data'
 import styles from './SubmissionTable.module.css'
 
 type SubmissionTableProps = {
@@ -47,34 +47,44 @@ function SubmissionTable({ items, isLoading = false, hasFilters }: SubmissionTab
         </thead>
         <tbody>
           {items.map((item) => {
-            const meta = verdictMeta[item.verdict]
+            const meta = getVerdictBadge(item.status)
             const date = new Date(item.submittedAt)
+            const validDate = !Number.isNaN(date.getTime())
+            const badgeStyle = { color: meta.color, background: meta.background }
             return (
               <tr key={item.id}>
                 <td>
-                  <span
-                    className={styles.badge}
-                    style={{ color: meta.color, background: meta.background }}
-                    title={meta.name}
-                  >
-                    {item.verdict}
-                  </span>
+                  {/* Chỉ chủ bài nộp mới xem được chi tiết, nên người khác chỉ thấy nhãn kết quả. */}
+                  {item.canViewDetails ? (
+                    <Link
+                      className={`${styles.badge} ${styles.badgeLink}`}
+                      style={badgeStyle}
+                      to={`/submissions/${encodeURIComponent(item.id)}`}
+                      title={`${meta.name} — xem chi tiết`}
+                    >
+                      {meta.abbr}
+                    </Link>
+                  ) : (
+                    <span className={styles.badge} style={badgeStyle} title={meta.name}>
+                      {meta.abbr}
+                    </span>
+                  )}
                 </td>
                 <td className={styles.time}>
-                  <span>{dateFormat.format(date)}</span>
-                  <span>{timeFormat.format(date)}</span>
+                  <span>{validDate ? dateFormat.format(date) : '—'}</span>
+                  <span>{validDate ? timeFormat.format(date) : ''}</span>
                 </td>
                 {/* Chưa có route hồ sơ công khai nên chưa gắn liên kết cho coder. */}
-                <td className={styles.coder}>{item.coder}</td>
+                <td className={styles.coder}>{item.username ?? 'Ẩn danh'}</td>
                 <td>
-                  <Link className={styles.problem} to={`/problems/${item.problemCode}`}>
+                  <Link className={styles.problem} to={`/problems/${encodeURIComponent(item.problemCode)}`}>
                     {item.problemTitle}
                   </Link>
                   <span className={styles.code}>{item.problemCode}</span>
                 </td>
                 <td className={styles.lang}>{item.language}</td>
-                <td className={styles.num}>{item.timeMs === null ? '—' : `${item.timeMs} ms`}</td>
-                <td className={styles.num}>{item.memoryMb === null ? '—' : `${item.memoryMb.toFixed(1)} MB`}</td>
+                <td className={styles.num}>{formatExecutionTime(item.executionTimeMs)}</td>
+                <td className={styles.num}>{formatMemory(item.memoryUsedKb)}</td>
               </tr>
             )
           })}

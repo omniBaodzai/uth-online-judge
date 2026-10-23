@@ -1,28 +1,31 @@
-import { verdictMeta, verdictOptions, type SubmissionVerdict } from '../data'
+import {
+  getSubmissionVerdictDistribution,
+  getSubmissionVerdictLegend,
+} from '../data/submission-verdicts'
 import styles from './SubmissionStatsChart.module.css'
 
 type SubmissionStatsChartProps = {
-  counts: Record<SubmissionVerdict, number>
+  total: number
+  accepted: number
+  verdictCounts: Record<string, number>
 }
 
 const RADIUS = 52
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 // Biểu đồ vành khuyên bằng SVG, không cần thêm thư viện biểu đồ.
-function SubmissionStatsChart({ counts }: SubmissionStatsChartProps) {
-  const total = verdictOptions.reduce((sum, key) => sum + counts[key], 0)
-  const acRate = total === 0 ? 0 : (counts.AC / total) * 100
+function SubmissionStatsChart({ total, accepted, verdictCounts }: SubmissionStatsChartProps) {
+  const acRate = total === 0 ? 0 : (accepted / total) * 100
+  const legend = getSubmissionVerdictLegend(verdictCounts, total)
 
-  const segments = verdictOptions
-    .filter((key) => counts[key] > 0)
-    .map((key, index, keys) => {
-      const before = keys.slice(0, index).reduce((sum, k) => sum + counts[k], 0)
-      return {
-        key,
-        length: (counts[key] / total) * CIRCUMFERENCE,
-        offset: (before / total) * CIRCUMFERENCE,
-      }
-    })
+  const segments = getSubmissionVerdictDistribution(verdictCounts, total).map((item, index, items) => {
+    const before = items.slice(0, index).reduce((sum, previous) => sum + previous.count, 0)
+    return {
+      ...item,
+      length: (item.count / total) * CIRCUMFERENCE,
+      offset: (before / total) * CIRCUMFERENCE,
+    }
+  })
 
   return (
     <section className={styles.card} aria-labelledby="stats-title">
@@ -38,18 +41,18 @@ function SubmissionStatsChart({ counts }: SubmissionStatsChartProps) {
             aria-label={`Biểu đồ kết quả chấm, tổng ${total} bài nộp`}
           >
             <circle cx="70" cy="70" r={RADIUS} className={styles.track} />
-            {segments.map(({ key, length, offset: start }) => (
+            {segments.map((segment) => (
               <circle
-                key={key}
+                key={segment.status}
                 cx="70"
                 cy="70"
                 r={RADIUS}
                 className={styles.segment}
-                stroke={verdictMeta[key].chart}
-                strokeDasharray={`${length} ${CIRCUMFERENCE - length}`}
-                strokeDashoffset={-start}
+                stroke={segment.color}
+                strokeDasharray={`${segment.length} ${CIRCUMFERENCE - segment.length}`}
+                strokeDashoffset={-segment.offset}
               >
-                <title>{`${key}: ${counts[key]} (${((counts[key] / total) * 100).toFixed(1)}%)`}</title>
+                <title>{`${segment.abbr}: ${segment.count} (${segment.percentage.toFixed(1)}%)`}</title>
               </circle>
             ))}
           </svg>
@@ -61,7 +64,7 @@ function SubmissionStatsChart({ counts }: SubmissionStatsChartProps) {
 
         <dl className={styles.summary}>
           <div><dt>Tổng</dt><dd>{total}</dd></div>
-          <div><dt>AC</dt><dd>{counts.AC}</dd></div>
+          <div><dt>AC</dt><dd>{accepted}</dd></div>
           <div><dt>Tỷ lệ AC</dt><dd>{acRate.toFixed(1)}%</dd></div>
         </dl>
 
@@ -69,14 +72,14 @@ function SubmissionStatsChart({ counts }: SubmissionStatsChartProps) {
           <p className={styles.empty}>Chưa có dữ liệu để thống kê.</p>
         ) : (
           <ul className={styles.legend}>
-            {verdictOptions.map((key) => (
-              <li key={key}>
-                <span className={styles.dot} style={{ background: verdictMeta[key].chart }} aria-hidden="true" />
+            {legend.map((item) => (
+              <li key={item.status}>
+                <span className={styles.dot} style={{ background: item.color }} aria-hidden="true" />
                 <span className={styles.name}>
-                  <strong>{key}</strong> {verdictMeta[key].name}
+                  <strong>{item.abbr}</strong> {item.label}
                 </span>
                 <span className={styles.value}>
-                  {counts[key]} · {((counts[key] / total) * 100).toFixed(1)}%
+                  {item.count} · {item.percentage.toFixed(1)}%
                 </span>
               </li>
             ))}

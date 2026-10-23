@@ -13,6 +13,7 @@ import {
   JUDGING_QUEUE,
   type JudgeSubmissionJobData,
 } from '../queues/judging-queue.constants.js';
+import type { GlobalSubmissionPage } from './global-submissions.js';
 import {
   SubmissionsRepository,
   type CreatedSubmission,
@@ -78,6 +79,13 @@ export class SubmissionsService {
     const submission = await this.repository.findOwned(id, userId);
     if (!submission) throw new NotFoundException('Không tìm thấy bài nộp.');
     return submission;
+  }
+
+  getGlobalSubmissions(
+    viewerId: string,
+    query: { page: number; pageSize: number; q?: string; status?: string; language?: string },
+  ): Promise<GlobalSubmissionPage> {
+    return this.repository.findGlobalSubmissions(viewerId, query);
   }
 
   async getProblemSubmissions(
