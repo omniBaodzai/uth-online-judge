@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const credentials = await authApi.login({ identifier, password, rememberMe })
       if (revision === authRevision.current) acceptCredentials(credentials)
+      return credentials.user
     } finally {
       if (revision === authRevision.current) setIsLoading(false)
     }
@@ -172,13 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [accessToken],
   )
 
-  const request = useCallback(async <T,>(path: string): Promise<T> => {
+  const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
     const revision = authRevision.current
     try {
       return await authApi.requestProtected<T>(path, accessToken, (token) => {
         if (revision === authRevision.current) setAccessToken(token)
-      })
+      }, init)
     } catch (error) {
       if (revision === authRevision.current && error instanceof authApi.ApiError && error.status === 401) {
         setAccessToken(null)

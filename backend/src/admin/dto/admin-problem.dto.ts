@@ -1,0 +1,107 @@
+import { Transform, Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+
+export class AdminExampleDto {
+  @IsString()
+  @MaxLength(100_000)
+  input!: string;
+
+  @IsString()
+  @MaxLength(100_000)
+  output!: string;
+}
+
+export class AdminProblemDto {
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
+  @IsString()
+  @MaxLength(30)
+  @Matches(/^UTH\d{3,}$/)
+  code!: string;
+
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  summary?: string | null;
+
+  @IsOptional()
+  @IsIn(['draft', 'published', 'archived'])
+  status?: 'draft' | 'published' | 'archived';
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100_000)
+  statement!: string;
+
+  @IsIn(['easy', 'medium', 'hard'])
+  difficulty!: 'easy' | 'medium' | 'hard';
+
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  tags!: string[];
+
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  languages!: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100_000)
+  inputDescription?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100_000)
+  outputDescription?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100_000)
+  constraints?: string | null;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.1)
+  @Max(600)
+  timeLimitSeconds!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(16)
+  @Max(65536)
+  memoryLimitMb!: number;
+
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => AdminExampleDto)
+  examples!: AdminExampleDto[];
+}
+
+export class AdminProblemStatusDto {
+  @IsIn(['draft', 'published', 'archived'])
+  status!: 'draft' | 'published' | 'archived';
+}

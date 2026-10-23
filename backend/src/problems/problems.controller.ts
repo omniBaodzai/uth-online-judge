@@ -1,0 +1,37 @@
+import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
+import { ListProblemsQueryDto } from './dto/list-problems-query.dto.js';
+import { ProblemsService } from './problems.service.js';
+
+type MaybeAuthenticatedRequest = Request & { user?: { id: string } | null };
+
+@ApiTags('Problems')
+@Controller('problems')
+export class ProblemsController {
+  constructor(private readonly problems: ProblemsService) {}
+
+  @Get()
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Danh sách bài tập đã xuất bản (có phân trang, lọc, sắp xếp)' })
+  @ApiOkResponse({ description: 'Danh sách bài tập và thông tin phân trang' })
+  list(@Query() query: ListProblemsQueryDto, @Req() request: MaybeAuthenticatedRequest) {
+    return this.problems.list(query, request.user?.id ?? null);
+  }
+
+  // Khai báo trước ':code' để 'tags' không bị hiểu là mã bài tập.
+  @Get('tags')
+  @ApiOperation({ summary: 'Danh sách chủ đề dùng để lọc bài tập' })
+  tags() {
+    return this.problems.listTags();
+  }
+
+  @Get(':code')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Chi tiết một bài tập đã xuất bản theo mã bài' })
+  @ApiOkResponse({ description: 'Chi tiết bài tập (không gồm test case ẩn)' })
+  detail(@Param('code') code: string, @Req() request: MaybeAuthenticatedRequest) {
+    return this.problems.getByCode(code, request.user?.id ?? null);
+  }
+}

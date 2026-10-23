@@ -1,6 +1,8 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CodeEditor } from './MonacoEditor'
 import { editorLanguages, getLanguage, isLanguageId, type LanguageId } from './languages'
+import { ApiError } from '../../auth/api'
+import { useAuth } from '../../auth/useAuth'
 import { submitSolution } from './submission-service'
 import styles from './CodeEditorPanel.module.css'
 
@@ -63,6 +65,7 @@ function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
   const editorRef = useRef<CodeEditor | null>(null)
+  const { request } = useAuth()
 
   const current = getLanguage(language)
   const code = codes[language] ?? current.template
@@ -129,12 +132,10 @@ function CodeEditorPanel({ problemCode, userId }: CodeEditorPanelProps) {
     setSubmitting(true)
     setNotice('')
     try {
-      const result = await submitSolution({ problemCode, language, sourceCode: code })
-      if (result.status === 'not-implemented') {
-        setNotice('Hệ thống chấm bài chưa được tích hợp nên bài giải chưa được gửi đi. Code của bạn vẫn được lưu nháp trên trình duyệt này.')
-      }
-    } catch {
-      setNotice('Không thể gửi bài giải. Vui lòng thử lại.')
+      const result = await submitSolution(request, { problemCode, language, sourceCode: code })
+      setNotice(`Đã ghi nhận bài giải (mã ${result.id}, trạng thái: đang chờ). Hệ thống chấm bài chưa được tích hợp nên bài chưa được chấm.`)
+    } catch (error) {
+      setNotice(error instanceof ApiError ? error.message : 'Không thể gửi bài giải. Vui lòng thử lại.')
     } finally {
       setSubmitting(false)
     }

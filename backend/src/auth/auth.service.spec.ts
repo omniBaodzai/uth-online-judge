@@ -19,6 +19,7 @@ const user: UserRecord = {
   full_name: null,
   avatar_url: null,
   is_active: true,
+  role: 'STUDENT',
   created_at: new Date('2026-01-01T00:00:00.000Z'),
   updated_at: new Date('2026-01-01T00:00:00.000Z'),
 };

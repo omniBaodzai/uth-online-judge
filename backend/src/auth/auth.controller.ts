@@ -37,7 +37,7 @@ export const REMEMBER_LOGIN_COOKIE_NAME = 'uth_remember_login';
 export const REFRESH_COOKIE_PATH = '/auth';
 export const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-type AuthenticatedRequest = Request & { user: { id: string } };
+type AuthenticatedRequest = Request & { user: { id: string; role: 'STUDENT' | 'ADMIN' } };
 
 @ApiTags('Authentication')
 @Controller('auth')

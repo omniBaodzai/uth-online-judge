@@ -5,6 +5,7 @@ export type AuthUser = {
   full_name: string | null
   avatar_url: string | null
   is_active: boolean
+  role: 'STUDENT' | 'ADMIN'
   created_at: string
   updated_at: string
 }
@@ -139,7 +140,7 @@ function withAuthorization(headers: HeadersInit | undefined, accessToken: string
   return nextHeaders
 }
 
-async function request<T>(path: string, init: RequestInit): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response
   try {
     const headers = new Headers(init.headers)

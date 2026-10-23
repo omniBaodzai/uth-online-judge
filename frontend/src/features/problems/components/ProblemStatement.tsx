@@ -50,11 +50,6 @@ function Example({ index, example }: { index: number; example: ProblemExample })
         <CodeBlock label="Input" value={example.input} />
         <CodeBlock label="Output" value={example.output} />
       </div>
-      {example.explanation && (
-        <p className={styles.explanation}>
-          <strong>Giải thích:</strong> {example.explanation}
-        </p>
-      )}
     </div>
   )
 }
@@ -79,36 +74,44 @@ function ProblemStatement({ problem, nav, className = '' }: ProblemStatementProp
 
       <section>
         <h2>Đề bài</h2>
-        {problem.description.map((text) => (
-          <p key={text}>{text}</p>
+        {problem.description.map((text, i) => (
+          <p key={i}>{text}</p>
         ))}
       </section>
-      <section>
-        <h2>Đầu vào (Input)</h2>
-        {problem.input.map((text) => (
-          <p key={text}>{text}</p>
-        ))}
-      </section>
-      <section>
-        <h2>Giới hạn (Constraints)</h2>
-        <ul className={styles.constraints}>
-          {problem.constraints.map((text) => (
-            <li key={text}><code>{text}</code></li>
+      {problem.input.length > 0 && (
+        <section>
+          <h2>Đầu vào (Input)</h2>
+          {problem.input.map((text, i) => (
+            <p key={i}>{text}</p>
           ))}
-        </ul>
-      </section>
-      <section>
-        <h2>Đầu ra (Output)</h2>
-        {problem.output.map((text) => (
-          <p key={text}>{text}</p>
-        ))}
-      </section>
-      <section>
-        <h2>Ví dụ</h2>
-        {problem.examples.map((example, index) => (
-          <Example key={index} index={index + 1} example={example} />
-        ))}
-      </section>
+        </section>
+      )}
+      {problem.constraints.length > 0 && (
+        <section>
+          <h2>Giới hạn (Constraints)</h2>
+          <ul className={styles.constraints}>
+            {problem.constraints.map((text, i) => (
+              <li key={i}><code>{text}</code></li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {problem.output.length > 0 && (
+        <section>
+          <h2>Đầu ra (Output)</h2>
+          {problem.output.map((text, i) => (
+            <p key={i}>{text}</p>
+          ))}
+        </section>
+      )}
+      {problem.examples.length > 0 && (
+        <section>
+          <h2>Ví dụ</h2>
+          {problem.examples.map((example, index) => (
+            <Example key={index} index={index + 1} example={example} />
+          ))}
+        </section>
+      )}
     </article>
   )
 }

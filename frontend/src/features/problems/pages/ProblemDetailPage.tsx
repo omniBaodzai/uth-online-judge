@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import UserAvatar from '../../profile/components/UserAvatar'
 import { useAuth } from '../../auth/useAuth'
 import ReportModal from '../components/ReportModal'
 import ProblemStatement from '../components/ProblemStatement'
-import { getProblemDetail } from '../detail-data'
+import ProblemStateMessage from '../components/ProblemStateMessage'
+import { useProblemDetail } from '../useProblemDetail'
 import styles from './ProblemDetailPage.module.css'
 
 function Icon({ children }: { children: React.ReactNode }) {
@@ -19,30 +19,16 @@ function ProblemDetailPage() {
   const { code = '' } = useParams()
   const { user } = useAuth()
   const [reportOpen, setReportOpen] = useState(false)
-  const [comment, setComment] = useState('')
-  const problem = getProblemDetail(code)
+  const { state, retry } = useProblemDetail(code)
 
-  if (!problem) {
-    return (
-      <main className={styles.main} id="main-content">
-        <div className={styles.notFound}>
-          <h1>Không tìm thấy bài tập</h1>
-          <p>Bài tập “{code}” không tồn tại hoặc đã bị gỡ.</p>
-          <Link className={styles.cta} to="/problems">Quay lại danh sách bài tập</Link>
-        </div>
-      </main>
-    )
+  if (state.phase !== 'ready') {
+    return <ProblemStateMessage state={state} code={code} onRetry={retry} />
   }
+  const { problem } = state
 
   const base = `/problems/${problem.code}`
   // Chưa đăng nhập: RequireAuth trên route /submit sẽ chuyển sang trang đăng nhập kèm returnTo.
   const submitPath = `${base}/submit`
-
-  // Giao diện minh họa: chưa lưu bình luận.
-  function handleComment(event: FormEvent) {
-    event.preventDefault()
-    setComment('')
-  }
 
   return (
     <main className={styles.main} id="main-content">
@@ -61,7 +47,7 @@ function ProblemDetailPage() {
 
           <section className={styles.panel} aria-labelledby="comments-title">
             <div className={styles.commentsHeader}>
-              <h2 id="comments-title">Bình luận ({problem.comments.length})</h2>
+              <h2 id="comments-title">Bình luận</h2>
               <button className={styles.reportButton} type="button" onClick={() => setReportOpen(true)}>
                 <Icon>
                   <path d="M5 21V4m0 0h11l-2 4 2 4H5" />
@@ -69,36 +55,8 @@ function ProblemDetailPage() {
                 Báo cáo vấn đề
               </button>
             </div>
-            <form className={styles.commentForm} onSubmit={handleComment}>
-              <label htmlFor="comment-input" className={styles.srOnly}>Nội dung bình luận</label>
-              <textarea
-                id="comment-input"
-                rows={3}
-                maxLength={1000}
-                placeholder="Chia sẻ suy nghĩ của bạn về bài tập này..."
-                value={comment}
-                onChange={(event) => setComment(event.target.value)}
-              />
-              <button className={styles.cta} type="submit" disabled={!comment.trim()}>
-                Gửi bình luận
-              </button>
-            </form>
-            <ul className={styles.comments}>
-              {problem.comments.map((item) => (
-                <li key={item.id}>
-                  <UserAvatar source={null} username={item.author} />
-                  <div>
-                    <div className={styles.commentMeta}>
-                      <strong>{item.author}</strong>
-                      <time dateTime={item.postedAt}>
-                        {new Date(item.postedAt).toLocaleString('vi-VN')}
-                      </time>
-                    </div>
-                    <p>{item.content}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {/* Cơ sở dữ liệu chưa có bảng bình luận nên không hiển thị bình luận giả. */}
+            <p>Tính năng bình luận chưa khả dụng.</p>
           </section>
         </div>
 
@@ -188,13 +146,13 @@ function ProblemDetailPage() {
             <dl className={styles.info}>
               <div>
                 <dt>Tác giả</dt>
-                <dd>{problem.author}</dd>
+                <dd>{problem.author ?? '—'}</dd>
               </div>
               <div>
                 <dt>Chủ đề</dt>
                 <dd>
                   <ul className={styles.tags}>
-                    {problem.topics.map((topic) => (
+                    {problem.topics.length === 0 ? <li>—</li> : problem.topics.map((topic) => (
                       <li key={topic}>{topic}</li>
                     ))}
                   </ul>

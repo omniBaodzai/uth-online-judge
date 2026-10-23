@@ -13,13 +13,13 @@ export type AuthContextValue = {
   isAuthenticated: boolean
   initializationError: string | null
   retrySession: () => Promise<void>
-  login: (identifier: string, password: string, rememberMe: boolean) => Promise<void>
+  login: (identifier: string, password: string, rememberMe: boolean) => Promise<AuthUser>
   register: (username: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>
   updateProfile: (input: ProfileUpdate) => Promise<AuthUser>
   uploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
-  request: <T>(path: string) => Promise<T>
+  request: <T>(path: string, init?: RequestInit) => Promise<T>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

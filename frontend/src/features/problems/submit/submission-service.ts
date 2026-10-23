@@ -6,11 +6,15 @@ export type SubmissionPayload = {
   sourceCode: string
 }
 
-export type SubmissionResult = { status: 'not-implemented' }
+export type SubmissionResult = { id: string; status: string; submittedAt: string }
 
-// Điểm tích hợp API nộp bài. Hiện chưa có endpoint nên không gửi request nào.
-export async function submitSolution(payload: SubmissionPayload): Promise<SubmissionResult> {
-  void payload
-  await new Promise((resolve) => window.setTimeout(resolve, 600))
-  return { status: 'not-implemented' }
+type RequestFn = <T>(path: string, init?: RequestInit) => Promise<T>
+
+// Gửi bài lên backend. Bài chỉ được ghi nhận ở trạng thái PENDING, chưa được chấm.
+export function submitSolution(request: RequestFn, payload: SubmissionPayload): Promise<SubmissionResult> {
+  return request<SubmissionResult>('/submissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }

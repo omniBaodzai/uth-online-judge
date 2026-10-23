@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import ProblemStatement from '../components/ProblemStatement'
-import { getProblemDetail } from '../detail-data'
+import ProblemStateMessage from '../components/ProblemStateMessage'
+import { useProblemDetail } from '../useProblemDetail'
 import CodeEditorPanel from '../submit/CodeEditorPanel'
 import detail from './ProblemDetailPage.module.css'
 import styles from './SubmitSolutionPage.module.css'
@@ -13,19 +14,12 @@ function SubmitSolutionPage() {
   const { code = '' } = useParams()
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('editor')
-  const problem = getProblemDetail(code)
+  const { state, retry } = useProblemDetail(code)
 
-  if (!problem) {
-    return (
-      <main className={detail.main} id="main-content">
-        <div className={detail.notFound}>
-          <h1>Không tìm thấy bài tập</h1>
-          <p>Bài tập “{code}” không tồn tại hoặc đã bị gỡ.</p>
-          <Link className={detail.cta} to="/problems">Quay lại danh sách bài tập</Link>
-        </div>
-      </main>
-    )
+  if (state.phase !== 'ready') {
+    return <ProblemStateMessage state={state} code={code} onRetry={retry} />
   }
+  const { problem } = state
 
   return (
     <main className={detail.main} id="main-content">

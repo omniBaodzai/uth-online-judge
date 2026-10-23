@@ -12,12 +12,6 @@ export type Problem = {
   hasSolution: boolean
 }
 
-export type LatestProblem = {
-  code: string
-  title: string
-  publishedAt: string
-}
-
 export const statusLabels: Record<ProblemStatus, string> = {
   solved: 'Đã làm',
   unsolved: 'Chưa làm',
@@ -26,15 +20,7 @@ export const statusLabels: Record<ProblemStatus, string> = {
 
 export const statusOptions: ProblemStatus[] = ['solved', 'unsolved', 'wrong']
 
-export const topicOptions = [
-  'Mảng',
-  'Chuỗi',
-  'Toán học',
-  'Sắp xếp',
-  'Tìm kiếm',
-  'Quy hoạch động',
-  'Đồ thị',
-]
+// Dữ liệu mẫu chỉ còn được dùng bởi trang Bài nộp (chưa tích hợp API danh sách bài nộp).
 
 export const sampleProblems: Problem[] = [
   { id: '1', code: 'UTH001', title: 'Tổng hai số', points: 100, acceptanceRate: 89.4, acCount: 1284, status: 'solved', hasSolution: true },
@@ -48,20 +34,3 @@ export const sampleProblems: Problem[] = [
   { id: '9', code: 'UTH009', title: 'Xâu con chung dài nhất', points: 400, acceptanceRate: 22.1, acCount: 134, status: 'wrong', hasSolution: true },
   { id: '10', code: 'UTH010', title: 'Cây khung nhỏ nhất', points: 500, acceptanceRate: 17.4, acCount: 82, status: 'unsolved', hasSolution: false },
 ]
-
-// Đã sắp xếp mới nhất trước.
-export const latestProblems: LatestProblem[] = [
-  { code: 'UTH120', title: 'Đếm số thành phần liên thông', publishedAt: '2026-10-21' },
-  { code: 'UTH119', title: 'Chia kẹo cho các bạn nhỏ', publishedAt: '2026-10-19' },
-  { code: 'UTH118', title: 'Biến đổi xâu nhị phân', publishedAt: '2026-10-17' },
-  { code: 'UTH117', title: 'Tổng đoạn con lớn nhất', publishedAt: '2026-10-14' },
-  { code: 'UTH116', title: 'Xếp lịch thi đấu', publishedAt: '2026-10-12' },
-  { code: 'UTH115', title: 'Ước chung lớn nhất mở rộng', publishedAt: '2026-10-09' },
-  { code: 'UTH114', title: 'Đếm cặp số có tổng bằng K', publishedAt: '2026-10-07' },
-  { code: 'UTH113', title: 'Ma trận xoắn ốc', publishedAt: '2026-10-05' },
-  { code: 'UTH112', title: 'Kiểm tra dãy ngoặc hợp lệ', publishedAt: '2026-10-03' },
-  { code: 'UTH111', title: 'Cái túi đơn giản', publishedAt: '2026-10-01' },
-]
-
-export const sampleTotalProblems = 120
-export const samplePageSize = 10
