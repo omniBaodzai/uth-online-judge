@@ -58,6 +58,7 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:5173}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
+      JUDGE0_API_URL: ${JUDGE0_API_URL:?Set JUDGE0_API_URL in .env}
     depends_on:
       postgres:
         condition: service_healthy
