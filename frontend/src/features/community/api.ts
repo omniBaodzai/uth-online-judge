@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { request as publicRequest } from '../auth/api'
 import { useAuth } from '../auth/useAuth'
+import type { ReactionSummary } from './reactions'
 
 export type PageResult<T> = { items: T[]; total: number; page: number; pageSize: number }
 
@@ -38,12 +39,14 @@ export type DiscussionListItem = {
   authorName: string
   createdAt: string
   replies: number
+  reactionCount: number
   isLocked: boolean
 }
 
-export type DiscussionDetail = Omit<DiscussionListItem, 'summary'> & {
+export type DiscussionDetail = Omit<DiscussionListItem, 'summary' | 'reactionCount'> & {
   content: string
   updatedAt: string
+  reactions: ReactionSummary
   canEdit: boolean
   canDelete: boolean
   canModerate: boolean
@@ -52,10 +55,14 @@ export type DiscussionDetail = Omit<DiscussionListItem, 'summary'> & {
 export type DiscussionComment = {
   id: string
   discussionId: string
+  parentId: string | null
+  isDeleted: boolean
   authorName: string
   content: string
   createdAt: string
   updatedAt: string
+  reactions: ReactionSummary
+  replies: DiscussionComment[]
   canEdit: boolean
   canDelete: boolean
 }

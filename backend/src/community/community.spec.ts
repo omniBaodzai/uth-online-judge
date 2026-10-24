@@ -200,12 +200,14 @@ describe('DiscussionsService ownership and moderation', () => {
       update: vi.fn(), delete: vi.fn(), create: vi.fn().mockResolvedValue('d1'),
       createComment: vi.fn(), updateComment: vi.fn(), deleteComment: vi.fn(),
       setLocked: vi.fn().mockResolvedValue(true),
+      listReplies: vi.fn().mockResolvedValue([]),
       listComments: vi.fn().mockResolvedValue({
-        items: [{ id: 'c1', authorId: 'owner', authorName: 'owner', content: 'x', discussionId: 'd1', createdAt: '', updatedAt: '' }],
+        items: [{ id: 'c1', authorId: 'owner', authorName: 'owner', content: 'x', discussionId: 'd1', parentId: null, isDeleted: false, createdAt: '', updatedAt: '' }],
         total: 1, page: 1, pageSize: 10,
       }),
     };
-    return { repository, service: new DiscussionsService(repository as never) };
+    const reactions = { summaries: vi.fn().mockResolvedValue(new Map()), set: vi.fn(), remove: vi.fn() };
+    return { repository, service: new DiscussionsService(repository as never, reactions as never) };
   };
 
   it('only the author can edit, and never when locked', async () => {
@@ -243,7 +245,7 @@ describe('DiscussionsService ownership and moderation', () => {
   it('blocks comments on locked threads and missing discussions', async () => {
     const { repository, service } = build(record());
     await service.addComment('d1', other, 'Xin chào');
-    expect(repository.createComment).toHaveBeenCalledWith('d1', 'other', 'Xin chào');
+    expect(repository.createComment).toHaveBeenCalledWith('d1', 'other', 'Xin chào', null);
 
     const locked = build(record({ isLocked: true }));
     await expect(locked.service.addComment('d1', other, 'x')).rejects.toBeInstanceOf(ForbiddenException);

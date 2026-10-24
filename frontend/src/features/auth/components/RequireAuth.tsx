@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../useAuth'
+import { buildLoginPath } from '../return-path'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, isLoading, initializationError, retrySession } = useAuth()
@@ -11,7 +12,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (shouldRedirect) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`
-    return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />
+    return <Navigate to={buildLoginPath(returnTo)} replace />
   }
 
   if (!isLoading && initializationError) {

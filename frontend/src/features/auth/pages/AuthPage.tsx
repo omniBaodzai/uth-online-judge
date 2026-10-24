@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import uthLogo from '../../../assets/uth_logo.png'
 import { ApiError } from '../api'
+import { getReturnPath } from '../return-path'
 import { useAuth } from '../useAuth'
 import styles from './AuthPage.module.css'
 
@@ -381,18 +382,6 @@ function AuthPage({ mode }: AuthPageProps) {
       </main>
     </div>
   )
-}
-
-function getReturnPath(search: string): string {
-  const requestedPath = new URLSearchParams(search).get('returnTo')
-  if (!requestedPath || !requestedPath.startsWith('/') || requestedPath.startsWith('//') || requestedPath.includes('\\')) {
-    return '/'
-  }
-
-  const destination = new URL(requestedPath, window.location.origin)
-  return destination.origin === window.location.origin
-    ? `${destination.pathname}${destination.search}${destination.hash}`
-    : '/'
 }
 
 export default AuthPage

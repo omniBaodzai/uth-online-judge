@@ -9,6 +9,7 @@ export type FeedEntryData = {
   author: string
   dateTime: string | null
   replies?: number
+  reactions?: number
 }
 
 export function mapNews(item: NewsListItem): FeedEntryData {
@@ -32,5 +33,6 @@ export function mapDiscussion(item: DiscussionListItem): FeedEntryData {
     author: item.authorName,
     dateTime: item.createdAt,
     replies: item.replies,
+    reactions: item.reactionCount,
   }
 }

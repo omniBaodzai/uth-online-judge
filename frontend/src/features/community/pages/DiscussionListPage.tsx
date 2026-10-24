@@ -5,6 +5,7 @@ import { request } from '../../auth/api'
 import { buildQuery, type DiscussionListItem, type PageResult } from '../api'
 import { formatDateTime, totalPages } from '../format'
 import { errorMessage, useAsync } from '../useAsync'
+import { CreateDiscussionButton } from '../CreateDiscussionButton'
 import styles from '../community.module.css'
 
 const PAGE_SIZE = 10
@@ -38,7 +39,7 @@ function DiscussionListPage() {
             <h1>Thảo luận</h1>
             <p>Đặt câu hỏi và trao đổi cùng cộng đồng UTH Online Judge.</p>
           </div>
-          <Link className={styles.primaryButton} to="/discussions/new">Tạo chủ đề</Link>
+          <CreateDiscussionButton className={styles.primaryButton} />
         </header>
 
         <div className={styles.toolbar} role="search">
@@ -64,8 +65,9 @@ function DiscussionListPage() {
             <div className={styles.state}>Đang tải thảo luận…</div>
           ) : result.data.items.length === 0 ? (
             <div className={styles.state}>
-              <strong>{q ? 'Không tìm thấy chủ đề phù hợp' : 'Chưa có chủ đề nào'}</strong>
-              <span>{q ? 'Hãy thử từ khóa khác.' : 'Hãy là người đầu tiên đặt câu hỏi.'}</span>
+              <strong>{q ? 'Không tìm thấy thảo luận phù hợp' : 'Chưa có cuộc thảo luận nào'}</strong>
+              <span>{q ? 'Hãy thử từ khóa khác.' : 'Hãy là người đầu tiên đặt câu hỏi hoặc chia sẻ kinh nghiệm với cộng đồng.'}</span>
+              {q ? null : <CreateDiscussionButton className={styles.primaryButton} />}
             </div>
           ) : (
             result.data.items.map((item) => (
@@ -76,6 +78,7 @@ function DiscussionListPage() {
                   <span>{item.authorName}</span>
                   <time dateTime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
                   <span>{item.replies} phản hồi</span>
+                  {item.reactionCount > 0 ? <span>{item.reactionCount} cảm xúc</span> : null}
                   {item.isLocked ? <span className={styles.lockBadge}>Đã khóa</span> : null}
                 </p>
               </Link>

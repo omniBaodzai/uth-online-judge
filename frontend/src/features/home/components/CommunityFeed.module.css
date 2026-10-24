@@ -200,7 +200,7 @@
 
 .empty {
   display: flex;
-  min-height: 220px;
+  min-height: 150px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -259,6 +259,54 @@
 .entryLink {
   color: inherit;
   text-decoration: none;
+}
+
+/* Mở rộng vùng bấm của liên kết tiêu đề ra toàn bộ mục. */
+.entry {
+  position: relative;
+}
+
+.entryLink::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.createButton {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  margin-top: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.createButton:hover {
+  background: var(--color-primary-dark);
+}
+
+.createButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.empty .createButton {
+  margin-top: 12px;
 }
 
 .entryLink:focus-visible {

@@ -200,7 +200,7 @@
 
 .state {
   display: flex;
-  min-height: 200px;
+  min-height: 140px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -208,6 +208,31 @@
   padding: 24px;
   color: var(--color-muted);
   text-align: center;
+}
+
+.state .primaryButton {
+  margin-top: 10px;
+}
+
+.joinPrompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 16px clamp(16px, 3vw, 24px);
+}
+
+.joinPrompt h3 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 15px;
+}
+
+.joinPrompt p {
+  margin: 2px 0 0;
+  color: var(--color-muted);
+  font-size: 13.5px;
 }
 
 .state strong {
@@ -378,4 +403,125 @@
   .container {
     width: min(100% - 24px, 880px);
   }
+}
+
+.reactionWrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 12px;
+}
+
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reactionButton {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reactionButton:hover:not(:disabled) {
+  background: #f3f8f8;
+}
+
+.reactionButton:focus-visible,
+.linkButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.reactionButton:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.reactionActive {
+  border-color: var(--color-primary);
+  background: #e6f4f4;
+  color: var(--color-primary-dark);
+}
+
+.reactionSmall {
+  min-height: 28px;
+  padding: 0 9px;
+  font-size: 12.5px;
+}
+
+.reactionCount {
+  min-width: 1ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.commentTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 8px;
+}
+
+.commentTools .reactionWrap {
+  margin-top: 0;
+}
+
+.linkButton {
+  min-height: 28px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.linkButton:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.linkButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.linkDanger {
+  color: #b42318;
+}
+
+.replies {
+  margin-top: 10px;
+  margin-left: clamp(12px, 3vw, 28px);
+  border-left: 2px solid #dbe8e8;
+}
+
+.reply {
+  padding: 10px 0 10px clamp(12px, 2vw, 16px);
+  border-bottom: 0;
+}
+
+.replyForm {
+  margin-top: 10px;
+}
+
+.deletedComment {
+  margin: 0;
+  color: #7a8c8f;
+  font-size: 14px;
+  font-style: italic;
 }

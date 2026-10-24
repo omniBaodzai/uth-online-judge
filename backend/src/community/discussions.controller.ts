@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -19,7 +20,13 @@ import { AdminRoleGuard } from '../admin/admin-role.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import type { Viewer } from './community.utils.js';
-import { CommentInputDto, DiscussionInputDto, DiscussionLockDto } from './dto/discussions.dto.js';
+import {
+  CommentInputDto,
+  CreateCommentDto,
+  DiscussionInputDto,
+  DiscussionLockDto,
+  ReactionInputDto,
+} from './dto/discussions.dto.js';
 import { PaginationQueryDto } from './dto/pagination.dto.js';
 import { DiscussionsService } from './discussions.service.js';
 
@@ -88,8 +95,45 @@ export class DiscussionsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
-  async addComment(@Param('id', ParseUUIDPipe) id: string, @Body() input: CommentInputDto, @Req() request: UserRequest) {
-    await this.discussions.addComment(id, request.user, input.content);
+  async addComment(@Param('id', ParseUUIDPipe) id: string, @Body() input: CreateCommentDto, @Req() request: UserRequest) {
+    await this.discussions.addComment(id, request.user, input.content, input.parentId ?? null);
+  }
+
+  // Cảm xúc: người dùng luôn lấy từ token, không nhận userId từ client.
+  @Put('discussions/:id/reaction')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  setDiscussionReaction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: ReactionInputDto,
+    @Req() request: UserRequest,
+  ) {
+    return this.discussions.setReaction('DISCUSSION', id, request.user, input.type);
+  }
+
+  @Delete('discussions/:id/reaction')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  removeDiscussionReaction(@Param('id', ParseUUIDPipe) id: string, @Req() request: UserRequest) {
+    return this.discussions.removeReaction('DISCUSSION', id, request.user);
+  }
+
+  @Put('discussion-comments/:commentId/reaction')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  setCommentReaction(
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+    @Body() input: ReactionInputDto,
+    @Req() request: UserRequest,
+  ) {
+    return this.discussions.setReaction('COMMENT', commentId, request.user, input.type);
+  }
+
+  @Delete('discussion-comments/:commentId/reaction')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  removeCommentReaction(@Param('commentId', ParseUUIDPipe) commentId: string, @Req() request: UserRequest) {
+    return this.discussions.removeReaction('COMMENT', commentId, request.user);
   }
 
   @Patch('discussion-comments/:commentId')

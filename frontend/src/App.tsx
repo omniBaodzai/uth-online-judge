@@ -27,6 +27,7 @@ import NewsDetailPage from './features/community/pages/NewsDetailPage'
 import DiscussionListPage from './features/community/pages/DiscussionListPage'
 import DiscussionDetailPage from './features/community/pages/DiscussionDetailPage'
 import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
+import { ToastProvider } from './components/ui/Toast'
 import { AdminProvider } from './features/admin/AdminContext'
 import { RequireAdmin } from './features/admin/components/RequireAdmin'
 import './App.css'
@@ -34,6 +35,7 @@ import './App.css'
 function App() {
   return (
     <BrowserRouter>
+      <ToastProvider>
       <Routes>
         <Route element={<AuthProvider><Outlet /></AuthProvider>}>
           <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -87,6 +89,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </ToastProvider>
     </BrowserRouter>
   )
 }

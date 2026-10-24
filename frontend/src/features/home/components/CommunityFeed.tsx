@@ -9,6 +9,7 @@ import {
   type PageResult,
 } from '../../community/api'
 import { mapDiscussion, mapNews, type FeedEntryData } from '../../community/feed'
+import { CreateDiscussionButton } from '../../community/CreateDiscussionButton'
 import { formatDate, toDateBlock, totalPages } from '../../community/format'
 import styles from './CommunityFeed.module.css'
 
@@ -118,14 +119,18 @@ function CommunityFeed() {
             <p>Đang tải nội dung…</p>
           </div>
         ) : active.items.length === 0 ? (
-          <div className={styles.empty}>
-            <strong>Chưa có nội dung</strong>
-            <p>
-              {activeTab === 'news'
-                ? 'Tin tức mới sẽ xuất hiện tại đây.'
-                : 'Chưa có chủ đề thảo luận nào. Hãy là người đầu tiên đặt câu hỏi.'}
-            </p>
-          </div>
+          activeTab === 'news' ? (
+            <div className={styles.empty}>
+              <strong>Chưa có tin tức</strong>
+              <p>Tin tức mới sẽ xuất hiện tại đây.</p>
+            </div>
+          ) : (
+            <div className={styles.empty}>
+              <strong>Chưa có cuộc thảo luận nào</strong>
+              <p>Hãy là người đầu tiên đặt câu hỏi hoặc chia sẻ kinh nghiệm với cộng đồng.</p>
+              <CreateDiscussionButton className={styles.createButton} />
+            </div>
+          )
         ) : (
           active.items.map((item) => (
             <FeedEntry item={item} isDiscussion={activeTab === 'discussion'} key={item.id} />
@@ -134,9 +139,14 @@ function CommunityFeed() {
       </div>
 
       <div className={styles.footer}>
-        <Link className={styles.viewAll} to={activeTab === 'news' ? '/news' : '/discussions'}>
-          Xem tất cả
-        </Link>
+        <div className={styles.footerLinks}>
+          <Link className={styles.viewAll} to={activeTab === 'news' ? '/news' : '/discussions'}>
+            Xem tất cả
+          </Link>
+          {activeTab === 'discussion' && active.items.length > 0 ? (
+            <CreateDiscussionButton className={styles.createButton} />
+          ) : null}
+        </div>
         <Pagination
           className={styles.pager}
           currentPage={pages[activeTab]}
@@ -175,6 +185,7 @@ function FeedEntry({ item, isDiscussion }: { item: FeedEntryData; isDiscussion: 
           {item.category ? <span className={styles.category}>{item.category}</span> : null}
           <span>{item.author}</span>
           <time dateTime={item.dateTime ?? undefined}>{formatDate(item.dateTime)}</time>
+          {item.reactions ? <span>{item.reactions} cảm xúc</span> : null}
         </p>
       </div>
     </article>

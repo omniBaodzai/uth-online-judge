@@ -11,10 +11,11 @@ export interface DiscussionListItem {
   authorName: string;
   createdAt: string;
   replies: number;
+  reactionCount: number;
   isLocked: boolean;
 }
 
-export interface DiscussionRecord extends Omit<DiscussionListItem, 'summary'> {
+export interface DiscussionRecord extends Omit<DiscussionListItem, 'summary' | 'reactionCount'> {
   content: string;
   authorId: string;
   updatedAt: string;
@@ -25,11 +26,22 @@ export interface DiscussionRecord extends Omit<DiscussionListItem, 'summary'> {
 export interface CommentRecord {
   id: string;
   discussionId: string;
+  parentId: string | null;
   authorId: string;
   authorName: string;
   content: string;
+  isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CommentLookup {
+  id: string;
+  authorId: string;
+  discussionId: string;
+  parentId: string | null;
+  isDeleted: boolean;
+  isLocked: boolean;
 }
 
 export interface PageQuery {
@@ -39,7 +51,12 @@ export interface PageQuery {
 }
 
 const AUTHOR_NAME = `COALESCE(u.username, 'Ẩn danh')`;
-const REPLIES = `(SELECT COUNT(*)::int FROM public.discussion_comments c WHERE c.discussion_id = d.id)`;
+const REPLIES = `(SELECT COUNT(*)::int FROM public.discussion_comments c WHERE c.discussion_id = d.id AND c.deleted_at IS NULL)`;
+const REACTION_COUNT = `(SELECT COUNT(*)::int FROM public.discussion_reactions r WHERE r.discussion_id = d.id)`;
+const COMMENT_COLUMNS = `c.id, c.discussion_id AS "discussionId", c.parent_id AS "parentId",
+                c.author_id AS "authorId", ${AUTHOR_NAME} AS "authorName", c.content,
+                (c.deleted_at IS NOT NULL) AS "isDeleted",
+                c.created_at AS "createdAt", c.updated_at AS "updatedAt"`;
 
 @Injectable()
 export class DiscussionsRepository {
@@ -55,6 +72,7 @@ export class DiscussionsRepository {
                 ${AUTHOR_NAME} AS "authorName",
                 d.created_at AS "createdAt",
                 ${REPLIES} AS replies,
+                ${REACTION_COUNT} AS "reactionCount",
                 d.is_locked AS "isLocked"
          FROM public.discussions d
          JOIN public.users u ON u.id = d.author_id
@@ -80,7 +98,7 @@ export class DiscussionsRepository {
               d.is_locked AS "isLocked",
               EXISTS (
                 SELECT 1 FROM public.discussion_comments c
-                WHERE c.discussion_id = d.id AND c.author_id <> d.author_id
+                WHERE c.discussion_id = d.id AND c.author_id <> d.author_id AND c.deleted_at IS NULL
               ) AS "hasOthersComments"
        FROM public.discussions d
        JOIN public.users u ON u.id = d.author_id
@@ -117,37 +135,58 @@ export class DiscussionsRepository {
     await this.pool.query('DELETE FROM public.discussions WHERE id = $1', [id]);
   }
 
+  // Phân trang theo bình luận gốc; phản hồi được lấy riêng bằng listReplies cho cả trang (không N+1).
   async listComments(discussionId: string, query: PageQuery): Promise<PageResult<CommentRecord>> {
     const [list, count] = await Promise.all([
       this.pool.query<CommentRecord>(
-        `SELECT c.id, c.discussion_id AS "discussionId", c.author_id AS "authorId",
-                ${AUTHOR_NAME} AS "authorName", c.content,
-                c.created_at AS "createdAt", c.updated_at AS "updatedAt"
+        `SELECT ${COMMENT_COLUMNS}
          FROM public.discussion_comments c
          JOIN public.users u ON u.id = c.author_id
-         WHERE c.discussion_id = $1
+         WHERE c.discussion_id = $1 AND c.parent_id IS NULL
          ORDER BY c.created_at ASC, c.id ASC
          LIMIT $2 OFFSET $3`,
         [discussionId, query.pageSize, (query.page - 1) * query.pageSize],
       ),
       this.pool.query<{ total: number }>(
-        'SELECT COUNT(*)::int AS total FROM public.discussion_comments WHERE discussion_id = $1',
+        'SELECT COUNT(*)::int AS total FROM public.discussion_comments WHERE discussion_id = $1 AND parent_id IS NULL',
         [discussionId],
       ),
     ]);
     return { items: list.rows, total: count.rows[0]?.total ?? 0, page: query.page, pageSize: query.pageSize };
   }
 
-  async createComment(discussionId: string, authorId: string, content: string): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO public.discussion_comments (discussion_id, author_id, content) VALUES ($1, $2, $3)`,
-      [discussionId, authorId, content],
+  async listReplies(parentIds: string[]): Promise<CommentRecord[]> {
+    if (parentIds.length === 0) return [];
+    const result = await this.pool.query<CommentRecord>(
+      `SELECT ${COMMENT_COLUMNS}
+       FROM public.discussion_comments c
+       JOIN public.users u ON u.id = c.author_id
+       WHERE c.parent_id = ANY($1::uuid[])
+       ORDER BY c.created_at ASC, c.id ASC`,
+      [parentIds],
     );
+    return result.rows;
   }
 
-  async findComment(id: string): Promise<{ id: string; authorId: string; isLocked: boolean } | null> {
-    const result = await this.pool.query<{ id: string; authorId: string; isLocked: boolean }>(
-      `SELECT c.id, c.author_id AS "authorId", d.is_locked AS "isLocked"
+  async createComment(
+    discussionId: string,
+    authorId: string,
+    content: string,
+    parentId: string | null = null,
+  ): Promise<string> {
+    const result = await this.pool.query<{ id: string }>(
+      `INSERT INTO public.discussion_comments (discussion_id, author_id, content, parent_id)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [discussionId, authorId, content, parentId],
+    );
+    return result.rows[0].id;
+  }
+
+  async findComment(id: string): Promise<CommentLookup | null> {
+    const result = await this.pool.query<CommentLookup>(
+      `SELECT c.id, c.author_id AS "authorId", c.discussion_id AS "discussionId",
+              c.parent_id AS "parentId", (c.deleted_at IS NOT NULL) AS "isDeleted",
+              d.is_locked AS "isLocked"
        FROM public.discussion_comments c
        JOIN public.discussions d ON d.id = c.discussion_id
        WHERE c.id = $1`,
@@ -158,12 +197,35 @@ export class DiscussionsRepository {
 
   async updateComment(id: string, content: string): Promise<void> {
     await this.pool.query(
-      `UPDATE public.discussion_comments SET content = $2, updated_at = NOW() WHERE id = $1`,
+      `UPDATE public.discussion_comments SET content = $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
       [id, content],
     );
   }
 
+  // Bình luận còn phản hồi được xóa mềm (giữ chỗ) để không làm mất phản hồi của người khác;
+  // ngược lại xóa hẳn, và dọn bình luận cha đã xóa mềm nếu đây là phản hồi cuối cùng của nó.
   async deleteComment(id: string): Promise<void> {
-    await this.pool.query('DELETE FROM public.discussion_comments WHERE id = $1', [id]);
+    const soft = await this.pool.query(
+      `UPDATE public.discussion_comments c
+       SET deleted_at = NOW(), content = '', updated_at = NOW()
+       WHERE c.id = $1 AND EXISTS (SELECT 1 FROM public.discussion_comments r WHERE r.parent_id = c.id)`,
+      [id],
+    );
+    if ((soft.rowCount ?? 0) > 0) return;
+
+    const removed = await this.pool.query<{ parentId: string | null }>(
+      `DELETE FROM public.discussion_comments c
+       WHERE c.id = $1 AND NOT EXISTS (SELECT 1 FROM public.discussion_comments r WHERE r.parent_id = c.id)
+       RETURNING c.parent_id AS "parentId"`,
+      [id],
+    );
+    const parentId = removed.rows[0]?.parentId;
+    if (!parentId) return;
+    await this.pool.query(
+      `DELETE FROM public.discussion_comments p
+       WHERE p.id = $1 AND p.deleted_at IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM public.discussion_comments r WHERE r.parent_id = p.id)`,
+      [parentId],
+    );
   }
 }

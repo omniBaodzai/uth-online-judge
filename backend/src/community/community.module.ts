@@ -5,9 +5,10 @@ import { DiscussionsService } from './discussions.service.js';
 import { AdminNewsController, NewsController } from './news.controller.js';
 import { NewsRepository } from './news.repository.js';
 import { NewsService } from './news.service.js';
+import { ReactionsRepository } from './reactions.repository.js';
 
 @Module({
   controllers: [NewsController, AdminNewsController, DiscussionsController],
-  providers: [NewsRepository, NewsService, DiscussionsRepository, DiscussionsService],
+  providers: [NewsRepository, NewsService, DiscussionsRepository, ReactionsRepository, DiscussionsService],
 })
 export class CommunityModule {}

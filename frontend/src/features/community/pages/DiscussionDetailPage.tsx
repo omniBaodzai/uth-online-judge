@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import Pagination from '../../../components/ui/Pagination'
 import { ConfirmDialog } from '../../admin/components/ConfirmDialog'
 import { ApiError } from '../../auth/api'
+import { buildLoginPath } from '../../auth/return-path'
 import {
   buildQuery,
   useCommunityRequest,
@@ -11,6 +12,9 @@ import {
   type PageResult,
 } from '../api'
 import { formatDateTime, totalPages } from '../format'
+import { useToast } from '../../../components/ui/toast-context'
+import { GUEST_MESSAGES, decideGuestAction } from '../guest-actions'
+import { ReactionBar } from '../ReactionBar'
 import { errorMessage, useAsync } from '../useAsync'
 import styles from '../community.module.css'
 
@@ -20,6 +24,7 @@ function DiscussionDetailPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { request, isReady, isAuthenticated } = useCommunityRequest()
+  const { showToast } = useToast()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
   const [draftContent, setDraftContent] = useState('')
@@ -167,10 +172,13 @@ function DiscussionDetailPage() {
               <p className={styles.articleMeta}>
                 <span>{current.authorName}</span>
                 <time dateTime={current.createdAt}>{formatDateTime(current.createdAt)}</time>
-                {current.updatedAt !== current.createdAt ? <span>Đã chỉnh sửa</span> : null}
+                {current.updatedAt !== current.createdAt ? (
+                  <span>Đã chỉnh sửa lúc <time dateTime={current.updatedAt}>{formatDateTime(current.updatedAt)}</time></span>
+                ) : null}
                 {current.isLocked ? <span className={styles.lockBadge}>Đã khóa</span> : null}
               </p>
               <p className={styles.plainText}>{current.content}</p>
+              <ReactionBar summary={current.reactions} path={`/discussions/${encodeURIComponent(id)}/reaction`} />
               {actionError ? <p className={styles.error} role="alert" style={{ marginTop: 16 }}>{actionError}</p> : null}
               {current.canEdit || current.canDelete || current.canModerate ? (
                 <div className={styles.actions}>
@@ -204,6 +212,8 @@ function DiscussionDetailPage() {
                 <CommentItem
                   key={comment.id}
                   comment={comment}
+                  discussionId={id}
+                  locked={current.isLocked}
                   request={request}
                   onChanged={() => {
                     discussion.reload()
@@ -238,9 +248,20 @@ function DiscussionDetailPage() {
                 </div>
               </form>
             ) : (
-              <p className={styles.loginPrompt}>
-                Bạn cần <Link to={`/login?returnTo=${encodeURIComponent(`/discussions/${id}`)}`}>đăng nhập</Link> để bình luận.
-              </p>
+              <div className={styles.joinPrompt}>
+                <div>
+                  <h3>Tham gia cuộc thảo luận</h3>
+                  <p>Đăng nhập để bình luận và trao đổi với cộng đồng.</p>
+                </div>
+                <div className={styles.actions}>
+                  <button className={styles.secondaryButton} type="button" onClick={() => showToast(GUEST_MESSAGES.comment)}>
+                    Viết bình luận
+                  </button>
+                  <Link className={styles.primaryButton} to={buildLoginPath(`/discussions/${encodeURIComponent(id)}`)}>
+                    Đăng nhập để tham gia
+                  </Link>
+                </div>
+              </div>
             )}
           </div>
         </section>
@@ -264,15 +285,52 @@ function DiscussionDetailPage() {
 
 type CommentItemProps = {
   comment: DiscussionComment
+  discussionId: string
+  locked: boolean
+  isReply?: boolean
   request: ReturnType<typeof useCommunityRequest>['request']
   onChanged: () => void
 }
 
-function CommentItem({ comment, request, onChanged }: CommentItemProps) {
+function CommentItem({ comment, discussionId, locked, isReply = false, request, onChanged }: CommentItemProps) {
+  const { isReady, isAuthenticated } = useCommunityRequest()
+  const { showToast } = useToast()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(comment.content)
+  const [replying, setReplying] = useState(false)
+  const [replyDraft, setReplyDraft] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  function startReply() {
+    const decision = decideGuestAction({ isReady, isAuthenticated }, 'reply')
+    if (decision.kind === 'toast') showToast(decision.message)
+    else if (decision.kind === 'proceed') setReplying(true)
+  }
+
+  async function submitReply(event: FormEvent) {
+    event.preventDefault()
+    const content = replyDraft.trim()
+    if (!content) {
+      setError('Vui lòng nhập nội dung phản hồi.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await request(`/discussions/${encodeURIComponent(discussionId)}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content, parentId: comment.id }),
+      })
+      setReplyDraft('')
+      setReplying(false)
+      onChanged()
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function mutate(init: RequestInit, after?: () => void) {
     setBusy(true)
@@ -288,8 +346,33 @@ function CommentItem({ comment, request, onChanged }: CommentItemProps) {
     }
   }
 
+  const replyList = comment.replies.length > 0 ? (
+    <div className={styles.replies}>
+      {comment.replies.map((reply) => (
+        <CommentItem
+          key={reply.id}
+          comment={reply}
+          discussionId={discussionId}
+          locked={locked}
+          isReply
+          request={request}
+          onChanged={onChanged}
+        />
+      ))}
+    </div>
+  ) : null
+
+  if (comment.isDeleted) {
+    return (
+      <div className={`${styles.comment} ${isReply ? styles.reply : ''}`}>
+        <p className={styles.deletedComment}>Bình luận đã bị xóa</p>
+        {replyList}
+      </div>
+    )
+  }
+
   return (
-    <div className={styles.comment}>
+    <div className={`${styles.comment} ${isReply ? styles.reply : ''}`}>
       <div className={styles.commentHead}>
         <strong>{comment.authorName}</strong>
         <time dateTime={comment.createdAt}>{formatDateTime(comment.createdAt)}</time>
@@ -313,12 +396,16 @@ function CommentItem({ comment, request, onChanged }: CommentItemProps) {
       ) : (
         <p className={styles.plainText}>{comment.content}</p>
       )}
-      {!editing && (comment.canEdit || comment.canDelete) ? (
-        <div className={styles.actions}>
-          {comment.canEdit ? <button className={styles.secondaryButton} type="button" onClick={() => setEditing(true)}>Sửa</button> : null}
+      {!editing ? (
+        <div className={styles.commentTools}>
+          <ReactionBar summary={comment.reactions} path={`/discussion-comments/${encodeURIComponent(comment.id)}/reaction`} small />
+          {!isReply && !locked ? (
+            <button className={styles.linkButton} type="button" onClick={startReply}>Trả lời</button>
+          ) : null}
+          {comment.canEdit ? <button className={styles.linkButton} type="button" onClick={() => setEditing(true)}>Sửa</button> : null}
           {comment.canDelete ? (
             <button
-              className={styles.dangerButton}
+              className={`${styles.linkButton} ${styles.linkDanger}`}
               type="button"
               disabled={busy}
               onClick={() => {
@@ -330,6 +417,24 @@ function CommentItem({ comment, request, onChanged }: CommentItemProps) {
           ) : null}
         </div>
       ) : null}
+      {replying ? (
+        <form className={`${styles.form} ${styles.replyForm}`} onSubmit={submitReply} noValidate>
+          <textarea
+            className={styles.textarea}
+            aria-label={`Trả lời ${comment.authorName}`}
+            value={replyDraft}
+            maxLength={5000}
+            rows={3}
+            autoFocus
+            onChange={(event) => setReplyDraft(event.target.value)}
+          />
+          <div className={styles.actions}>
+            <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi phản hồi'}</button>
+            <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => setReplying(false)}>Hủy</button>
+          </div>
+        </form>
+      ) : null}
+      {replyList}
     </div>
   )
 }

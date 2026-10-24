@@ -1,4 +1,5 @@
-import { IsBoolean, IsString, Length } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { REACTION_TYPES, type ReactionType } from '../reactions.repository.js';
 import { CleanText } from './pagination.dto.js';
 
 export class DiscussionInputDto {
@@ -18,6 +19,18 @@ export class CommentInputDto {
   @IsString({ message: 'Bình luận phải là chuỗi ký tự.' })
   @Length(1, 5000, { message: 'Bình luận phải từ 1 đến 5.000 ký tự.' })
   content!: string;
+}
+
+// Tạo bình luận mới; parentId (tùy chọn) là bình luận gốc được trả lời.
+export class CreateCommentDto extends CommentInputDto {
+  @IsOptional()
+  @IsUUID(undefined, { message: 'Mã bình luận cần trả lời không hợp lệ.' })
+  parentId?: string;
+}
+
+export class ReactionInputDto {
+  @IsIn(REACTION_TYPES, { message: 'Loại cảm xúc không hợp lệ.' })
+  type!: ReactionType;
 }
 
 export class DiscussionLockDto {
