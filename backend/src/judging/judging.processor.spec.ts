@@ -175,6 +175,34 @@ describe('JudgingProcessor', () => {
     );
   });
 
+  it('converts Judge0 CPU seconds to milliseconds and retains memory in KB', async () => {
+    judge0.waitForResults.mockImplementationOnce(
+      async (
+        tokens: string[],
+        _timeoutMs: number,
+        onCompleted?: (completed: Judge0SubmissionResult[]) => Promise<void>,
+      ) => {
+        const results = [
+          {
+            ...result(tokens[0], Judge0Verdict.Accepted, 0.038),
+            wallTimeSeconds: 99,
+            memoryKb: 12_152,
+          },
+          { ...result(tokens[1]), timeSeconds: null, memoryKb: null },
+        ];
+        if (onCompleted) await onCompleted(results);
+        return { results, timedOut: false };
+      },
+    );
+
+    await processor.process(job());
+
+    expect(repository.persistTestResults.mock.calls[0][1]).toMatchObject([
+      { executionTimeMs: 38, memoryUsedKb: 12_152 },
+      { executionTimeMs: null, memoryUsedKb: null },
+    ]);
+  });
+
   it('awards one point for each accepted test regardless of legacy scoring flags', async () => {
     repository.loadContext.mockResolvedValue({
       ...context,

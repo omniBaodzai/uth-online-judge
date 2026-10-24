@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/useAuth'
 import { useBreadcrumbProblemCode } from '../../../components/navigation/useBreadcrumbProblemCode'
 import type { SubmissionDetails } from '../../problems/submit/submission-service'
 import { getSubmissionDetails } from '../../problems/submit/submission-service'
+import { formatMemoryMiB } from '../submission-metrics'
 import styles from './SubmissionDetailsPage.module.css'
 
 const ReadOnlyCode = lazy(() => import('../components/ReadOnlyCode'))
@@ -66,8 +67,7 @@ function formatTime(value: number | null): string {
 }
 
 function formatMemory(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—'
-  return `${(value / 1024).toFixed(2)} MB`
+  return formatMemoryMiB(value, 2)
 }
 
 function SubmissionDetailsContent() {

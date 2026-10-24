@@ -10,6 +10,7 @@ import {
 } from '../../problems/submit/submission-service'
 import SubmissionPagination from '../components/SubmissionPagination'
 import { getSubmissionVerdictDistribution, submissionVerdicts } from '../data/submission-verdicts'
+import { formatMemoryMiB } from '../submission-metrics'
 import styles from './MyProblemSubmissionsPage.module.css'
 
 const PAGE_SIZES = [10, 20, 50]
@@ -61,8 +62,7 @@ function formatExecutionTime(value: number | null): string {
 }
 
 function formatMemory(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—'
-  return `${(value / 1024).toFixed(1)} MB`
+  return formatMemoryMiB(value)
 }
 
 function verdictAbbr(status: string): string {

@@ -88,6 +88,38 @@ describe('Judge0Service', () => {
     });
   });
 
+  it('preserves Judge0 decimal seconds, wall seconds, and memory kilobytes as raw values', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(json({
+      token: 'abc-1',
+      status: { id: 3, description: 'Accepted' },
+      time: '0.038',
+      wall_time: '0.0415',
+      memory: 12_152,
+    }));
+
+    await expect(build(fetchFn).getSubmission('abc-1')).resolves.toMatchObject({
+      timeSeconds: 0.038,
+      wallTimeSeconds: 0.0415,
+      memoryKb: 12_152,
+    });
+  });
+
+  it('preserves missing Judge0 resource measurements as null', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(json({
+      token: 'abc-1',
+      status: { id: 3, description: 'Accepted' },
+      time: null,
+      wall_time: null,
+      memory: null,
+    }));
+
+    await expect(build(fetchFn).getSubmission('abc-1')).resolves.toMatchObject({
+      timeSeconds: null,
+      wallTimeSeconds: null,
+      memoryKb: null,
+    });
+  });
+
   it('refuses tokens that could alter the request path', async () => {
     const fetchFn = vi.fn();
     await expect(build(fetchFn).getSubmission('a/../b')).rejects.toBeInstanceOf(Judge0InvalidResponseError);

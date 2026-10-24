@@ -1,4 +1,5 @@
 import { submissionVerdicts } from './data/submission-verdicts'
+import { formatMemoryMiB } from './submission-metrics'
 
 export type Submission = {
   id: string
@@ -49,5 +50,5 @@ export function formatExecutionTime(ms: number | null): string {
 
 // Backend lưu bộ nhớ theo KB.
 export function formatMemory(kb: number | null): string {
-  return kb === null || !Number.isFinite(kb) ? '—' : `${(kb / 1024).toFixed(1)} MB`
+  return formatMemoryMiB(kb)
 }

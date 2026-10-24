@@ -242,6 +242,13 @@ describe('JudgingRepository', () => {
     expect(finalizeSql).toContain("status <> 'ACCEPTED'");
     expect(finalizeSql).toContain('execution_time_ms = $5');
     expect(finalizeSql).toContain('memory_used_kb = $6');
+    expect(client.query.mock.calls[2][0]).toContain(
+      'SUM(result.execution_time_ms)::text AS execution_time_ms',
+    );
+    expect(client.query.mock.calls[2][0]).toContain(
+      'MAX(result.memory_used_kb) AS memory_used_kb',
+    );
+    expect(client.query.mock.calls[2][0]).not.toContain('wall_time');
     expect(finalizeValues).toEqual([
       'submission-1',
       false,
