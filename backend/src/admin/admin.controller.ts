@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -17,7 +18,7 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AddJudge0LanguageDto } from './dto/admin-language.dto.js';
 import { AdminProblemDto, AdminProblemStatusDto } from './dto/admin-problem.dto.js';
-import { AdminTestCaseDto } from './dto/admin-test-case.dto.js';
+import { AdminTestCaseCollectionDto } from './dto/admin-test-case.dto.js';
 import { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.js';
 import { AdminRoleGuard } from './admin-role.guard.js';
 import { AdminService } from './admin.service.js';
@@ -96,28 +97,11 @@ export class AdminController {
     return this.admin.listTestCases(id);
   }
 
-  @Post('problems/:id/test-cases')
-  createTestCase(@Param('id') problemId: string, @Body() input: AdminTestCaseDto) {
-    return this.admin.saveTestCase(problemId, input);
-  }
-
-  @Post('problems/:id/test-cases/distribute-points')
-  distributeTestCasePoints(@Param('id') problemId: string) {
-    return this.admin.distributeTestCasePoints(problemId);
-  }
-
-  @Patch('problems/:id/test-cases/:caseId')
-  updateTestCase(
+  @Put('problems/:id/test-cases')
+  replaceTestCases(
     @Param('id') problemId: string,
-    @Param('caseId') caseId: string,
-    @Body() input: AdminTestCaseDto,
+    @Body() input: AdminTestCaseCollectionDto,
   ) {
-    return this.admin.saveTestCase(problemId, input, caseId);
-  }
-
-  @Delete('problems/:id/test-cases/:caseId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  deleteTestCase(@Param('id') problemId: string, @Param('caseId') caseId: string) {
-    return this.admin.deleteTestCase(problemId, caseId);
+    return this.admin.replaceTestCases(problemId, input.expectedRevision, input.testCases);
   }
 }

@@ -4,8 +4,8 @@ import { ApiError } from '../../auth/api'
 import { useAdmin } from '../useAdmin'
 import { AdminIcon } from '../components/AdminIcons'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { difficultyLabels, formatDate, statusLabels } from '../utils'
-import type { AdminProblem, AdminProblemPage, AdminProblemStatus, AdminDifficulty } from '../types'
+import { formatDate, statusLabels } from '../utils'
+import type { AdminProblem, AdminProblemPage, AdminProblemStatus } from '../types'
 import styles from '../admin.module.css'
 
 type PendingAction = { problem: AdminProblem; status: AdminProblemStatus | 'delete' }
@@ -16,7 +16,6 @@ function AdminProblemsPage() {
   const [page, setPage] = useState<AdminProblemPage | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<AdminProblemStatus | 'all'>('all')
-  const [difficulty, setDifficulty] = useState<AdminDifficulty | 'all'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [pending, setPending] = useState<PendingAction | null>(null)
   const [loading, setLoading] = useState(true)
@@ -27,9 +26,8 @@ function AdminProblemsPage() {
     const query = new URLSearchParams({ page: String(currentPage), pageSize: String(PAGE_SIZE) })
     if (search.trim()) query.set('search', search.trim())
     if (status !== 'all') query.set('status', status)
-    if (difficulty !== 'all') query.set('difficulty', difficulty)
     return request<AdminProblemPage>(`/admin/problems?${query.toString()}`)
-  }, [currentPage, difficulty, request, search, status])
+  }, [currentPage, request, search, status])
 
   const load = useCallback(async () => {
     try {
@@ -54,13 +52,12 @@ function AdminProblemsPage() {
   }, [fetchPage])
 
   function clearFilters() {
-    if (search || status !== 'all' || difficulty !== 'all' || currentPage !== 1) {
+    if (search || status !== 'all' || currentPage !== 1) {
       setLoading(true)
       setError('')
     }
     setSearch('')
     setStatus('all')
-    setDifficulty('all')
     setCurrentPage(1)
   }
 
@@ -111,12 +108,6 @@ function AdminProblemsPage() {
             <option value="published">Đã xuất bản</option>
             <option value="archived">Đã lưu trữ</option>
           </select>
-          <select aria-label="Lọc theo độ khó" value={difficulty} onChange={(event) => { setLoading(true); setError(''); setDifficulty(event.target.value as AdminDifficulty | 'all'); setCurrentPage(1) }}>
-            <option value="all">Tất cả độ khó</option>
-            <option value="easy">Dễ</option>
-            <option value="medium">Trung bình</option>
-            <option value="hard">Khó</option>
-          </select>
           <button className={styles.buttonQuiet} type="button" onClick={clearFilters}>Xóa bộ lọc</button>
         </div>
         {error && <p className={styles.formMessage} role="alert">{error} <button className={styles.textLink} type="button" onClick={() => { setLoading(true); setError(''); void load() }}>Thử lại</button></p>}
@@ -131,12 +122,11 @@ function AdminProblemsPage() {
           ) : (
             <div className={styles.tableWrap}>
               <table className={styles.problemTable}>
-                <thead><tr><th scope="col">Mã bài</th><th scope="col">Tên bài</th><th scope="col">Độ khó</th><th scope="col">Chủ đề</th><th scope="col">Trạng thái</th><th scope="col">Cập nhật</th><th scope="col">Thao tác</th></tr></thead>
+                <thead><tr><th scope="col">Mã bài</th><th scope="col">Tên bài</th><th scope="col">Chủ đề</th><th scope="col">Trạng thái</th><th scope="col">Cập nhật</th><th scope="col">Thao tác</th></tr></thead>
                 <tbody>{problems.map((problem) => (
                   <tr key={problem.id}>
                     <td><span className={styles.code}>{problem.code}</span></td>
                     <td><Link className={styles.problemTitle} to={`/admin/problems/${problem.id}/edit`}>{problem.title}</Link><span className={styles.problemSummary}>{problem.summary}</span></td>
-                    <td><span className={styles[`difficulty_${problem.difficulty}`]}>{difficultyLabels[problem.difficulty]}</span></td>
                     <td><div className={styles.tagList}>{problem.tags.length ? problem.tags.slice(0, 3).map((tag) => <span className={styles.tag} key={tag}>{tag}</span>) : <span className={styles.fieldHint}>Chưa gắn chủ đề</span>}</div></td>
                     <td><span className={`${styles.badge} ${styles[`status_${problem.status}`]}`}>{statusLabels[problem.status]}</span></td>
                     <td>{formatDate(problem.updatedAt)}</td>

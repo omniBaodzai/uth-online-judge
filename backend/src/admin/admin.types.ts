@@ -23,6 +23,7 @@ export type AdminProblem = {
   memoryLimitMb: number;
   scoringEnabled: boolean;
   score: number;
+  testCaseRevision: number;
   examples: AdminProblemExample[];
   status: AdminProblemStatus;
   updatedAt: string;
@@ -34,8 +35,13 @@ export type AdminTestCase = {
   input: string;
   expectedOutput: string;
   kind: 'sample' | 'hidden';
-  points: number | null;
+  points: 1;
   position: number;
+};
+
+export type AdminTestCaseCollection = {
+  revision: number;
+  cases: AdminTestCase[];
 };
 
 export type AdminProblemListQuery = {

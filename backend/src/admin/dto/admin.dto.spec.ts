@@ -7,7 +7,7 @@ import { AdminTestCaseDto } from './admin-test-case.dto.js';
 describe('Admin DTOs', () => {
   const base = {
     title: 'T', statement: 'S', difficulty: 'easy', tags: [], languages: [],
-    timeLimitSeconds: 1, memoryLimitMb: 256, examples: [],
+    timeLimitSeconds: 1, memoryLimitMb: 256,
   };
 
   it.each(['uth011', 'tong_hai_so', 'bai_tap_01', 'a'.repeat(50)])('accepts problem code %s', async (code) => {
@@ -52,16 +52,16 @@ describe('Admin DTOs', () => {
     }
   });
 
-  it('allows scoring to be disabled without a maximum and requires one when enabled', async () => {
+  it('allows scoring to stay disabled or enabled without requiring a problem-wide maximum', async () => {
     const unscored = plainToInstance(AdminProblemDto, {
       ...base, code: 'uth011', scoringEnabled: false,
     });
     await expect(validate(unscored)).resolves.toHaveLength(0);
 
-    const missingMaximum = plainToInstance(AdminProblemDto, {
+    const withScoringEnabled = plainToInstance(AdminProblemDto, {
       ...base, code: 'uth011', scoringEnabled: true,
     });
-    expect((await validate(missingMaximum)).map((error) => error.property)).toContain('score');
+    await expect(validate(withScoringEnabled)).resolves.toHaveLength(0);
   });
 
   it('accepts scoringEnabled through the strict global whitelist validation pipe', async () => {
@@ -76,14 +76,40 @@ describe('Admin DTOs', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('accepts decimal test-case points and rejects more than two decimal places', async () => {
+  it('requires a collection revision and validates every test case in a problem payload', async () => {
+    const valid = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      testCasesRevision: 2,
+      testCases: [{ name: 'Mẫu', input: '1', expectedOutput: '2', kind: 'sample', points: 1 }],
+    });
+    await expect(validate(valid, { whitelist: true, forbidNonWhitelisted: true })).resolves.toHaveLength(0);
+
+    const staleShape = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      testCases: [{ name: 'Mẫu', input: '1', expectedOutput: '2', kind: 'sample', points: 1 }],
+    });
+    expect((await validate(staleShape)).map((error) => error.property)).toContain('testCasesRevision');
+
+    const weighted = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      testCasesRevision: 2,
+      testCases: [{ name: 'Test', input: '1', expectedOutput: '2', kind: 'hidden', points: 2 }],
+    });
+    const nestedErrors = await validate(weighted);
+    expect(nestedErrors[0]?.children?.[0]?.children?.map((error) => error.property)).toContain('points');
+  });
+
+  it('accepts exactly one test-case point and rejects configurable weights', async () => {
     const valid = plainToInstance(AdminTestCaseDto, {
-      name: 'weighted', input: '', expectedOutput: 'ok', kind: 'hidden', points: '12.25',
+      name: 'fixed', input: '', expectedOutput: 'ok', kind: 'hidden', points: 1,
     });
     await expect(validate(valid)).resolves.toHaveLength(0);
 
     const invalid = plainToInstance(AdminTestCaseDto, {
-      name: 'weighted', input: '', expectedOutput: 'ok', kind: 'hidden', points: '12.251',
+      name: 'weighted', input: '', expectedOutput: 'ok', kind: 'hidden', points: 12.25,
     });
     const errors = await validate(invalid);
     expect(errors.map((error) => error.property)).toContain('points');

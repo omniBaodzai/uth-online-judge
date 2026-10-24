@@ -259,11 +259,15 @@ function SubmissionDetailsContent() {
 
         <section className={styles.resultSummary} aria-label="Kết quả chấm">
           <div className={styles.scoreCard}>
-            <span className={styles.metricLabel}>Điểm</span>
+            <span className={styles.metricLabel}>Điểm lần nộp</span>
             <strong>{scoringConfigured ? <>{liveScore} <span>/ {submission.maxScore}</span></> : 'Không áp dụng'}</strong>
             {scoringConfigured && !active && snapshotMaxPoints !== submission.maxScore && (
               <small>Snapshot test: {snapshotMaxPoints.toFixed(2)} điểm</small>
             )}
+          </div>
+          <div className={styles.resultMetric}>
+            <span className={styles.metricLabel}>Điểm tích lũy</span>
+            <strong>{submission.cumulativeScore} / {submission.cumulativeMaxScore}</strong>
           </div>
           <div className={styles.resultMetric}>
             <span className={styles.metricLabel}>Test đạt</span>

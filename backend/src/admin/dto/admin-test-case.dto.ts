@@ -1,7 +1,24 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 export class AdminTestCaseDto {
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   @IsString()
   @IsNotEmpty()
@@ -17,20 +34,23 @@ export class AdminTestCaseDto {
   @MaxLength(100_000)
   expectedOutput!: string;
 
+  @IsOptional()
   @IsIn(['sample', 'hidden'])
   kind!: 'sample' | 'hidden';
 
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(999999.99)
-  points?: number | null;
+  @IsIn([1])
+  points?: number;
+}
 
-  @IsOptional()
-  @Type(() => Number)
+export class AdminTestCaseCollectionDto {
   @IsInt()
-  @Min(1)
-  @Max(100_000)
-  position?: number;
+  @Min(0)
+  expectedRevision!: number;
+
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => AdminTestCaseDto)
+  testCases!: AdminTestCaseDto[];
 }

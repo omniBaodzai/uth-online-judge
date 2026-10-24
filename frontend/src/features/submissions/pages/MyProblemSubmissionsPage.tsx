@@ -103,7 +103,7 @@ function SubmissionCard({ item, username }: { item: ProblemSubmissionListItem; u
       <div
         className={`${styles.verdictBlock} ${submissionStatusClass(item.status)}`}
         role="status"
-        aria-label={`${statusLabel}${showScore ? `, ${item.score}/${item.maxScore} điểm` : ''}`}
+        aria-label={`${statusLabel}${showScore ? `, điểm lần nộp ${item.score}/${item.maxScore}` : ''}`}
       >
         <strong>
           {showScore ? `${item.score} / ${item.maxScore}` : active ? statusLabel : verdictAbbr(item.status)}
@@ -243,6 +243,12 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
               <h2 id="submissions-title">Danh sách bài nộp</h2>
               <span>{data?.total ?? 0} bài</span>
             </div>
+            {data && (
+              <div className={styles.progressSummary} role="status" aria-live="polite">
+                <span>Điểm tích lũy hiện tại</span>
+                <strong>{data.problem.cumulativeScore} / {data.problem.totalTestCases}</strong>
+              </div>
+            )}
 
             <form className={styles.filters} onSubmit={applyFilters}>
               <label>

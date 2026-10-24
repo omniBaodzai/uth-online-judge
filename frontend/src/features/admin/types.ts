@@ -14,7 +14,7 @@ export type AdminProblem = {
   title: string
   summary: string | null
   statement: string
-  difficulty: AdminDifficulty
+  difficulty?: AdminDifficulty | null
   tags: string[]
   languages: string[]
   inputDescription: string
@@ -24,6 +24,7 @@ export type AdminProblem = {
   memoryLimitMb: number
   scoringEnabled: boolean
   score: number
+  testCaseRevision: number
   examples: ProblemExample[]
   status: AdminProblemStatus
   updatedAt: string
@@ -35,7 +36,22 @@ export type AdminTestCase = {
   input: string
   expectedOutput: string
   kind: TestCaseKind
-  points: number | null
+  points: 1
+  position: number
+}
+
+export type AdminTestCaseDraft = {
+  id?: string
+  clientId: string
+  name: string
+  input: string
+  expectedOutput: string
+  kind: TestCaseKind
+}
+
+export type AdminTestCaseCollection = {
+  revision: number
+  cases: AdminTestCase[]
 }
 
 export type AdminProblemPage = {
@@ -58,7 +74,10 @@ export type AdminDashboard = {
   recent: AdminProblem[]
 }
 
-export type ProblemDraft = Omit<AdminProblem, 'id' | 'updatedAt'>
+export type ProblemDraft = Omit<AdminProblem, 'id' | 'updatedAt' | 'examples' | 'testCaseRevision'> & {
+  testCases: AdminTestCaseDraft[]
+  testCaseRevision: number
+}
 
 export type AdminUserRole = 'STUDENT' | 'ADMIN'
 export type AdminUserStatus = 'active' | 'inactive'

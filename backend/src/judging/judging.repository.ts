@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
 import type { Judge0Verdict } from '../judge0/judge0.types.js';
+import { testCaseFingerprint } from '../scoring/test-case-fingerprint.js';
 
 export interface JudgingContext {
   sourceCode: string;
@@ -38,7 +39,10 @@ export class JudgingRepository {
 
   constructor(@Inject(DATABASE_POOL) private readonly database: Pool) {}
 
-  async findRecoverableIds(afterId: string | null, limit: number): Promise<string[]> {
+  async findRecoverableIds(
+    afterId: string | null,
+    limit: number,
+  ): Promise<string[]> {
     const result = await this.database.query<{ id: string }>(
       `SELECT s.id
        FROM submissions s
@@ -138,11 +142,11 @@ export class JudgingRepository {
       testCases: cases.rows.map((testCase) => {
         const existingResult = testCase.result_status
           ? {
-            verdict: testCase.result_status,
-            executionTimeMs: testCase.result_execution_time_ms,
-            memoryUsedKb: testCase.result_memory_used_kb,
-            pointsAwarded: Number(testCase.result_points_awarded ?? 0),
-          }
+              verdict: testCase.result_status,
+              executionTimeMs: testCase.result_execution_time_ms,
+              memoryUsedKb: testCase.result_memory_used_kb,
+              pointsAwarded: Number(testCase.result_points_awarded ?? 0),
+            }
           : undefined;
         return {
           id: testCase.source_test_case_id,
@@ -160,29 +164,57 @@ export class JudgingRepository {
     };
   }
 
-  async persistTestResult(submissionId: string, result: PersistedTestResult): Promise<void> {
+  async persistTestResult(
+    submissionId: string,
+    result: PersistedTestResult,
+  ): Promise<void> {
     await this.persistTestResults(submissionId, [result]);
   }
 
-  async persistTestResults(submissionId: string, results: PersistedTestResult[]): Promise<void> {
+  async persistTestResults(
+    submissionId: string,
+    results: PersistedTestResult[],
+  ): Promise<void> {
     if (results.length === 0) return;
     const startedAt = performance.now();
-    const values: Array<string | number | null> = [];
-    const tuples = results.map(({ testCase, verdict, executionTimeMs, memoryUsedKb, pointsAwarded }) => {
-      const firstParameter = values.length + 1;
-      values.push(
-        submissionId,
-        testCase.id,
-        testCase.snapshotId,
-        verdict,
-        executionTimeMs,
-        memoryUsedKb,
-        pointsAwarded,
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const running = await client.query(
+        `SELECT id FROM submissions
+         WHERE id = $1 AND status = 'RUNNING'
+         FOR SHARE`,
+        [submissionId],
       );
-      return `($${firstParameter}, $${firstParameter + 1}, $${firstParameter + 2}, $${firstParameter + 3}, $${firstParameter + 4}, $${firstParameter + 5}, $${firstParameter + 6})`;
-    });
-    await this.database.query(
-      `INSERT INTO submission_test_results
+      if (!running.rowCount) {
+        await client.query('COMMIT');
+        return;
+      }
+
+      const values: Array<string | number | null> = [];
+      const tuples = results.map(
+        ({
+          testCase,
+          verdict,
+          executionTimeMs,
+          memoryUsedKb,
+          pointsAwarded,
+        }) => {
+          const firstParameter = values.length + 1;
+          values.push(
+            submissionId,
+            testCase.id,
+            testCase.snapshotId,
+            verdict,
+            executionTimeMs,
+            memoryUsedKb,
+            pointsAwarded,
+          );
+          return `($${firstParameter}, $${firstParameter + 1}, $${firstParameter + 2}, $${firstParameter + 3}, $${firstParameter + 4}, $${firstParameter + 5}, $${firstParameter + 6})`;
+        },
+      );
+      await client.query(
+        `INSERT INTO submission_test_results
          (submission_id, test_case_id, snapshot_id, status, execution_time_ms,
           memory_used_kb, points_awarded)
        VALUES ${tuples.join(', ')}
@@ -192,16 +224,36 @@ export class JudgingRepository {
                      execution_time_ms = EXCLUDED.execution_time_ms,
                      memory_used_kb = EXCLUDED.memory_used_kb,
                      points_awarded = EXCLUDED.points_awarded`,
-      values,
-    );
+        values,
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
     this.logger.log(
       `Judging results persisted submission=${submissionId} count=${results.length} dbMs=${Math.round(performance.now() - startedAt)}`,
     );
   }
 
   async persistUnjudgedTestResults(submissionId: string): Promise<void> {
-    await this.database.query(
-      `INSERT INTO submission_test_results
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const running = await client.query(
+        `SELECT id FROM submissions
+         WHERE id = $1 AND status = 'RUNNING'
+         FOR SHARE`,
+        [submissionId],
+      );
+      if (!running.rowCount) {
+        await client.query('COMMIT');
+        return;
+      }
+      await client.query(
+        `INSERT INTO submission_test_results
          (submission_id, test_case_id, snapshot_id, status, execution_time_ms,
           memory_used_kb, points_awarded)
        SELECT snapshot.submission_id, snapshot.source_test_case_id, snapshot.id,
@@ -213,41 +265,144 @@ export class JudgingRepository {
        WHERE snapshot.submission_id = $1
          AND result.submission_id IS NULL
        ON CONFLICT (submission_id, test_case_id) DO NOTHING`,
-      [submissionId],
-    );
+        [submissionId],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
-  async persistFinalResult(submissionId: string, failed = false): Promise<void> {
+  async persistFinalResult(
+    submissionId: string,
+    failed = false,
+  ): Promise<void> {
     const startedAt = performance.now();
-    await this.database.query(
-      `WITH totals AS (
-         SELECT
-           COALESCE(SUM(points_awarded), 0) AS score,
-           SUM(execution_time_ms) AS execution_time_ms,
-           MAX(memory_used_kb) AS memory_used_kb
-         FROM submission_test_results
-         WHERE submission_id = $1
-       ), first_failure AS (
-         SELECT status
-         FROM submission_test_results
-         WHERE submission_id = $1 AND status <> 'ACCEPTED'
-         ORDER BY (SELECT snapshot.position FROM submission_test_case_snapshots snapshot
-                   WHERE snapshot.id = submission_test_results.snapshot_id)
-         LIMIT 1
-       )
-       UPDATE submissions s
-       SET status = CASE WHEN $2::boolean THEN 'INTERNAL_ERROR'
-                         ELSE COALESCE((SELECT status FROM first_failure), 'ACCEPTED') END,
-           score = CASE WHEN s.scoring_enabled THEN totals.score ELSE 0 END,
-           execution_time_ms = totals.execution_time_ms,
-           memory_used_kb = totals.memory_used_kb,
-           error_message = CASE WHEN $2::boolean THEN 'Judging could not be completed.' ELSE NULL END,
-           judged_at = CURRENT_TIMESTAMP
-       FROM totals
-       WHERE s.id = $1 AND s.status = 'RUNNING'
-       RETURNING s.status, s.score, s.execution_time_ms, s.memory_used_kb`,
-      [submissionId, failed],
-    );
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const submission = await client.query<{
+        user_id: string;
+        problem_id: string;
+      }>(
+        `SELECT user_id, problem_id
+         FROM submissions
+         WHERE id = $1 AND status = 'RUNNING'
+         FOR UPDATE`,
+        [submissionId],
+      );
+      const owner = submission.rows[0];
+      if (!owner) {
+        await client.query('COMMIT');
+        return;
+      }
+
+      const totals = await client.query<{
+        snapshot_count: string;
+        result_count: string;
+        score: string;
+        execution_time_ms: string | null;
+        memory_used_kb: number | null;
+      }>(
+        `SELECT COUNT(snapshot.id)::text AS snapshot_count,
+                COUNT(result.submission_id)::text AS result_count,
+                COALESCE(SUM(result.points_awarded), 0)::text AS score,
+                SUM(result.execution_time_ms)::text AS execution_time_ms,
+                MAX(result.memory_used_kb) AS memory_used_kb
+         FROM submission_test_case_snapshots snapshot
+         LEFT JOIN submission_test_results result
+           ON result.submission_id = snapshot.submission_id
+          AND result.test_case_id = snapshot.source_test_case_id
+         WHERE snapshot.submission_id = $1`,
+        [submissionId],
+      );
+      const counts = totals.rows[0];
+      if (!counts)
+        throw new Error('Could not aggregate submission judging results.');
+      const complete =
+        Number(counts.snapshot_count) > 0 &&
+        counts.snapshot_count === counts.result_count;
+      if (!failed && complete) {
+        const acceptedCases = await client.query<{
+          test_case_id: string;
+          input_data: string;
+          expected_output: string;
+        }>(
+          `SELECT snapshot.source_test_case_id AS test_case_id,
+                  snapshot.input_data, snapshot.expected_output
+           FROM submission_test_case_snapshots snapshot
+           JOIN submission_test_results result
+             ON result.submission_id = snapshot.submission_id
+            AND result.test_case_id = snapshot.source_test_case_id
+           WHERE snapshot.submission_id = $1 AND result.status = 'ACCEPTED'
+           ORDER BY snapshot.source_test_case_id`,
+          [submissionId],
+        );
+        if (acceptedCases.rows.length > 0) {
+          const values: Array<string> = [];
+          const tuples = acceptedCases.rows.map((testCase) => {
+            const index = values.length + 1;
+            values.push(
+              owner.user_id,
+              owner.problem_id,
+              testCase.test_case_id,
+              testCaseFingerprint(
+                testCase.input_data,
+                testCase.expected_output,
+              ),
+            );
+            return `($${index}, $${index + 1}, $${index + 2}, $${index + 3})`;
+          });
+          await client.query(
+            `INSERT INTO student_test_case_progress
+               (user_id, problem_id, test_case_id, content_fingerprint)
+             VALUES ${tuples.join(', ')}
+             ON CONFLICT (user_id, problem_id, test_case_id, content_fingerprint)
+             DO NOTHING`,
+            values,
+          );
+        }
+      }
+
+      await client.query(
+        `WITH first_failure AS (
+           SELECT result.status
+           FROM submission_test_results result
+           JOIN submission_test_case_snapshots snapshot
+             ON snapshot.id = result.snapshot_id
+           WHERE result.submission_id = $1 AND result.status <> 'ACCEPTED'
+           ORDER BY snapshot.position, snapshot.id
+           LIMIT 1
+         )
+         UPDATE submissions s
+         SET status = CASE WHEN $2::boolean OR NOT $3::boolean THEN 'INTERNAL_ERROR'
+                           ELSE COALESCE((SELECT status FROM first_failure), 'ACCEPTED') END,
+             score = CASE WHEN s.scoring_enabled THEN $4::numeric ELSE 0 END,
+             execution_time_ms = $5,
+             memory_used_kb = $6,
+             error_message = CASE WHEN $2::boolean OR NOT $3::boolean
+                                  THEN 'Judging could not be completed.' ELSE NULL END,
+             judged_at = CURRENT_TIMESTAMP
+         WHERE s.id = $1 AND s.status = 'RUNNING'`,
+        [
+          submissionId,
+          failed,
+          complete,
+          counts.score,
+          counts.execution_time_ms,
+          counts.memory_used_kb,
+        ],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
     this.logger.log(
       `Judging finalized submission=${submissionId} failed=${failed} dbMs=${Math.round(performance.now() - startedAt)}`,
     );

@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
-import { getProblemScoringConfiguration } from '../scoring/scoring-policy.js';
+import { testCaseFingerprint } from '../scoring/test-case-fingerprint.js';
 import {
   buildGlobalStatistics,
   escapeLikePattern,
@@ -36,6 +36,8 @@ export interface SubmissionView {
   scoringEnabled: boolean;
   score: number;
   maxScore: number;
+  cumulativeScore: number;
+  cumulativeMaxScore: number;
   executionTimeMs: number | null;
   memoryUsedKb: number | null;
   submittedAt: string;
@@ -66,7 +68,13 @@ export interface ProblemSubmissionStatistics {
 }
 
 export interface ProblemSubmissionPage {
-  problem: { code: string; title: string; scoringEnabled: boolean };
+  problem: {
+    code: string;
+    title: string;
+    scoringEnabled: boolean;
+    cumulativeScore: number;
+    totalTestCases: number;
+  };
   items: ProblemSubmissionListItem[];
   total: number;
   statistics: ProblemSubmissionStatistics;
@@ -92,6 +100,49 @@ export class SubmissionsRepository {
     private readonly database: Pool,
   ) {}
 
+  private async findCumulativeProgress(
+    userId: string,
+    problemId: string,
+  ): Promise<{ score: number; total: number }> {
+    const testCases = await this.database.query<{
+      id: string;
+      input_data: string;
+      expected_output: string;
+    }>(
+      `SELECT id, input_data, expected_output
+       FROM problem_test_cases
+       WHERE problem_id = $1 AND is_active = TRUE`,
+      [problemId],
+    );
+    if (testCases.rows.length === 0) return { score: 0, total: 0 };
+
+    const currentCases = testCases.rows.map((testCase) => ({
+      id: testCase.id,
+      fingerprint: testCaseFingerprint(
+        testCase.input_data,
+        testCase.expected_output,
+      ),
+    }));
+    const progress = await this.database.query<{ score: number }>(
+      `SELECT COUNT(DISTINCT candidate.test_case_id)::int AS score
+       FROM unnest($3::uuid[], $4::text[]) AS candidate(test_case_id, content_fingerprint)
+       JOIN student_test_case_progress passed
+         ON passed.test_case_id = candidate.test_case_id
+        AND passed.content_fingerprint = candidate.content_fingerprint
+       WHERE passed.user_id = $1 AND passed.problem_id = $2`,
+      [
+        userId,
+        problemId,
+        currentCases.map(({ id }) => id),
+        currentCases.map(({ fingerprint }) => fingerprint),
+      ],
+    );
+    return {
+      score: Number(progress.rows[0]?.score ?? 0),
+      total: currentCases.length,
+    };
+  }
+
   async findPublishedProblemId(code: string): Promise<string | null> {
     const result = await this.database.query<{ id: string }>(
       "SELECT id FROM problems WHERE problem_code = $1 AND status = 'PUBLISHED'",
@@ -101,7 +152,10 @@ export class SubmissionsRepository {
   }
 
   // Ngôn ngữ phải được bật và nằm trong danh sách cho phép của chính bài tập này.
-  async findAllowedLanguageId(problemId: string, slug: string): Promise<string | null> {
+  async findAllowedLanguageId(
+    problemId: string,
+    slug: string,
+  ): Promise<string | null> {
     const result = await this.database.query<{ id: string }>(
       `SELECT l.id
        FROM programming_languages l
@@ -122,13 +176,18 @@ export class SubmissionsRepository {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
-      await assertProblemScoring(client, input.problemId);
-      const result = await client.query<{ id: string; status: string; submitted_at: Date }>(
+      await lockPublishedProblem(client, input.problemId);
+      const result = await client.query<{
+        id: string;
+        status: string;
+        submitted_at: Date;
+      }>(
         `INSERT INTO submissions
            (user_id, problem_id, language_id, source_code, max_score, scoring_enabled)
          SELECT $1, p.id, $3, $4,
-                CASE WHEN p.scoring_enabled THEN p.score ELSE 0 END,
-                p.scoring_enabled
+                (SELECT COUNT(*) FROM problem_test_cases tc
+                 WHERE tc.problem_id = p.id AND tc.is_active = TRUE),
+                TRUE
          FROM problems p
          JOIN problem_languages pl ON pl.problem_id = p.id AND pl.language_id = $3
          JOIN programming_languages l ON l.id = pl.language_id AND l.is_enabled = TRUE
@@ -137,14 +196,17 @@ export class SubmissionsRepository {
         [input.userId, input.problemId, input.languageId, input.sourceCode],
       );
       const row = result.rows[0];
-      if (!row) throw new BadRequestException('Bài tập không còn được phép nhận bài nộp.');
+      if (!row)
+        throw new BadRequestException(
+          'Bài tập không còn được phép nhận bài nộp.',
+        );
 
       const snapshots = await client.query(
         `INSERT INTO submission_test_case_snapshots
            (submission_id, source_test_case_id, test_name, input_data, expected_output,
             points, position, time_limit_ms, memory_limit_kb)
          SELECT $1, tc.id, tc.test_name, tc.input_data, tc.expected_output,
-                CASE WHEN tc.is_sample THEN 0 ELSE tc.points END,
+                1,
                 tc.position, p.time_limit_ms, p.memory_limit_mb * 1024
          FROM problem_test_cases tc
          JOIN problems p ON p.id = tc.problem_id
@@ -153,11 +215,17 @@ export class SubmissionsRepository {
         [row.id, input.problemId],
       );
       if (snapshots.rowCount === 0) {
-        throw new BadRequestException('Bài tập chưa có test case đang hoạt động.');
+        throw new BadRequestException(
+          'Bài tập chưa có test case đang hoạt động.',
+        );
       }
 
       await client.query('COMMIT');
-      return { id: row.id, status: row.status, submittedAt: row.submitted_at.toISOString() };
+      return {
+        id: row.id,
+        status: row.status,
+        submittedAt: row.submitted_at.toISOString(),
+      };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -188,6 +256,8 @@ export class SubmissionsRepository {
   async findOwned(id: string, userId: string): Promise<SubmissionView | null> {
     const submission = await this.database.query<{
       id: string;
+      user_id: string;
+      problem_id: string;
       problem_code: string;
       problem_title: string;
       username: string | null;
@@ -202,7 +272,7 @@ export class SubmissionsRepository {
       submitted_at: Date;
       judged_at: Date | null;
     }>(
-      `SELECT s.id, p.problem_code, p.title AS problem_title, u.username,
+      `SELECT s.id, s.user_id, s.problem_id, p.problem_code, p.title AS problem_title, u.username,
               l.name AS language,
               s.source_code, s.status, s.scoring_enabled, s.score, s.max_score,
               s.execution_time_ms, s.memory_used_kb, s.submitted_at, s.judged_at
@@ -234,6 +304,10 @@ export class SubmissionsRepository {
        ORDER BY snapshot.position`,
       [id],
     );
+    const cumulative = await this.findCumulativeProgress(
+      row.user_id,
+      row.problem_id,
+    );
 
     return {
       id: row.id,
@@ -246,6 +320,8 @@ export class SubmissionsRepository {
       scoringEnabled: row.scoring_enabled,
       score: Number(row.score),
       maxScore: row.scoring_enabled ? Number(row.max_score) : 0,
+      cumulativeScore: cumulative.score,
+      cumulativeMaxScore: cumulative.total,
       executionTimeMs: row.execution_time_ms,
       memoryUsedKb: row.memory_used_kb,
       submittedAt: row.submitted_at.toISOString(),
@@ -255,7 +331,9 @@ export class SubmissionsRepository {
         status: result.status,
         executionTimeMs: result.execution_time_ms,
         memoryUsedKb: result.memory_used_kb,
-        pointsAwarded: row.scoring_enabled ? Number(result.points_awarded ?? 0) : 0,
+        pointsAwarded: row.scoring_enabled
+          ? Number(result.points_awarded ?? 0)
+          : 0,
         maxPoints: row.scoring_enabled ? Number(result.max_points) : 0,
       })),
     };
@@ -269,7 +347,10 @@ export class SubmissionsRepository {
   ): Promise<GlobalSubmissionPage | null> {
     let problem: { code: string; title: string } | null = null;
     if (query.problemCode) {
-      const found = await this.database.query<{ problem_code: string; title: string }>(
+      const found = await this.database.query<{
+        problem_code: string;
+        title: string;
+      }>(
         `SELECT problem_code, title FROM problems
          WHERE UPPER(problem_code) = UPPER($1) AND status = 'PUBLISHED'`,
         [query.problemCode],
@@ -321,7 +402,15 @@ export class SubmissionsRepository {
              '[]'::json
            ) AS items,
            (SELECT COUNT(*)::int FROM filtered) AS total`,
-        [query.status ?? null, query.language ?? null, search, query.pageSize, offset, viewerId, problemCode],
+        [
+          query.status ?? null,
+          query.language ?? null,
+          search,
+          query.pageSize,
+          offset,
+          viewerId,
+          problemCode,
+        ],
       ),
       this.database.query<{ status: string; count: number }>(
         `SELECT s.status, COUNT(*)::int AS count
@@ -390,6 +479,7 @@ export class SubmissionsRepository {
     );
     const problem = problemResult.rows[0];
     if (!problem) return null;
+    const cumulative = await this.findCumulativeProgress(userId, problem.id);
 
     const offset = (page - 1) * pageSize;
     const [listResult, statisticsResult] = await Promise.all([
@@ -429,7 +519,14 @@ export class SubmissionsRepository {
              '[]'::json
            ) AS items,
            (SELECT COUNT(*)::int FROM filtered) AS total`,
-        [problem.id, userId, status ?? null, language ?? null, pageSize, offset],
+        [
+          problem.id,
+          userId,
+          status ?? null,
+          language ?? null,
+          pageSize,
+          offset,
+        ],
       ),
       this.database.query<{
         total: number;
@@ -480,6 +577,8 @@ export class SubmissionsRepository {
         code: problem.problem_code,
         title: problem.title,
         scoringEnabled: problem.scoring_enabled,
+        cumulativeScore: cumulative.score,
+        totalTestCases: cumulative.total,
       },
       items: list.items.map((item) => ({
         id: item.id,
@@ -498,9 +597,13 @@ export class SubmissionsRepository {
         accepted,
         wrongAnswer: Number(statistics.wrong_answer),
         compilationError: Number(statistics.compilation_error),
-        acceptanceRate: total === 0 ? 0 : Math.round((accepted / total) * 1000) / 10,
+        acceptanceRate:
+          total === 0 ? 0 : Math.round((accepted / total) * 1000) / 10,
         verdictCounts: Object.fromEntries(
-          Object.entries(statistics.verdict_counts).map(([status, count]) => [status, Number(count)]),
+          Object.entries(statistics.verdict_counts).map(([status, count]) => [
+            status,
+            Number(count),
+          ]),
         ),
         languages: statistics.languages,
       },
@@ -508,7 +611,7 @@ export class SubmissionsRepository {
   }
 }
 
-async function assertProblemScoring(
+async function lockPublishedProblem(
   client: Pick<PoolClient, 'query'>,
   problemId: string,
 ): Promise<void> {
@@ -516,14 +619,7 @@ async function assertProblemScoring(
     "SELECT id FROM problems WHERE id = $1 AND status = 'PUBLISHED' FOR SHARE",
     [problemId],
   );
-  if (!published.rowCount) return;
-
-  const configuration = await getProblemScoringConfiguration(client, problemId);
-  if (!configuration) return;
-  if (!configuration.scoringEnabled) return;
-  if (configuration.scoredTestCount === 0 || !configuration.pointsMatch) {
-    throw new BadRequestException(
-      `Bài tập chưa thể nhận bài nộp: tổng điểm test ẩn (${configuration.assignedPoints.toFixed(2)}) phải bằng điểm tối đa (${configuration.maxScore.toFixed(2)}).`,
-    );
+  if (!published.rowCount) {
+    throw new BadRequestException('Bài tập không còn được phép nhận bài nộp.');
   }
 }

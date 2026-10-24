@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
 import { Inject } from '@nestjs/common';
 import { DATABASE_POOL } from '../databases/database.module.js';
-import { getProblemScoringConfiguration } from '../scoring/scoring-policy.js';
 import type { AdminProblemDto } from './dto/admin-problem.dto.js';
 import type { AdminTestCaseDto } from './dto/admin-test-case.dto.js';
 import type {
@@ -27,6 +26,7 @@ type ProblemRow = {
   memory_limit_mb: number;
   scoring_enabled: boolean;
   score: string | number;
+  test_case_revision: number;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   updated_at: Date;
   tags: string[];
@@ -47,7 +47,8 @@ type TestCaseRow = {
 const PROBLEM_FIELDS = `
   p.id, p.problem_code, p.title, p.summary, p.statement, p.difficulty,
   p.input_description, p.output_description, p.constraints_text,
-  p.time_limit_ms, p.memory_limit_mb, p.scoring_enabled, p.score, p.status, p.updated_at,
+  p.time_limit_ms, p.memory_limit_mb, p.scoring_enabled, p.score, p.test_case_revision,
+  p.status, p.updated_at,
   COALESCE((
     SELECT array_agg(t.name ORDER BY t.name)::text[]
     FROM problem_tags pt JOIN tags t ON t.id = pt.tag_id
@@ -130,14 +131,21 @@ export class AdminRepository {
     let savedId = id;
     try {
       await client.query('BEGIN');
-      let current: { scoring_enabled: boolean; score: string } | undefined;
+      let current: { scoring_enabled: boolean; score: string; test_case_revision: number } | undefined;
       if (id) {
-        const existing = await client.query<{ scoring_enabled: boolean; score: string }>(
-          'SELECT scoring_enabled, score::text AS score FROM problems WHERE id = $1 FOR UPDATE',
+        const existing = await client.query<{ scoring_enabled: boolean; score: string; test_case_revision: number }>(
+          'SELECT scoring_enabled, score::text AS score, test_case_revision FROM problems WHERE id = $1 FOR UPDATE',
           [id],
         );
         current = existing.rows[0];
         if (!current) throw new NotFoundException('Không tìm thấy bài tập.');
+      }
+      if (input.testCases !== undefined) {
+        const expectedRevision = input.testCasesRevision;
+        const actualRevision = current?.test_case_revision ?? 0;
+        if (expectedRevision === undefined || expectedRevision !== actualRevision) {
+          throw new ConflictException('Danh sách test case đã được thay đổi ở nơi khác. Hãy tải lại trước khi lưu.');
+        }
       }
       const scoringEnabled = input.scoringEnabled ?? current?.scoring_enabled ?? false;
       const score = scoringEnabled
@@ -182,10 +190,14 @@ export class AdminRepository {
 
       await this.replaceTags(client, savedId, input.tags);
       await this.replaceLanguages(client, savedId, input.languages);
-      await this.replaceExamples(client, savedId, input.examples);
-      if ((input.status ?? 'draft') === 'published' && scoringEnabled) {
-        await assertScoringConfigured(client, savedId);
+      if (input.testCases !== undefined) {
+        await this.replaceTestCasesInTransaction(
+          client,
+          savedId,
+          input.testCases,
+        );
       }
+      if ((input.status ?? 'draft') === 'published') await this.assertHasTestCases(client, savedId);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
@@ -203,14 +215,12 @@ export class AdminRepository {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
-      const problem = await client.query<{ id: string; scoring_enabled: boolean }>(
-        'SELECT id, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
+      const problem = await client.query<{ id: string }>(
+        'SELECT id FROM problems WHERE id = $1 FOR UPDATE',
         [id],
       );
       if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
-      if (status === 'published' && problem.rows[0]?.scoring_enabled) {
-        await assertScoringConfigured(client, id);
-      }
+      if (status === 'published') await this.assertHasTestCases(client, id);
       const result = await client.query(
         `UPDATE problems
          SET status = $2::varchar,
@@ -316,57 +326,46 @@ export class AdminRepository {
     };
   }
 
-  async listTestCases(problemId: string): Promise<AdminTestCase[]> {
-    await this.ensureProblem(problemId);
-    const result = await this.database.query<TestCaseRow>(
-      `SELECT id, test_name, input_data, expected_output, is_sample, points, position, is_active
-       FROM problem_test_cases
-       WHERE problem_id = $1 AND is_active = TRUE
-       ORDER BY position ASC, id ASC`,
+  async listTestCases(problemId: string): Promise<{ revision: number; cases: AdminTestCase[] }> {
+    const result = await this.database.query<Partial<TestCaseRow> & { test_case_revision: number }>(
+      `SELECT p.test_case_revision, tc.id, tc.test_name, tc.input_data,
+              tc.expected_output, tc.is_sample, tc.points, tc.position, tc.is_active
+       FROM problems p
+       LEFT JOIN problem_test_cases tc
+         ON tc.problem_id = p.id AND tc.is_active = TRUE
+       WHERE p.id = $1
+       ORDER BY tc.position ASC NULLS LAST, tc.id ASC`,
       [problemId],
     );
-    return result.rows.map(mapTestCase);
+    const first = result.rows[0];
+    if (!first) throw new NotFoundException('Không tìm thấy bài tập.');
+    return {
+      revision: first.test_case_revision,
+      cases: result.rows
+        .filter((row): row is TestCaseRow & { test_case_revision: number } => row.id !== null && row.id !== undefined)
+        .map(mapTestCase),
+    };
   }
 
-  async distributeTestCasePoints(problemId: string): Promise<AdminTestCase[]> {
+  async replaceTestCases(
+    problemId: string,
+    expectedRevision: number,
+    cases: AdminTestCaseDto[],
+  ): Promise<{ revision: number; cases: AdminTestCase[] }> {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
-      const problem = await client.query<{ score: string; scoring_enabled: boolean }>(
-        'SELECT score::text AS score, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
+      const problem = await client.query<{ test_case_revision: number; status: string }>(
+        'SELECT test_case_revision, status FROM problems WHERE id = $1 FOR UPDATE',
         [problemId],
       );
-      const score = problem.rows[0]?.score;
-      if (score === undefined) throw new NotFoundException('Không tìm thấy bài tập.');
-      if (!problem.rows[0]?.scoring_enabled) {
-        throw new BadRequestException('Bật tính điểm trong biểu mẫu bài tập trước khi phân bổ điểm.');
+      const current = problem.rows[0];
+      if (!current) throw new NotFoundException('Không tìm thấy bài tập.');
+      if (current.test_case_revision !== expectedRevision) {
+        throw new ConflictException('Danh sách test case đã được thay đổi ở nơi khác. Hãy tải lại trước khi lưu.');
       }
-
-      const cases = await client.query<{ id: string; position: number }>(
-        `SELECT id, position FROM problem_test_cases
-         WHERE problem_id = $1 AND is_active = TRUE AND is_sample = FALSE
-         ORDER BY position ASC, id ASC`,
-        [problemId],
-      );
-      if (cases.rows.length === 0) {
-        throw new BadRequestException('Thêm ít nhất một test ẩn trước khi phân bổ điểm.');
-      }
-
-      const allocations = distributeScoreCents(score, cases.rows.length);
-      const values: Array<string | number> = [];
-      const tuples = cases.rows.map((testCase, index) => {
-        values.push(testCase.id, (allocations[index]! / 100).toFixed(2));
-        return `($${values.length - 1}::uuid, $${values.length}::numeric)`;
-      });
-      values.push(problemId);
-      await client.query(
-        `UPDATE problem_test_cases AS test_case
-         SET points = allocation.points
-         FROM (VALUES ${tuples.join(', ')}) AS allocation(id, points)
-         WHERE test_case.id = allocation.id
-           AND test_case.problem_id = $${values.length}`,
-        values,
-      );
+      await this.replaceTestCasesInTransaction(client, problemId, cases);
+      if (current.status === 'PUBLISHED') await this.assertHasTestCases(client, problemId);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
@@ -377,101 +376,96 @@ export class AdminRepository {
     return this.listTestCases(problemId);
   }
 
-  async saveTestCase(
+  private async replaceTestCasesInTransaction(
+    client: PoolClient,
     problemId: string,
-    input: AdminTestCaseDto,
-    id?: string,
-  ): Promise<AdminTestCase> {
-    await this.ensureProblem(problemId);
-    const client = await this.database.connect();
-    try {
-      await client.query('BEGIN');
-      const problem = await client.query<{ id: string; status: string; scoring_enabled: boolean }>(
-        'SELECT id, status, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
+    cases: AdminTestCaseDto[],
+  ): Promise<void> {
+    const ids = cases.flatMap((testCase) => testCase.id ? [testCase.id] : []);
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException('Danh sách chứa test case bị trùng.');
+    }
+    if (ids.length > 0) {
+      const owned = await client.query<{ id: string }>(
+        `SELECT id FROM problem_test_cases
+         WHERE problem_id = $1 AND is_active = TRUE AND id = ANY($2::uuid[])
+         FOR UPDATE`,
+        [problemId, ids],
+      );
+      if (owned.rowCount !== ids.length) {
+        throw new ConflictException('Một hoặc nhiều test case không còn thuộc danh sách hiện tại.');
+      }
+    }
+
+    const maximum = await client.query<{ position: number | null }>(
+      'SELECT MAX(position) AS position FROM problem_test_cases WHERE problem_id = $1',
+      [problemId],
+    );
+    const offset = Number(maximum.rows[0]?.position ?? 0) + cases.length + 1;
+    await client.query(
+      'UPDATE problem_test_cases SET position = position + $2 WHERE problem_id = $1',
+      [problemId, offset],
+    );
+    if (ids.length > 0) {
+      await client.query(
+        `DELETE FROM problem_test_cases
+         WHERE problem_id = $1 AND is_active = TRUE AND NOT (id = ANY($2::uuid[]))`,
+        [problemId, ids],
+      );
+    } else {
+      await client.query(
+        'DELETE FROM problem_test_cases WHERE problem_id = $1 AND is_active = TRUE',
         [problemId],
       );
-      if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
-      const isSample = input.kind === 'sample';
-      let result;
-      if (id) {
-        result = await client.query<TestCaseRow>(
+    }
+
+    for (const [index, testCase] of cases.entries()) {
+      const position = index + 1;
+      const values = [
+        problemId,
+        testCase.name.trim(),
+        testCase.input,
+        testCase.expectedOutput,
+        testCase.kind === 'sample',
+        position,
+      ];
+      if (testCase.id) {
+        const updated = await client.query(
           `UPDATE problem_test_cases
            SET test_name = $3, input_data = $4, expected_output = $5,
-               is_sample = $6, points = $7, position = COALESCE($8, position)
-           WHERE problem_id = $1 AND id = $2 AND is_active = TRUE
-           RETURNING id, test_name, input_data, expected_output, is_sample,
-                     points, position, is_active`,
-          [
-            problemId, id, input.name.trim(), input.input, input.expectedOutput,
-            isSample, isSample ? 0 : input.points ?? 0, input.position ?? null,
-          ],
+               is_sample = $6, points = 1, position = $7
+           WHERE problem_id = $1 AND id = $2 AND is_active = TRUE`,
+          [problemId, testCase.id, ...values.slice(1)],
         );
+        if (updated.rowCount !== 1) {
+          throw new ConflictException('Một test case đã bị xóa hoặc thay đổi ở nơi khác.');
+        }
       } else {
-        result = await client.query<TestCaseRow>(
+        await client.query(
           `INSERT INTO problem_test_cases
              (problem_id, test_name, input_data, expected_output, is_sample, points, position)
-           VALUES (
-             $1, $2, $3, $4, $5, $6,
-             COALESCE($7, (SELECT COALESCE(MAX(position), 0) + 1
-                           FROM problem_test_cases WHERE problem_id = $1))
-           )
-           RETURNING id, test_name, input_data, expected_output, is_sample,
-                     points, position, is_active`,
-          [
-            problemId, input.name.trim(), input.input, input.expectedOutput,
-            isSample, isSample ? 0 : input.points ?? 0, input.position ?? null,
-          ],
+           VALUES ($1, $2, $3, $4, $5, 1, $6)`,
+          values,
         );
       }
-      const row = result.rows[0];
-      if (!row) throw new NotFoundException('Không tìm thấy test case.');
-      await client.query('UPDATE problems SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [problemId]);
-      if (problem.rows[0]?.status === 'PUBLISHED' && problem.rows[0].scoring_enabled) {
-        await assertScoringConfigured(client, problemId);
-      }
-      await client.query('COMMIT');
-      return mapTestCase(row);
-    } catch (error) {
-      await client.query('ROLLBACK');
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Vị trí test case đã được sử dụng.');
-      }
-      throw error;
-    } finally {
-      client.release();
     }
+
+    await client.query(
+      `UPDATE problems
+       SET test_case_revision = test_case_revision + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [problemId],
+    );
   }
 
-  async deleteTestCase(problemId: string, id: string): Promise<void> {
-    const client = await this.database.connect();
-    try {
-      await client.query('BEGIN');
-      const problem = await client.query<{ id: string; status: string; scoring_enabled: boolean }>(
-        'SELECT id, status, scoring_enabled FROM problems WHERE id = $1 FOR UPDATE',
-        [problemId],
-      );
-      if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
-      const result = await client.query(
-        `DELETE FROM problem_test_cases WHERE problem_id = $1 AND id = $2`,
-        [problemId, id],
-      );
-      if (!result.rowCount) throw new NotFoundException('Không tìm thấy test case.');
-      await client.query('UPDATE problems SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [problemId]);
-      if (problem.rows[0]?.status === 'PUBLISHED' && problem.rows[0].scoring_enabled) {
-        await assertScoringConfigured(client, problemId);
-      }
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+  private async assertHasTestCases(client: PoolClient, problemId: string): Promise<void> {
+    const result = await client.query<{ total: string }>(
+      'SELECT COUNT(*)::text AS total FROM problem_test_cases WHERE problem_id = $1 AND is_active = TRUE',
+      [problemId],
+    );
+    if (Number(result.rows[0]?.total ?? 0) === 0) {
+      throw new BadRequestException('Thêm ít nhất một test case hợp lệ trước khi xuất bản bài tập.');
     }
-  }
-
-  private async ensureProblem(id: string): Promise<void> {
-    const result = await this.database.query('SELECT 1 FROM problems WHERE id = $1', [id]);
-    if (!result.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
   }
 
   private async replaceTags(client: PoolClient, problemId: string, tags: string[]): Promise<void> {
@@ -521,24 +515,6 @@ export class AdminRepository {
     }
   }
 
-  private async replaceExamples(
-    client: PoolClient,
-    problemId: string,
-    examples: AdminProblemDto['examples'],
-  ): Promise<void> {
-    await client.query(
-      'DELETE FROM problem_test_cases WHERE problem_id = $1 AND is_sample = TRUE',
-      [problemId],
-    );
-    for (const [index, example] of examples.entries()) {
-      await client.query(
-        `INSERT INTO problem_test_cases
-           (problem_id, test_name, input_data, expected_output, is_sample, points, position)
-         VALUES ($1, $2, $3, $4, TRUE, 0, $5)`,
-        [problemId, `Ví dụ ${index + 1}`, example.input, example.output, index + 1],
-      );
-    }
-  }
 }
 
 function problemValues(
@@ -551,7 +527,7 @@ function problemValues(
     input.title.trim(),
     input.summary?.trim() || null,
     input.statement,
-    input.difficulty.toUpperCase(),
+    (input.difficulty ?? 'easy').toUpperCase(),
     input.inputDescription ?? null,
     input.outputDescription ?? null,
     input.constraints ?? null,
@@ -580,6 +556,7 @@ function mapProblem(row: ProblemRow): AdminProblem {
     memoryLimitMb: row.memory_limit_mb,
     scoringEnabled: row.scoring_enabled,
     score: Number(row.score),
+    testCaseRevision: row.test_case_revision,
     examples: [],
     status: row.status.toLowerCase() as AdminProblem['status'],
     updatedAt: row.updated_at.toISOString(),
@@ -587,38 +564,15 @@ function mapProblem(row: ProblemRow): AdminProblem {
 }
 
 function mapTestCase(row: TestCaseRow): AdminTestCase {
-  const points = Number(row.points);
   return {
     id: row.id,
     name: row.test_name ?? `Test ${row.position}`,
     input: row.input_data,
     expectedOutput: row.expected_output,
     kind: row.is_sample ? 'sample' : 'hidden',
-    points,
+    points: 1,
     position: row.position,
   };
-}
-
-function distributeScoreCents(score: string, count: number): number[] {
-  const [whole = '0', fraction = ''] = score.split('.');
-  const totalCents = Number(whole) * 100 + Number(fraction.padEnd(2, '0').slice(0, 2));
-  const base = Math.floor(totalCents / count);
-  const remainder = totalCents % count;
-  return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
-}
-
-async function assertScoringConfigured(
-  client: Pick<PoolClient, 'query'>,
-  problemId: string,
-): Promise<void> {
-  const configuration = await getProblemScoringConfiguration(client, problemId);
-  if (!configuration) throw new NotFoundException('Không tìm thấy bài tập.');
-  if (!configuration.scoringEnabled) return;
-  if (configuration.scoredTestCount === 0 || !configuration.pointsMatch) {
-    throw new BadRequestException(
-      `Tổng điểm test ẩn (${configuration.assignedPoints.toFixed(2)}) phải bằng điểm tối đa (${configuration.maxScore.toFixed(2)}) để xuất bản và nhận bài nộp.`,
-    );
-  }
 }
 
 function uniqueNames(names: string[]): string[] {

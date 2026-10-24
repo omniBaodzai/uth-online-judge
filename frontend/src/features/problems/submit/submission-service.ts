@@ -26,6 +26,8 @@ export type SubmissionDetails = {
   scoringEnabled: boolean
   score: number
   maxScore: number
+  cumulativeScore: number
+  cumulativeMaxScore: number
   executionTimeMs: number | null
   memoryUsedKb: number | null
   submittedAt: string
@@ -50,6 +52,8 @@ export type ProblemSubmissionPage = {
     code: string
     title: string
     scoringEnabled: boolean
+    cumulativeScore: number
+    totalTestCases: number
   }
   items: ProblemSubmissionListItem[]
   total: number

@@ -97,15 +97,7 @@ export class AdminService {
     return this.repository.listTestCases(problemId);
   }
 
-  saveTestCase(problemId: string, input: AdminTestCaseDto, id?: string) {
-    return this.repository.saveTestCase(problemId, input, id);
-  }
-
-  distributeTestCasePoints(problemId: string) {
-    return this.repository.distributeTestCasePoints(problemId);
-  }
-
-  deleteTestCase(problemId: string, id: string) {
-    return this.repository.deleteTestCase(problemId, id);
+  replaceTestCases(problemId: string, expectedRevision: number, cases: AdminTestCaseDto[]) {
+    return this.repository.replaceTestCases(problemId, expectedRevision, cases);
   }
 }

@@ -2,14 +2,18 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../auth/api'
 import { useAdmin } from '../useAdmin'
-import { AdminIcon } from '../components/AdminIcons'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import MultiValuePicker from '../components/MultiValuePicker'
-import { difficultyLabels, validateProblemCode } from '../utils'
-import type { AdminCatalog, AdminProblem, AdminDifficulty, ProblemDraft, ProblemExample } from '../types'
+import TestCaseCollectionEditor from '../components/TestCaseCollectionEditor'
+import { validateProblemCode } from '../utils'
+import type {
+  AdminCatalog,
+  AdminProblem,
+  AdminTestCaseCollection,
+  AdminTestCaseDraft,
+  ProblemDraft,
+} from '../types'
 import styles from '../admin.module.css'
-
-const difficultyOptions: AdminDifficulty[] = ['easy', 'medium', 'hard']
 
 function emptyDraft(): ProblemDraft {
   return {
@@ -17,7 +21,7 @@ function emptyDraft(): ProblemDraft {
     title: '',
     summary: '',
     statement: '',
-    difficulty: 'easy',
+    difficulty: undefined,
     tags: [],
     languages: [],
     inputDescription: '',
@@ -26,23 +30,37 @@ function emptyDraft(): ProblemDraft {
     timeLimitSeconds: 1,
     memoryLimitMb: 256,
     scoringEnabled: false,
-    score: 100,
-    examples: [{ id: `example-${crypto.randomUUID()}`, input: '', output: '' }],
+    score: 1,
+    testCases: [],
+    testCaseRevision: 0,
     status: 'draft',
   }
 }
 
-function toDraft(problem: AdminProblem): ProblemDraft {
-  const { id, updatedAt, ...draft } = problem
+function toDraft(problem: AdminProblem, collection: AdminTestCaseCollection): ProblemDraft {
+  const { id, updatedAt, examples, testCaseRevision, ...draft } = problem
   void id
   void updatedAt
-  return draft
+  void examples
+  return {
+    ...draft,
+    testCases: collection.cases.map((testCase) => ({
+      id: testCase.id,
+      clientId: testCase.id,
+      name: testCase.name,
+      input: testCase.input,
+      expectedOutput: testCase.expectedOutput,
+      kind: testCase.kind,
+    })),
+    testCaseRevision: collection.revision ?? testCaseRevision,
+  }
 }
 
 function AdminProblemFormPage() {
   const { id } = useParams()
   const { request } = useAdmin()
   const [problem, setProblem] = useState<AdminProblem>()
+  const [testCases, setTestCases] = useState<AdminTestCaseCollection>({ revision: 0, cases: [] })
   const [catalog, setCatalog] = useState<AdminCatalog>({ tags: [], languages: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -50,13 +68,17 @@ function AdminProblemFormPage() {
   const fetchData = useCallback(() => Promise.all([
         request<AdminCatalog>('/admin/catalog'),
         id ? request<AdminProblem>(`/admin/problems/${id}`) : Promise.resolve(undefined),
+        id
+          ? request<AdminTestCaseCollection>(`/admin/problems/${id}/test-cases`)
+          : Promise.resolve({ revision: 0, cases: [] }),
       ]), [id, request])
 
   const load = useCallback(async () => {
     try {
-      const [nextCatalog, nextProblem] = await fetchData()
+      const [nextCatalog, nextProblem, nextCases] = await fetchData()
       setCatalog(nextCatalog)
       setProblem(nextProblem)
+      setTestCases(nextCases)
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Không thể tải dữ liệu biểu mẫu.')
     } finally {
@@ -66,10 +88,11 @@ function AdminProblemFormPage() {
 
   useEffect(() => {
     let active = true
-    fetchData().then(([nextCatalog, nextProblem]) => {
+    fetchData().then(([nextCatalog, nextProblem, nextCases]) => {
       if (!active) return
       setCatalog(nextCatalog)
       setProblem(nextProblem)
+      setTestCases(nextCases)
     }).catch((cause: unknown) => {
       if (active) setError(cause instanceof ApiError ? cause.message : 'Không thể tải dữ liệu biểu mẫu.')
     }).finally(() => {
@@ -93,13 +116,20 @@ function AdminProblemFormPage() {
     )
   }
 
-  return <ProblemForm key={problem?.id ?? 'new-problem'} problem={problem} tagOptions={catalog.tags} languageOptions={catalog.languages} />
+  return <ProblemForm key={problem?.id ?? 'new-problem'} problem={problem} initialTestCases={testCases} tagOptions={catalog.tags} languageOptions={catalog.languages} />
 }
 
-function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: AdminProblem; tagOptions: string[]; languageOptions: string[] }) {
+function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }: {
+  problem?: AdminProblem
+  initialTestCases: AdminTestCaseCollection
+  tagOptions: string[]
+  languageOptions: string[]
+}) {
   const navigate = useNavigate()
   const { request, setNotice } = useAdmin()
-  const [initialDraft] = useState<ProblemDraft>(() => problem ? toDraft(problem) : emptyDraft())
+  const [initialDraft] = useState<ProblemDraft>(() => problem
+    ? toDraft(problem, initialTestCases)
+    : { ...emptyDraft(), testCaseRevision: initialTestCases.revision })
   const [draft, setDraft] = useState<ProblemDraft>(initialDraft)
   const [configuredLanguages, setConfiguredLanguages] = useState(languageOptions)
   const [codeError, setCodeError] = useState('')
@@ -123,28 +153,13 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
-  function updateExample(id: string, key: 'input' | 'output', value: string) {
-    setDraft((current) => ({
-      ...current,
-      examples: current.examples.map((example) => example.id === id ? { ...example, [key]: value } : example),
-    }))
-  }
-
-  function addExample() {
-    update('examples', [...draft.examples, { id: `example-${crypto.randomUUID()}`, input: '', output: '' }])
-  }
-
-  function removeExample(id: string) {
-    update('examples', draft.examples.filter((example) => example.id !== id))
-  }
-
   async function persist(status: 'draft' | 'published') {
     const cleanDraft: ProblemDraft = {
       ...draft,
       code: draft.code.trim(),
       title: draft.title.trim(),
       summary: draft.summary?.trim() || null,
-      examples: draft.examples.map((example: ProblemExample) => ({ ...example })),
+      testCases: draft.testCases.map((testCase: AdminTestCaseDraft) => ({ ...testCase })),
       status,
     }
     const codeMessage = validateProblemCode(cleanDraft.code)
@@ -153,18 +168,36 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
       document.getElementById('problem-code')?.focus()
       return
     }
+    if (cleanDraft.testCases.some((testCase) => !testCase.name.trim() || testCase.expectedOutput.length === 0)) {
+      setSaveError('Vui lòng nhập tên và đầu ra mong đợi cho mọi test case.')
+      return
+    }
+    if (status === 'published' && cleanDraft.testCases.length === 0) {
+      setSaveError('Thêm ít nhất một test case trước khi xuất bản bài tập.')
+      return
+    }
     setSaving(true)
     setSaveError('')
     try {
+      const { testCaseRevision, ...requestDraft } = cleanDraft
       const saved = await request<AdminProblem>(
         problem ? `/admin/problems/${problem.id}` : '/admin/problems',
         {
           method: problem ? 'PATCH' : 'POST',
           body: JSON.stringify({
-            ...cleanDraft,
-            examples: cleanDraft.examples
-              .filter(({ input, output }) => input !== '' || output !== '')
-              .map(({ input, output }) => ({ input, output })),
+            ...requestDraft,
+            difficulty: cleanDraft.difficulty ?? 'easy',
+            scoringEnabled: false,
+            score: 1,
+            testCasesRevision: testCaseRevision,
+            testCases: cleanDraft.testCases.map(({ id, name, input, expectedOutput, kind }) => ({
+              ...(id ? { id } : {}),
+              name: name.trim(),
+              input,
+              expectedOutput,
+              kind,
+              points: 1,
+            })),
           }),
         },
       )
@@ -221,12 +254,6 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
               <input id="problem-summary" maxLength={200} value={draft.summary ?? ''} onChange={(event) => update('summary', event.target.value)} />
             </div>
             <div className={styles.field}>
-              <label htmlFor="problem-difficulty">Độ khó <span className={styles.requiredMark}>*</span></label>
-              <select id="problem-difficulty" value={draft.difficulty} onChange={(event) => update('difficulty', event.target.value as AdminDifficulty)}>
-                {difficultyOptions.map((item) => <option key={item} value={item}>{difficultyLabels[item]}</option>)}
-              </select>
-            </div>
-            <div className={styles.field}>
               <label htmlFor="problem-statement">Đề bài <span className={styles.requiredMark}>*</span></label>
               <textarea id="problem-statement" required rows={5} value={draft.statement} onChange={(event) => update('statement', event.target.value)} />
             </div>
@@ -269,60 +296,22 @@ function ProblemForm({ problem, tagOptions, languageOptions }: { problem?: Admin
 
         <section className={`${styles.panel} ${styles.formSection}`}>
           <h2>Đặc tả đầu vào / đầu ra</h2>
-          <p className={styles.sectionHint}>Thêm mô tả và các ví dụ công khai để minh họa định dạng.</p>
+          <p className={styles.sectionHint}>Thêm mô tả định dạng và quản lý toàn bộ test dùng cho minh họa lẫn chấm điểm.</p>
           <div className={styles.formGrid}>
             <div className={styles.field}><label htmlFor="input-description">Mô tả đầu vào <span className={styles.requiredMark}>*</span></label><textarea id="input-description" required value={draft.inputDescription} onChange={(event) => update('inputDescription', event.target.value)} /></div>
             <div className={styles.field}><label htmlFor="output-description">Mô tả đầu ra <span className={styles.requiredMark}>*</span></label><textarea id="output-description" required value={draft.outputDescription} onChange={(event) => update('outputDescription', event.target.value)} /></div>
           </div>
-          <div className={styles.panelHeading}>
-            <div><h2>Ví dụ mẫu</h2><p>Input và output dùng kiểu chữ monospace.</p></div>
-            <button className={styles.buttonSecondary} type="button" onClick={addExample}><AdminIcon name="plus" size={16} /> Thêm ví dụ</button>
-          </div>
-          <div className={styles.formStack}>
-            {draft.examples.map((example, index) => (
-              <article className={styles.exampleCard} key={example.id}>
-                <div className={styles.exampleHeader}><strong>Ví dụ {index + 1}</strong>{draft.examples.length > 1 && <button className={`${styles.iconButton} ${styles.iconButtonDanger}`} type="button" onClick={() => removeExample(example.id)}><AdminIcon name="trash" size={14} /> Xóa ví dụ</button>}</div>
-                <div className={styles.exampleFields}>
-                  <div className={`${styles.field} ${styles.codeField}`}><label htmlFor={`${example.id}-input`}>Sample input</label><textarea id={`${example.id}-input`} rows={4} value={example.input} onChange={(event) => updateExample(example.id, 'input', event.target.value)} /></div>
-                  <div className={`${styles.field} ${styles.codeField}`}><label htmlFor={`${example.id}-output`}>Expected output</label><textarea id={`${example.id}-output`} rows={4} value={example.output} onChange={(event) => updateExample(example.id, 'output', event.target.value)} /></div>
-                </div>
-              </article>
-            ))}
-          </div>
+          <TestCaseCollectionEditor
+            cases={draft.testCases}
+            onChange={(testCases) => update('testCases', testCases)}
+            disabled={saving}
+          />
         </section>
 
         <section className={`${styles.panel} ${styles.formSection}`}>
           <h2>Ràng buộc và giới hạn chấm</h2>
-          <p className={styles.sectionHint}>Bạn có thể chấm theo verdict mà không dùng điểm, hoặc bật tính điểm và phân bổ đủ trọng số cho test ẩn.</p>
+          <p className={styles.sectionHint}>Mọi bài tập đều sử dụng thang điểm cố định 1 điểm cho mỗi test case. Chỉ cần nhập các giới hạn thời gian và bộ nhớ.</p>
           <div className={styles.formGrid}>
-            <div className={styles.field}>
-              <label htmlFor="problem-scoring-enabled">
-                <input
-                  id="problem-scoring-enabled"
-                  type="checkbox"
-                  checked={draft.scoringEnabled}
-                  onChange={(event) => update('scoringEnabled', event.target.checked)}
-                />
-                {' '}Áp dụng tính điểm
-              </label>
-              <p className={styles.fieldHint}>Khi tắt, bài vẫn được chấm verdict và test case bình thường. Các bài đã tồn tại giữ chế độ cũ sau migration; bỏ chọn mục này để không yêu cầu điểm test.</p>
-            </div>
-            {draft.scoringEnabled && (
-              <div className={styles.field}>
-                <label htmlFor="problem-score">Điểm tối đa <span className={styles.requiredMark}>*</span></label>
-                <input
-                  id="problem-score"
-                  type="number"
-                  min="0.01"
-                  max="999999.99"
-                  step="0.01"
-                  required
-                  value={draft.score}
-                  onChange={(event) => update('score', Number(event.target.value))}
-                />
-                <p className={styles.fieldHint}>Tổng điểm các test ẩn phải khớp điểm tối đa. Có thể phân bổ thủ công hoặc dùng phân bổ đều.</p>
-              </div>
-            )}
             <div className={styles.field}><label htmlFor="constraints">Ràng buộc</label><textarea id="constraints" rows={3} value={draft.constraints} onChange={(event) => update('constraints', event.target.value)} /></div>
             <div className={styles.formGrid}>
               <div className={styles.field}><label htmlFor="time-limit">Giới hạn thời gian (giây) <span className={styles.requiredMark}>*</span></label><input id="time-limit" type="number" min="0.1" max="30" step="0.1" required value={draft.timeLimitSeconds} onChange={(event) => update('timeLimitSeconds', Number(event.target.value))} /></div>
