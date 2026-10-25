@@ -2,19 +2,126 @@ import { JudgingRepository } from './judging.repository.js';
 import { testCaseFingerprint } from '../scoring/test-case-fingerprint.js';
 
 describe('JudgingRepository', () => {
-  it('claims only eligible submissions and permits BullMQ retries to resume RUNNING jobs', async () => {
-    const database = { query: vi.fn().mockResolvedValue({ rowCount: 1 }) };
+  it('serializes duplicate workers with a PostgreSQL advisory lock and releases the claim', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ released: true }] }),
+      release: vi.fn(),
+    };
+    const database = { connect: vi.fn().mockResolvedValue(client) };
     const repository = new JudgingRepository(database as never);
 
     await expect(repository.claim('submission-1', false)).resolves.toBe(true);
-    await expect(repository.claim('submission-1', true)).resolves.toBe(true);
+    await repository.releaseClaim('submission-1');
 
-    expect(database.query.mock.calls[0][0]).toContain(
+    expect(database.connect).toHaveBeenCalledOnce();
+    expect(client.query.mock.calls[0][0]).toContain('pg_advisory_lock');
+    expect(client.query.mock.calls[0][1]).toEqual(['submission-1']);
+    expect(client.query.mock.calls[1][0]).toContain(
       "status IN ('PENDING', 'QUEUED')",
     );
-    expect(database.query.mock.calls[0][0]).toContain("status = 'RUNNING'");
-    expect(database.query.mock.calls[0][1]).toEqual(['submission-1', false]);
-    expect(database.query.mock.calls[1][1]).toEqual(['submission-1', true]);
+    expect(client.query.mock.calls[1][0]).toContain("status = 'RUNNING'");
+    expect(client.query.mock.calls[1][1]).toEqual(['submission-1', false]);
+    expect(client.query.mock.calls[2][0]).toContain('pg_advisory_unlock');
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('checks submission state after obtaining the lock before claiming', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ released: true }] }),
+      release: vi.fn(),
+    };
+    const repository = new JudgingRepository({
+      connect: vi.fn().mockResolvedValue(client),
+    } as never);
+
+    await expect(repository.claim('submission-1', true)).resolves.toBe(false);
+
+    expect(client.query).toHaveBeenCalledTimes(3);
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('serializes concurrent claims within a process and across replicas', async () => {
+    let releaseSecondLock: (() => void) | undefined;
+    let signalSecondLockRequest: (() => void) | undefined;
+    let secondLockAcquired = false;
+    const secondLockRequested = new Promise<void>((resolve) => {
+      signalSecondLockRequest = resolve;
+    });
+    const firstClient = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockImplementationOnce(async () => {
+          releaseSecondLock?.();
+          return { rows: [{ released: true }] };
+        }),
+      release: vi.fn(),
+    };
+    const secondClient = {
+      query: vi
+        .fn()
+        .mockImplementationOnce(async () => {
+          signalSecondLockRequest?.();
+          await new Promise<void>((resolve) => {
+            releaseSecondLock = resolve;
+          });
+          secondLockAcquired = true;
+          return { rows: [] };
+        })
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ released: true }] }),
+      release: vi.fn(),
+    };
+    const database = {
+      connect: vi
+        .fn()
+        .mockResolvedValueOnce(firstClient)
+        .mockResolvedValueOnce(secondClient),
+    };
+    const repository = new JudgingRepository(database as never);
+
+    await expect(repository.claim('submission-1', false)).resolves.toBe(
+      true,
+    );
+    const concurrentClaim = repository.claim('submission-1', true);
+    await secondLockRequested;
+    expect(secondLockAcquired).toBe(false);
+
+    await repository.releaseClaim('submission-1');
+
+    await expect(concurrentClaim).resolves.toBe(false);
+    expect(secondLockAcquired).toBe(true);
+    expect(database.connect).toHaveBeenCalledTimes(2);
+    expect(secondClient.query.mock.calls[1][1]).toEqual(['submission-1', true]);
+  });
+
+  it('allows a retry to resume RUNNING only after acquiring the advisory lock', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ released: true }] }),
+      release: vi.fn(),
+    };
+    const repository = new JudgingRepository({
+      connect: vi.fn().mockResolvedValue(client),
+    } as never);
+
+    await expect(repository.claim('submission-1', true)).resolves.toBe(true);
+    await repository.releaseClaim('submission-1');
+
+    expect(client.query.mock.calls[1][0]).toContain("status = 'RUNNING'");
+    expect(client.query.mock.calls[1][1]).toEqual(['submission-1', true]);
   });
 
   it('loads frozen inputs, expected outputs, limits and Judge0 language ID from the database', async () => {
@@ -28,6 +135,8 @@ describe('JudgingRepository', () => {
               judge0_language_id: 54,
               scoring_enabled: false,
               max_score: '0',
+              has_snapshots: true,
+              compilation_failed: false,
             },
           ],
         })
@@ -49,11 +158,13 @@ describe('JudgingRepository', () => {
     };
     const repository = new JudgingRepository(database as never);
 
-    await expect(repository.loadContext('submission-1')).resolves.toEqual({
+    await expect(repository.loadContext('submission-1', 3)).resolves.toEqual({
       sourceCode: 'secret code',
       judge0LanguageId: 54,
       scoringEnabled: false,
       maxScore: 0,
+      hasSnapshots: true,
+      compilationFailed: false,
       testCases: [
         {
           id: 'case-1',
@@ -74,6 +185,13 @@ describe('JudgingRepository', () => {
       'submission_test_case_snapshots',
     );
     expect(database.query.mock.calls[1][0]).not.toContain('problem_test_cases');
+    expect(database.query.mock.calls[1][0]).toContain('LIMIT CASE');
+    expect(database.query.mock.calls[1][1]).toEqual([
+      'submission-1',
+      null,
+      null,
+      3,
+    ]);
   });
 
   it('upserts a result per original test case so retries do not double-award points', async () => {
@@ -142,12 +260,12 @@ describe('JudgingRepository', () => {
     const [sql, values] = client.query.mock.calls[2];
     expect(sql).toContain('LEFT JOIN submission_test_results');
     expect(sql).toContain('result.submission_id IS NULL');
-    expect(sql).toContain("'INTERNAL_ERROR'");
+    expect(sql).toContain('$2, NULL, NULL, 0');
     expect(sql).toContain(
       'ON CONFLICT (submission_id, test_case_id) DO NOTHING',
     );
     expect(sql).toContain('submission_test_case_snapshots');
-    expect(values).toEqual(['submission-1']);
+    expect(values).toEqual(['submission-1', 'INTERNAL_ERROR']);
   });
 
   it('ignores late results from workers after a submission becomes terminal', async () => {

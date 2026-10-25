@@ -5,6 +5,7 @@ import {
   JUDGE_SUBMISSION_JOB,
   JUDGING_JOB_OPTIONS,
   JUDGING_QUEUE,
+  getJudgingGlobalConcurrency,
   type JudgeSubmissionJobData,
 } from '../queues/judging-queue.constants.js';
 import { JudgingRepository } from './judging.repository.js';
@@ -22,18 +23,24 @@ export class JudgingRecoveryService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    await this.queue.setGlobalConcurrency(getJudgingGlobalConcurrency());
+
     let afterId: string | null = null;
     let recovered = 0;
 
     while (true) {
-      const submissionIds = await this.repository.findRecoverableIds(afterId, RECOVERY_BATCH_SIZE);
+      const submissionIds = await this.repository.findRecoverableIds(
+        afterId,
+        RECOVERY_BATCH_SIZE,
+      );
       if (submissionIds.length === 0) break;
 
       for (const submissionId of submissionIds) {
         const existingJob = await this.queue.getJob(submissionId);
         if (existingJob) {
           const state = await existingJob.getState();
-          if (state === 'completed' || state === 'failed') await existingJob.remove();
+          if (state === 'completed' || state === 'failed')
+            await existingJob.remove();
         }
 
         await this.queue.add(
@@ -49,6 +56,7 @@ export class JudgingRecoveryService implements OnModuleInit {
       if (submissionIds.length < RECOVERY_BATCH_SIZE) break;
     }
 
-    if (recovered > 0) this.logger.warn(`Recovered ${recovered} pending judging job(s).`);
+    if (recovered > 0)
+      this.logger.warn(`Recovered ${recovered} pending judging job(s).`);
   }
 }

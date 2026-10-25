@@ -53,9 +53,10 @@ services:
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      REDIS_HOST: redis
+      REDIS_HOST: uth-online-judge-redis
       REDIS_PORT: 6379
       JUDGING_CONCURRENCY: ${JUDGING_CONCURRENCY:-2}
+      JUDGING_GLOBAL_CONCURRENCY: ${JUDGING_GLOBAL_CONCURRENCY:-2}
       JUDGING_BATCH_SIZE: ${JUDGING_BATCH_SIZE:-3}
       JUDGE0_POLL_INTERVAL_MS: ${JUDGE0_POLL_INTERVAL_MS:-500}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
@@ -67,11 +68,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - judge0_net
 
   
   redis:
     image: redis:7-alpine
-    container_name: uth-online-judge-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -81,9 +84,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      default:
+        aliases:
+          - uth-online-judge-redis
 
 volumes:
   postgres_data:
   frontend_node_modules:
   backend_node_modules:
   redis_data:
+
+networks:
+  judge0_net:
+    external: true
+    name: judge0-local_default

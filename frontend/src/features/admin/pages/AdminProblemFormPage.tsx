@@ -256,6 +256,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
             <div className={styles.field}>
               <label htmlFor="problem-statement">Đề bài <span className={styles.requiredMark}>*</span></label>
               <textarea id="problem-statement" required rows={5} value={draft.statement} onChange={(event) => update('statement', event.target.value)} />
+              <p className={styles.fieldHint}>Nhấn Enter để xuống dòng. Dòng trống sẽ tách thành đoạn mới; nội dung được hiển thị theo đúng cách bạn nhập.</p>
             </div>
             <MultiValuePicker
               label="Chủ đề / tag"

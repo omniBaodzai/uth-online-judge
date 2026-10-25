@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
-import type { Judge0Verdict } from '../judge0/judge0.types.js';
+import { Judge0Verdict } from '../judge0/judge0.types.js';
 import { testCaseFingerprint } from '../scoring/test-case-fingerprint.js';
 
 export interface JudgingContext {
@@ -9,6 +9,8 @@ export interface JudgingContext {
   judge0LanguageId: number;
   scoringEnabled: boolean;
   maxScore: number;
+  hasSnapshots: boolean;
+  compilationFailed: boolean;
   testCases: JudgingTestCase[];
 }
 
@@ -36,6 +38,7 @@ export interface PersistedTestResult {
 @Injectable()
 export class JudgingRepository {
   private readonly logger = new Logger(JudgingRepository.name);
+  private readonly claimClients = new Map<string, PoolClient>();
 
   constructor(@Inject(DATABASE_POOL) private readonly database: Pool) {}
 
@@ -69,27 +72,111 @@ export class JudgingRepository {
   }
 
   async claim(submissionId: string, isRetry: boolean): Promise<boolean> {
-    const result = await this.database.query(
-      `UPDATE submissions
-       SET status = 'RUNNING', error_message = NULL
-       WHERE id = $1 AND (
-         status IN ('PENDING', 'QUEUED')
-         OR ($2 = TRUE AND status = 'RUNNING' AND judged_at IS NULL)
-       )`,
-      [submissionId, isRetry],
-    );
-    return result.rowCount === 1;
+    const client = await this.database.connect();
+    let lockAcquired = false;
+    try {
+      await client.query('SELECT pg_advisory_lock(hashtextextended($1, 0))', [
+        submissionId,
+      ]);
+      lockAcquired = true;
+
+      const result = await client.query(
+        `UPDATE submissions
+         SET status = 'RUNNING', error_message = NULL
+         WHERE id = $1 AND (
+           status IN ('PENDING', 'QUEUED')
+           OR ($2 = TRUE AND status = 'RUNNING' AND judged_at IS NULL)
+         )`,
+        [submissionId, isRetry],
+      );
+      if (result.rowCount !== 1) {
+        const unlock = await client.query<{ released: boolean }>(
+          'SELECT pg_advisory_unlock(hashtextextended($1, 0)) AS released',
+          [submissionId],
+        );
+        if (unlock.rows[0]?.released !== true) {
+          throw new Error(
+            `Could not release unsuccessful judging claim for ${submissionId}.`,
+          );
+        }
+        lockAcquired = false;
+        client.release();
+        return false;
+      }
+
+      this.claimClients.set(submissionId, client);
+      return true;
+    } catch (error) {
+      let destroyConnection = !lockAcquired;
+      if (lockAcquired) {
+        try {
+          const unlock = await client.query<{ released: boolean }>(
+            'SELECT pg_advisory_unlock(hashtextextended($1, 0)) AS released',
+            [submissionId],
+          );
+          destroyConnection = unlock.rows[0]?.released !== true;
+        } catch {
+          destroyConnection = true;
+        }
+      }
+      client.release(
+        destroyConnection
+          ? error instanceof Error
+            ? error
+            : new Error(String(error))
+          : undefined,
+      );
+      throw error;
+    }
   }
 
-  async loadContext(submissionId: string): Promise<JudgingContext | null> {
+  async releaseClaim(submissionId: string): Promise<void> {
+    const client = this.claimClients.get(submissionId);
+    if (!client) return;
+    this.claimClients.delete(submissionId);
+
+    let releaseError: unknown;
+    try {
+      const result = await client.query<{ released: boolean }>(
+        'SELECT pg_advisory_unlock(hashtextextended($1, 0)) AS released',
+        [submissionId],
+      );
+      if (result.rows[0]?.released !== true) {
+        throw new Error(`Could not release judging claim for ${submissionId}.`);
+      }
+    } catch (error) {
+      releaseError = error;
+    } finally {
+      client.release(releaseError instanceof Error ? releaseError : undefined);
+    }
+    if (releaseError) throw releaseError;
+  }
+
+  async loadContext(
+    submissionId: string,
+    limit: number,
+    afterPosition: number | null = null,
+    testCaseIds?: string[],
+  ): Promise<JudgingContext | null> {
     const startedAt = performance.now();
     const submission = await this.database.query<{
       source_code: string;
       judge0_language_id: number;
       scoring_enabled: boolean;
       max_score: string;
+      has_snapshots: boolean;
+      compilation_failed: boolean;
     }>(
-      `SELECT s.source_code, l.judge0_language_id, s.scoring_enabled, s.max_score
+      `SELECT s.source_code, l.judge0_language_id, s.scoring_enabled, s.max_score,
+                EXISTS (
+                  SELECT 1 FROM submission_test_case_snapshots snapshot
+                  WHERE snapshot.submission_id = s.id
+                ) AS has_snapshots,
+                EXISTS (
+                  SELECT 1 FROM submission_test_results result
+                  WHERE result.submission_id = s.id
+                    AND result.status = 'COMPILATION_ERROR'
+                ) AS compilation_failed
        FROM submissions s
        JOIN programming_languages l ON l.id = s.language_id
        WHERE s.id = $1 AND s.status = 'RUNNING'`,
@@ -127,8 +214,20 @@ export class JudgingRepository {
          ON result.submission_id = snapshot.submission_id
         AND result.test_case_id = snapshot.source_test_case_id
        WHERE snapshot.submission_id = $1
-       ORDER BY snapshot.position, snapshot.id`,
-      [submissionId],
+         AND (
+           (
+             $3::uuid[] IS NULL
+             AND ($2::integer IS NULL OR snapshot.position > $2)
+             AND result.submission_id IS NULL
+           )
+           OR snapshot.source_test_case_id = ANY($3::uuid[])
+         )
+       ORDER BY snapshot.position, snapshot.id
+       LIMIT CASE
+         WHEN $3::uuid[] IS NULL THEN $4
+         ELSE cardinality($3::uuid[])
+       END`,
+      [submissionId, afterPosition, testCaseIds ?? null, limit],
     );
     this.logger.log(
       `Judging context loaded submission=${submissionId} testCases=${cases.rowCount ?? 0} dbMs=${Math.round(performance.now() - startedAt)} casesQueryMs=${Math.round(performance.now() - casesStartedAt)}`,
@@ -139,6 +238,8 @@ export class JudgingRepository {
       judge0LanguageId: row.judge0_language_id,
       scoringEnabled: row.scoring_enabled,
       maxScore: Number(row.max_score),
+      hasSnapshots: row.has_snapshots,
+      compilationFailed: row.compilation_failed,
       testCases: cases.rows.map((testCase) => {
         const existingResult = testCase.result_status
           ? {
@@ -238,7 +339,10 @@ export class JudgingRepository {
     );
   }
 
-  async persistUnjudgedTestResults(submissionId: string): Promise<void> {
+  async persistUnjudgedTestResults(
+    submissionId: string,
+    verdict: Judge0Verdict = Judge0Verdict.InternalError,
+  ): Promise<void> {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
@@ -257,7 +361,7 @@ export class JudgingRepository {
          (submission_id, test_case_id, snapshot_id, status, execution_time_ms,
           memory_used_kb, points_awarded)
        SELECT snapshot.submission_id, snapshot.source_test_case_id, snapshot.id,
-              'INTERNAL_ERROR', NULL, NULL, 0
+              $2, NULL, NULL, 0
        FROM submission_test_case_snapshots snapshot
        LEFT JOIN submission_test_results result
          ON result.submission_id = snapshot.submission_id
@@ -265,7 +369,7 @@ export class JudgingRepository {
        WHERE snapshot.submission_id = $1
          AND result.submission_id IS NULL
        ON CONFLICT (submission_id, test_case_id) DO NOTHING`,
-        [submissionId],
+        [submissionId, verdict],
       );
       await client.query('COMMIT');
     } catch (error) {

@@ -43,6 +43,8 @@ const context: JudgingContext = {
   judge0LanguageId: 54,
   scoringEnabled: true,
   maxScore: 2,
+  hasSnapshots: true,
+  compilationFailed: false,
   testCases,
 };
 
@@ -90,6 +92,7 @@ function result(
 describe('JudgingProcessor', () => {
   const repository = {
     claim: vi.fn(),
+    releaseClaim: vi.fn(),
     loadContext: vi.fn(),
     persistTestResult: vi.fn(),
     persistTestResults: vi.fn(),
@@ -108,7 +111,24 @@ describe('JudgingProcessor', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     repository.claim.mockResolvedValue(true);
-    repository.loadContext.mockResolvedValue(context);
+    repository.releaseClaim.mockResolvedValue(undefined);
+    repository.loadContext.mockImplementation(
+      async (
+        _submissionId: string,
+        limit: number,
+        afterPosition: number | null = null,
+        testCaseIds?: string[],
+      ) => ({
+        ...context,
+        testCases: context.testCases
+          .filter((testCase) =>
+            testCaseIds
+              ? testCaseIds.includes(testCase.id)
+              : afterPosition === null || testCase.position > afterPosition,
+          )
+          .slice(0, limit),
+      }),
+    );
     repository.persistTestResults.mockResolvedValue(undefined);
     repository.persistUnjudgedTestResults.mockResolvedValue(undefined);
     repository.persistFinalResult.mockResolvedValue(undefined);
@@ -203,11 +223,49 @@ describe('JudgingProcessor', () => {
     ]);
   });
 
+  it('loads large test collections a bounded batch at a time', async () => {
+    const additionalCases = [
+      { ...testCases[0], id: 'case-3', snapshotId: 'snapshot-3', position: 3 },
+      { ...testCases[1], id: 'case-4', snapshotId: 'snapshot-4', position: 4 },
+    ];
+    repository.loadContext
+      .mockResolvedValueOnce({
+        ...context,
+        testCases: [...testCases, additionalCases[0]],
+      })
+      .mockResolvedValueOnce({
+        ...context,
+        testCases: [additionalCases[1]],
+      })
+      .mockResolvedValueOnce({ ...context, testCases: [] });
+
+    await processor.process(job());
+
+    expect(repository.loadContext).toHaveBeenCalledTimes(3);
+    expect(repository.loadContext).toHaveBeenNthCalledWith(
+      1,
+      expect.any(String),
+      expect.any(Number),
+      null,
+      undefined,
+    );
+    expect(judge0.createSubmissionBatch).toHaveBeenCalledTimes(2);
+    expect(
+      judge0.createSubmissionBatch.mock.calls.map(([inputs]) => inputs.length),
+    ).toEqual([3, 1]);
+  });
+
   it('awards one point for each accepted test regardless of legacy scoring flags', async () => {
-    repository.loadContext.mockResolvedValue({
-      ...context,
-      scoringEnabled: false,
-    });
+    repository.loadContext
+      .mockResolvedValueOnce({
+        ...context,
+        scoringEnabled: false,
+      })
+      .mockResolvedValueOnce({
+        ...context,
+        scoringEnabled: false,
+        testCases: [],
+      });
 
     await processor.process(job());
 
@@ -227,7 +285,6 @@ describe('JudgingProcessor', () => {
     Judge0Verdict.WrongAnswer,
     Judge0Verdict.TimeLimitExceeded,
     Judge0Verdict.RuntimeError,
-    Judge0Verdict.InternalError,
   ])(
     'persists %s without points while judging other tests',
     async (verdict) => {
@@ -252,6 +309,34 @@ describe('JudgingProcessor', () => {
     },
   );
 
+  it('retries Judge0 internal errors as infrastructure failures, not program verdicts', async () => {
+    judge0.waitForResults.mockImplementationOnce(
+      async (
+        tokens: string[],
+        _timeout: number,
+        onCompleted?: (completed: Judge0SubmissionResult[]) => Promise<void>,
+      ) => {
+        const results = [
+          result(tokens[0], Judge0Verdict.InternalError, null),
+          result(tokens[1]),
+        ];
+        if (onCompleted) await onCompleted(results);
+        return { results, timedOut: false };
+      },
+    );
+
+    await expect(processor.process(job())).rejects.toThrow(
+      'Judge0 reported an internal execution error',
+    );
+
+    expect(repository.persistTestResults).toHaveBeenCalledWith(
+      expect.any(String),
+      [expect.objectContaining({ verdict: Judge0Verdict.Accepted })],
+    );
+    expect(repository.persistFinalResult).not.toHaveBeenCalled();
+    expect(repository.persistUnjudgedTestResults).not.toHaveBeenCalled();
+  });
+
   it('preserves completed results on transient retry and only schedules missing snapshots', async () => {
     judge0.createSubmissionBatch.mockRejectedValueOnce(
       new Error('upstream unavailable'),
@@ -270,10 +355,12 @@ describe('JudgingProcessor', () => {
         pointsAwarded: 1,
       },
     };
-    repository.loadContext.mockResolvedValue({
-      ...context,
-      testCases: [alreadyJudged, testCases[1]],
-    });
+    repository.loadContext
+      .mockResolvedValueOnce({
+        ...context,
+        testCases: [alreadyJudged, testCases[1]],
+      })
+      .mockResolvedValueOnce({ ...context, testCases: [] });
     judge0.createSubmissionBatch.mockResolvedValue(['retry-token']);
     judge0.waitForResults.mockImplementationOnce(
       async (
@@ -361,10 +448,12 @@ describe('JudgingProcessor', () => {
         pointsAwarded: 1,
       },
     };
-    repository.loadContext.mockResolvedValue({
-      ...context,
-      testCases: [alreadyJudged, testCases[1]],
-    });
+    repository.loadContext
+      .mockResolvedValueOnce({
+        ...context,
+        testCases: [alreadyJudged, testCases[1]],
+      })
+      .mockResolvedValueOnce({ ...context, testCases: [] });
     const retry = job(1);
     (retry as { data: JudgeSubmissionJobData }).data.activeBatch =
       savedData.activeBatch;
@@ -383,6 +472,7 @@ describe('JudgingProcessor', () => {
       ...testCases,
       { ...testCases[0], id: 'case-3', snapshotId: 'snapshot-3', position: 3 },
       { ...testCases[0], id: 'case-4', snapshotId: 'snapshot-4', position: 4 },
+      { ...testCases[0], id: 'case-5', snapshotId: 'snapshot-5', position: 5 },
     ];
     repository.loadContext.mockResolvedValue({
       ...context,
@@ -410,32 +500,39 @@ describe('JudgingProcessor', () => {
 
     await processor.process(job());
 
-    expect(judge0.createSubmissionBatch).toHaveBeenCalledOnce();
-    expect(repository.persistTestResults).toHaveBeenCalledWith(
+    expect(judge0.createSubmissionBatch).toHaveBeenCalled();
+    expect(repository.persistUnjudgedTestResults).toHaveBeenCalledWith(
       expect.any(String),
-      [
-        expect.objectContaining({
-          testCase: extendedCases[3],
-          verdict: Judge0Verdict.CompilationError,
-        }),
-      ],
+      Judge0Verdict.CompilationError,
     );
   });
 
-  it('finalizes a batch polling deadline without overwriting completed results', async () => {
-    judge0.waitForResults.mockResolvedValue({
-      results: [result('judge-token-1')],
-      timedOut: true,
-    });
-
-    await expect(processor.process(job())).resolves.toBeUndefined();
-
-    expect(repository.persistUnjudgedTestResults).toHaveBeenCalledWith(
-      'a246b1f2-c8bb-4b43-b2e1-b50dc6001e11',
+  it('retries a Judge0 polling deadline and preserves completed results and pending tokens', async () => {
+    const currentJob = job();
+    judge0.waitForResults.mockImplementationOnce(
+      async (
+        tokens: string[],
+        _timeout: number,
+        onCompleted?: (completed: Judge0SubmissionResult[]) => Promise<void>,
+      ) => {
+        const completed = [result(tokens[0])];
+        if (onCompleted) await onCompleted(completed);
+        return { results: completed, timedOut: true };
+      },
     );
-    expect(repository.persistFinalResult).toHaveBeenCalledWith(
+
+    await expect(processor.process(currentJob)).rejects.toThrow(
+      'Judge0 submission did not finish',
+    );
+
+    expect(repository.persistTestResults).toHaveBeenCalledOnce();
+    expect(repository.persistUnjudgedTestResults).not.toHaveBeenCalled();
+    expect(repository.persistFinalResult).not.toHaveBeenCalled();
+    expect(
+      (currentJob as { data: JudgeSubmissionJobData }).data.activeBatch,
+    ).toEqual({ testCaseIds: ['case-2'], tokens: ['judge-token-2'] });
+    expect(repository.releaseClaim).toHaveBeenCalledWith(
       'a246b1f2-c8bb-4b43-b2e1-b50dc6001e11',
-      true,
     );
   });
 
@@ -464,5 +561,24 @@ describe('JudgingProcessor', () => {
     expect(JSON.stringify(payload)).not.toContain(context.sourceCode);
     expect(JSON.stringify(payload)).not.toContain(testCases[0].input);
     expect(JSON.stringify(payload)).not.toContain(testCases[0].expectedOutput);
+  });
+
+  it('finalizes exhausted jobs only after acquiring the same exclusive claim', async () => {
+    await processor.handleFailed(job(3));
+
+    expect(repository.claim).toHaveBeenCalledWith(
+      'a246b1f2-c8bb-4b43-b2e1-b50dc6001e11',
+      true,
+    );
+    expect(repository.persistUnjudgedTestResults).toHaveBeenCalledWith(
+      'a246b1f2-c8bb-4b43-b2e1-b50dc6001e11',
+    );
+    expect(repository.persistFinalResult).toHaveBeenCalledWith(
+      'a246b1f2-c8bb-4b43-b2e1-b50dc6001e11',
+      true,
+    );
+    expect(repository.releaseClaim).toHaveBeenCalledWith(
+      'a246b1f2-c8bb-4b43-b2e1-b50dc6001e11',
+    );
   });
 });

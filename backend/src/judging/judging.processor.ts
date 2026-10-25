@@ -8,7 +8,10 @@ import {
   getJudgingConcurrency,
   type JudgeSubmissionJobData,
 } from '../queues/judging-queue.constants.js';
-import { Judge0SubmissionTimeoutError } from '../judge0/judge0.errors.js';
+import {
+  Judge0InfrastructureError,
+  Judge0SubmissionTimeoutError,
+} from '../judge0/judge0.errors.js';
 import { Judge0Service } from '../judge0/judge0.service.js';
 import { Judge0Verdict } from '../judge0/judge0.types.js';
 import {
@@ -57,53 +60,83 @@ export class JudgingProcessor extends WorkerHost {
       this.logger.log(
         `Judging started submission=${submissionId} queueWaitMs=${queueWaitMs} attempt=${job.attemptsMade + 1}`,
       );
-      const context = await this.repository.loadContext(submissionId);
-      if (!context || context.testCases.length === 0) {
+      const batchSize = getJudgingBatchSize();
+      const initialContext = await this.repository.loadContext(
+        submissionId,
+        batchSize,
+        null,
+        job.data.activeBatch?.testCaseIds,
+      );
+      if (!initialContext || !initialContext.hasSnapshots) {
         await this.repository.persistFinalResult(submissionId, true);
         return;
       }
 
-      const testCasesById = new Map(
-        context.testCases.map((testCase) => [testCase.id, testCase]),
-      );
-      const pendingTestCases = context.testCases.filter(
+      let judgingContext = initialContext;
+      let pendingTestCases = judgingContext.testCases.filter(
         (testCase) => !testCase.existingResult,
       );
-      let compilationFailed = context.testCases.some(
-        (testCase) =>
-          testCase.existingResult?.verdict === Judge0Verdict.CompilationError,
-      );
-      const batchSize = getJudgingBatchSize();
-      let remainingTestCases = pendingTestCases;
-      if (compilationFailed) {
+      let activeBatch = job.data.activeBatch;
+      let cursorPosition: number | null = null;
+      let needsPageLoad = false;
+      if (judgingContext.compilationFailed) {
         await updateJobActiveBatch(job);
-        await this.repository.persistTestResults(
+        await this.repository.persistUnjudgedTestResults(
           submissionId,
-          remainingTestCases.map((testCase) =>
-            compilationErrorResult(testCase),
-          ),
+          Judge0Verdict.CompilationError,
         );
-        remainingTestCases = [];
+        pendingTestCases = [];
+        activeBatch = undefined;
       }
 
-      while (remainingTestCases.length > 0) {
+      let judgedTestCaseCount = 0;
+      while (true) {
+        if (!activeBatch && pendingTestCases.length === 0) {
+          if (!needsPageLoad) break;
+          const nextContext = await this.repository.loadContext(
+            submissionId,
+            batchSize,
+            cursorPosition,
+          );
+          if (!nextContext) {
+            throw new Error(
+              'Could not reload pending test cases for this submission.',
+            );
+          }
+          judgingContext = nextContext;
+          if (judgingContext.compilationFailed) {
+            await this.repository.persistUnjudgedTestResults(
+              submissionId,
+              Judge0Verdict.CompilationError,
+            );
+            break;
+          }
+          pendingTestCases = judgingContext.testCases.filter(
+            (testCase) => !testCase.existingResult,
+          );
+          if (pendingTestCases.length === 0) break;
+          needsPageLoad = false;
+        }
+
         let batch: JudgingContext['testCases'];
         let tokens: string[];
-        const activeBatch = job.data.activeBatch;
         if (activeBatch) {
+          const resumedBatch = activeBatch;
           if (
-            activeBatch.testCaseIds.length !== activeBatch.tokens.length ||
-            activeBatch.testCaseIds.length === 0 ||
-            activeBatch.testCaseIds.length > 4 ||
-            new Set(activeBatch.testCaseIds).size !==
-              activeBatch.testCaseIds.length ||
-            new Set(activeBatch.tokens).size !== activeBatch.tokens.length
+            resumedBatch.testCaseIds.length !== resumedBatch.tokens.length ||
+            resumedBatch.testCaseIds.length === 0 ||
+            resumedBatch.testCaseIds.length > 4 ||
+            new Set(resumedBatch.testCaseIds).size !==
+              resumedBatch.testCaseIds.length ||
+            new Set(resumedBatch.tokens).size !== resumedBatch.tokens.length
           ) {
             throw new Error('Invalid active Judge0 batch in judging job data.');
           }
-          const activeEntries = activeBatch.testCaseIds.map((id, index) => ({
-            testCase: testCasesById.get(id),
-            token: activeBatch.tokens[index],
+          const activeEntries = resumedBatch.testCaseIds.map((id, index) => ({
+            testCase: judgingContext.testCases.find(
+              (testCase) => testCase.id === id,
+            ),
+            token: resumedBatch.tokens[index],
           }));
           if (activeEntries.some(({ testCase }) => !testCase)) {
             throw new Error(
@@ -116,22 +149,15 @@ export class JudgingProcessor extends WorkerHost {
           const restoredBatch = unfinishedEntries.map(
             ({ testCase }) => testCase,
           );
-          if (
-            restoredBatch.some(
-              (testCase) => !testCase || testCase.existingResult,
-            ) ||
-            restoredBatch.some(
-              (testCase, index) => testCase !== remainingTestCases[index],
-            )
-          ) {
-            throw new Error(
-              'Active Judge0 batch does not match pending submission snapshots.',
-            );
-          }
           batch = restoredBatch.filter(isDefined);
           tokens = unfinishedEntries.map(({ token }) => token);
           if (batch.length === 0) {
             await updateJobActiveBatch(job);
+            activeBatch = undefined;
+            cursorPosition = Math.max(
+              ...activeEntries.map(({ testCase }) => testCase!.position),
+            );
+            needsPageLoad = true;
             continue;
           }
           await updateJobActiveBatch(job, {
@@ -141,12 +167,13 @@ export class JudgingProcessor extends WorkerHost {
           this.logger.log(
             `Resuming Judge0 batch submission=${submissionId} count=${batch.length}`,
           );
+          activeBatch = undefined;
         } else {
-          batch = remainingTestCases.slice(0, batchSize);
+          batch = pendingTestCases.slice(0, batchSize);
           tokens = await this.judge0.createSubmissionBatch(
             batch.map((testCase) => ({
-              languageId: context.judge0LanguageId,
-              sourceCode: context.sourceCode,
+              languageId: judgingContext.judge0LanguageId,
+              sourceCode: judgingContext.sourceCode,
               stdin: testCase.input,
               expectedOutput: testCase.expectedOutput,
               cpuTimeLimitSeconds: testCase.cpuTimeLimitSeconds,
@@ -161,6 +188,7 @@ export class JudgingProcessor extends WorkerHost {
               'Judge0 returned invalid token mapping for a judging batch.',
             );
           }
+          pendingTestCases = [];
           await updateJobActiveBatch(job, {
             testCaseIds: batch.map((testCase) => testCase.id),
             tokens,
@@ -182,18 +210,30 @@ export class JudgingProcessor extends WorkerHost {
           tokens,
           timeoutMs,
           async (results) => {
-            const persisted = results.map((result) => {
-              const testCase = tokenToTestCase.get(result.token);
-              if (!testCase || testCasesById.get(testCase.id) !== testCase) {
-                throw new Error(
-                  'Judge0 returned a result outside the active judging batch.',
-                );
-              }
-              if (result.verdict === Judge0Verdict.CompilationError)
-                compilationFailed = true;
-              return mapPersistedResult(testCase, result);
-            });
+            const persisted = results
+              .filter(
+                (result) => result.verdict !== Judge0Verdict.InternalError,
+              )
+              .map((result) => {
+                const testCase = tokenToTestCase.get(result.token);
+                if (!testCase) {
+                  throw new Error(
+                    'Judge0 returned a result outside the active judging batch.',
+                  );
+                }
+                return mapPersistedResult(testCase, result);
+              });
             await this.repository.persistTestResults(submissionId, persisted);
+            if (
+              results.some(
+                (result) => result.verdict === Judge0Verdict.InternalError,
+              )
+            ) {
+              await updateJobActiveBatch(job);
+              throw new Judge0InfrastructureError(
+                'Judge0 reported an internal execution error.',
+              );
+            }
             const completedIds = new Set(
               persisted.map(({ testCase }) => testCase.id),
             );
@@ -217,54 +257,52 @@ export class JudgingProcessor extends WorkerHost {
         );
 
         if (outcome.timedOut) {
-          await updateJobActiveBatch(job);
-          await this.repository.persistUnjudgedTestResults(submissionId);
-          await this.repository.persistFinalResult(submissionId, true);
-          this.logger.error(
-            `Judge0 batch deadline reached submission=${submissionId} completed=${outcome.results.length}/${batch.length}`,
+          throw new Judge0SubmissionTimeoutError(
+            `Judge0 submission did not finish before the batch deadline (${outcome.results.length}/${batch.length} completed).`,
           );
-          return;
         }
         await updateJobActiveBatch(job);
-        remainingTestCases = remainingTestCases.slice(activeTestCases.length);
+        judgedTestCaseCount += activeTestCases.length;
+        cursorPosition = Math.max(
+          ...activeTestCases.map((testCase) => testCase.position),
+        );
+        pendingTestCases = [];
+        needsPageLoad = true;
         if (
           outcome.results.some(
             (result) => result.verdict === Judge0Verdict.CompilationError,
           )
         ) {
-          compilationFailed = true;
-          await this.repository.persistTestResults(
+          await this.repository.persistUnjudgedTestResults(
             submissionId,
-            remainingTestCases.map((testCase) =>
-              compilationErrorResult(testCase),
-            ),
+            Judge0Verdict.CompilationError,
           );
-          remainingTestCases = [];
+          break;
         }
       }
 
       await this.repository.persistFinalResult(submissionId);
       this.logger.log(
-        `Finished judging submission=${submissionId} testCases=${context.testCases.length} scoring=${context.scoringEnabled} workerElapsedMs=${Math.round(performance.now() - workerStartedAt)}`,
+        `Finished judging submission=${submissionId} testCases=${judgedTestCaseCount} scoring=${judgingContext.scoringEnabled} workerElapsedMs=${Math.round(performance.now() - workerStartedAt)}`,
       );
     } catch (error) {
-      if (error instanceof Judge0SubmissionTimeoutError) {
-        await this.repository.persistUnjudgedTestResults(submissionId);
-        await this.repository.persistFinalResult(submissionId, true);
-        this.logger.error(
-          `Judge0 did not finish submission ${submissionId} before its polling deadline; finalized without retry`,
-        );
-        return;
-      }
-
       const attempts = Number(job.opts.attempts ?? 1);
       if (job.attemptsMade + 1 >= attempts) {
+        await this.repository.persistUnjudgedTestResults(submissionId);
         await this.repository.persistFinalResult(submissionId, true);
       }
+      const failureType =
+        error instanceof Judge0SubmissionTimeoutError
+          ? 'Judge0 polling deadline'
+          : error instanceof Judge0InfrastructureError
+            ? 'Judge0 internal execution error'
+            : 'judging attempt failure';
       this.logger.error(
-        `Judging attempt failed for submission ${submissionId} (${error instanceof Error ? error.name : 'unknown error'})`,
+        `${failureType} for submission ${submissionId} (${error instanceof Error ? error.name : 'unknown error'})`,
       );
       throw error;
+    } finally {
+      await this.repository.releaseClaim(submissionId);
     }
   }
 
@@ -277,7 +315,14 @@ export class JudgingProcessor extends WorkerHost {
     if (job.attemptsMade < attempts && job.stalledCounter <= 1) return;
 
     try {
-      await this.repository.persistFinalResult(job.data.submissionId, true);
+      const claimed = await this.repository.claim(job.data.submissionId, true);
+      if (!claimed) return;
+      try {
+        await this.repository.persistUnjudgedTestResults(job.data.submissionId);
+        await this.repository.persistFinalResult(job.data.submissionId, true);
+      } finally {
+        await this.repository.releaseClaim(job.data.submissionId);
+      }
       this.logger.error(
         `Judging exhausted retries for submission ${job.data.submissionId}`,
       );
@@ -298,16 +343,6 @@ async function updateJobActiveBatch(
   };
   if (activeBatch) nextData.activeBatch = activeBatch;
   await job.updateData(nextData);
-}
-
-function compilationErrorResult(testCase: JudgingContext['testCases'][number]) {
-  return {
-    testCase,
-    verdict: Judge0Verdict.CompilationError,
-    executionTimeMs: null,
-    memoryUsedKb: null,
-    pointsAwarded: 0,
-  };
 }
 
 function mapPersistedResult(
