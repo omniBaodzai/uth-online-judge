@@ -41,7 +41,7 @@ export function getJudgingGlobalConcurrency(
 export function getJudgingBatchSize(
   value = process.env.JUDGING_BATCH_SIZE,
 ): number {
-  const parsed = Number(value ?? 3);
-  if (!Number.isInteger(parsed) || parsed < 1) return 3;
+  const parsed = Number(value ?? 4);
+  if (!Number.isInteger(parsed) || parsed < 1) return 4;
   return Math.min(parsed, 4);
 }

@@ -356,9 +356,9 @@ describe('Judge0Service', () => {
         );
       const waiting = build(fetchFn).waitForResults(['token-1'], 10_000);
 
-      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(100);
       expect(fetchFn).toHaveBeenCalledTimes(2);
-      await vi.advanceTimersByTimeAsync(999);
+      await vi.advanceTimersByTimeAsync(199);
       expect(fetchFn).toHaveBeenCalledTimes(2);
       await vi.advanceTimersByTimeAsync(1);
       await expect(waiting).resolves.toMatchObject({ timedOut: false });
@@ -508,7 +508,7 @@ describe('loadJudge0Config', () => {
     const defaults = loadJudge0Config({ JUDGE0_API_URL: 'http://h' });
     expect(defaults).toMatchObject({
       requestTimeoutMs: 10000,
-      pollIntervalMs: 500,
+      pollIntervalMs: 200,
       maxPollAttempts: 30,
     });
     const custom = loadJudge0Config({
@@ -516,6 +516,6 @@ describe('loadJudge0Config', () => {
       JUDGE0_MAX_POLL_ATTEMPTS: '5',
       JUDGE0_POLL_INTERVAL_MS: '-1',
     });
-    expect(custom).toMatchObject({ maxPollAttempts: 5, pollIntervalMs: 500 });
+    expect(custom).toMatchObject({ maxPollAttempts: 5, pollIntervalMs: 200 });
   });
 });

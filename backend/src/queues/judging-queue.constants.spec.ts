@@ -11,7 +11,8 @@ describe('judging worker limits', () => {
     expect(getJudgingConcurrency('invalid')).toBe(2);
     expect(getJudgingBatchSize('1')).toBe(1);
     expect(getJudgingBatchSize('100')).toBe(4);
-    expect(getJudgingBatchSize('invalid')).toBe(3);
+    expect(getJudgingBatchSize('invalid')).toBe(4);
+    expect(getJudgingBatchSize(undefined)).toBe(4);
   });
 
   it('defaults global concurrency to the existing per-worker setting and caps overrides', () => {

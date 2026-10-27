@@ -161,7 +161,7 @@ export class Judge0Service {
     const { maxPollAttempts, pollIntervalMs } = this.deps.config;
     const deadline =
       timeoutMs === undefined ? undefined : Date.now() + timeoutMs;
-    const effectivePollIntervalMs = Math.max(500, pollIntervalMs);
+    const effectivePollIntervalMs = Math.max(100, pollIntervalMs);
     const attemptsForTimeout =
       timeoutMs === undefined
         ? maxPollAttempts
@@ -223,7 +223,7 @@ export class Judge0Service {
     }
 
     const { maxPollAttempts, pollIntervalMs } = this.deps.config;
-    const intervalMs = Math.max(500, pollIntervalMs);
+    const intervalMs = Math.max(100, pollIntervalMs);
     const deadline = Date.now() + timeoutMs;
     const maxAttempts = Math.min(
       720,
@@ -434,7 +434,7 @@ function durationBetween(
 
 function nextPollDelay(baseMs: number, attempt: number): number {
   const exponent = Math.min(Math.max(attempt - 1, 0), 4);
-  return Math.min(3_000, Math.max(500, baseMs) * 2 ** exponent);
+  return Math.min(3_000, Math.max(100, baseMs) * 2 ** exponent);
 }
 
 function elapsedMs(startedAt: number): number {
