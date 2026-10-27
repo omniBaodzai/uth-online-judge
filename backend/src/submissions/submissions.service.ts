@@ -49,26 +49,32 @@ export class SubmissionsService {
       sourceCode: input.sourceCode,
     });
     const persistedAt = performance.now();
+    let jobAdded = false;
     try {
       await this.judgingQueue.add(
         JUDGE_SUBMISSION_JOB,
         { submissionId: created.id },
         { jobId: created.id, ...JUDGING_JOB_OPTIONS },
       );
+      jobAdded = true;
       await this.repository.markQueued(created.id);
       this.logger.log(
         `Submission pipeline timings id=${created.id} databaseMs=${Math.round(persistedAt - startedAt)} enqueueAndQueueStateMs=${Math.round(performance.now() - persistedAt)} totalMs=${Math.round(performance.now() - startedAt)}`,
       );
     } catch (error) {
-      try {
-        await this.repository.markEnqueueFailed(created.id);
-      } catch (persistenceError) {
-        this.logger.error(
-          `Could not persist enqueue failure for submission ${created.id} (${errorName(persistenceError)})`,
-        );
-      }
-      this.logger.error(`Could not enqueue submission ${created.id} (${errorName(error)})`);
-      throw new ServiceUnavailableException('Không thể đưa bài nộp vào hàng đợi chấm. Vui lòng thử lại sau.');
+      const phase = jobAdded ? 'mark-queued' : 'enqueue';
+      this.logger.error(
+        `Could not confirm queued submission ${created.id} phase=${phase} error=${errorName(error)}`,
+      );
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        message: jobAdded
+          ? 'Bài nộp đã được đưa vào hàng đợi nhưng chưa cập nhật được trạng thái. Vui lòng kiểm tra bài nộp trước khi gửi lại.'
+          : 'Bài nộp đã được lưu nhưng chưa xác nhận được hàng đợi chấm. Hệ thống sẽ tự phục hồi; vui lòng kiểm tra trạng thái bài nộp trước khi gửi lại.',
+        submissionId: created.id,
+        state: 'PENDING',
+        enqueueState: jobAdded ? 'queued' : 'unknown',
+      });
     }
 
     this.logger.log(`Queued submission ${created.id}`);
@@ -109,5 +115,7 @@ export class SubmissionsService {
 }
 
 function errorName(error: unknown): string {
-  return error instanceof Error ? error.name : 'unknown error';
+  if (!(error instanceof Error)) return 'unknown';
+  const code = 'code' in error && typeof error.code === 'string' ? `:${error.code}` : '';
+  return `${error.name}${code}`;
 }

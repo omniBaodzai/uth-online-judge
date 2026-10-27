@@ -1,9 +1,9 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { CodeEditor } from './MonacoEditor'
 import { describeLanguage } from './languages'
-import { ApiError } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
+import { describeSubmissionFailure } from './submission-failure'
 import { submitSolution } from './submission-service'
 import styles from './CodeEditorPanel.module.css'
 
@@ -70,6 +70,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
   const [confirmReset, setConfirmReset] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
+  const [uncertainSubmissionId, setUncertainSubmissionId] = useState<string>()
   const submittingRef = useRef(false)
   const editorRef = useRef<CodeEditor | null>(null)
   const { request } = useAuth()
@@ -120,6 +121,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
     setLanguage(next)
     setConfirmReset(false)
     setNotice('')
+    setUncertainSubmissionId(undefined)
   }
 
   function requestReset() {
@@ -142,11 +144,14 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
     submittingRef.current = true
     setSubmitting(true)
     setNotice('')
+    setUncertainSubmissionId(undefined)
     try {
       const result = await submitSolution(request, { problemCode, language: selected.slug, sourceCode: code })
       navigate(`/submissions/${encodeURIComponent(result.id)}`)
     } catch (error) {
-      setNotice(error instanceof ApiError ? error.message : 'Không thể gửi bài giải. Vui lòng thử lại.')
+      const failure = describeSubmissionFailure(error)
+      setNotice(failure.message)
+      setUncertainSubmissionId(failure.submissionId)
     } finally {
       submittingRef.current = false
       setSubmitting(false)
@@ -210,7 +215,16 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
       {languages.length === 0 && (
         <p className={styles.notice} role="alert">Bài tập này chưa được cấu hình ngôn ngữ nộp bài. Vui lòng liên hệ quản trị viên.</p>
       )}
-      {notice && <p className={styles.notice} role="status">{notice}</p>}
+      {notice && (
+        <div className={styles.notice} role="status">
+          <p>{notice}</p>
+          {uncertainSubmissionId && (
+            <Link to={`/submissions/${encodeURIComponent(uncertainSubmissionId)}`}>
+              Kiểm tra bài nộp đã lưu
+            </Link>
+          )}
+        </div>
+      )}
 
       <div className={styles.actions}>
         <span className={styles.currentLang}>Đang chọn: <strong>{selected ? current.label : '—'}</strong></span>

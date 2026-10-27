@@ -242,16 +242,6 @@ export class SubmissionsRepository {
     );
   }
 
-  async markEnqueueFailed(id: string): Promise<void> {
-    await this.database.query(
-      `UPDATE submissions
-       SET status = 'INTERNAL_ERROR', error_message = 'Unable to enqueue judging job.',
-           judged_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'PENDING'`,
-      [id],
-    );
-  }
-
   // Điều kiện user_id nằm ngay trong truy vấn: bài nộp của người khác coi như không tồn tại.
   async findOwned(id: string, userId: string): Promise<SubmissionView | null> {
     const submission = await this.database.query<{

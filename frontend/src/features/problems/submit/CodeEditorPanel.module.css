@@ -148,6 +148,19 @@
   line-height: 1.5;
 }
 
+.notice p {
+  margin: 0;
+}
+
+.notice a {
+  display: inline-block;
+  margin-top: 6px;
+  color: #5b4100;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

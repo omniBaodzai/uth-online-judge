@@ -17,7 +17,6 @@ describe('SubmissionsService', () => {
     findAllowedLanguageId: vi.fn(),
     insert: vi.fn(),
     markQueued: vi.fn(),
-    markEnqueueFailed: vi.fn(),
     findOwned: vi.fn(),
     findProblemSubmissions: vi.fn(),
   };
@@ -60,7 +59,7 @@ describe('SubmissionsService', () => {
     });
   });
 
-  it('marks the submission failed when the judging queue is unavailable', async () => {
+  it('keeps an ambiguously enqueued submission pending and returns its id', async () => {
     repository.findPublishedProblemId.mockResolvedValue('p1');
     repository.findAllowedLanguageId.mockResolvedValue('l1');
     repository.insert.mockResolvedValue({
@@ -68,12 +67,47 @@ describe('SubmissionsService', () => {
       status: 'PENDING',
       submittedAt: 'now',
     });
-    queue.add.mockRejectedValue(new Error('redis unavailable'));
+    const possiblyPersistedJobs = new Map<string, unknown>();
+    queue.add.mockImplementationOnce(async (_name, data, options) => {
+      possiblyPersistedJobs.set(options.jobId, data);
+      const timeout = new Error('Redis command timed out');
+      timeout.name = 'CommandTimeoutError';
+      throw timeout;
+    });
 
     await expect(service.create('user-1', input)).rejects.toMatchObject({
       status: 503,
+      response: expect.objectContaining({
+        submissionId: 's1',
+        state: 'PENDING',
+        enqueueState: 'unknown',
+      }),
     });
-    expect(repository.markEnqueueFailed).toHaveBeenCalledWith('s1');
+    expect(possiblyPersistedJobs.has('s1')).toBe(true);
+    expect(repository.markQueued).not.toHaveBeenCalled();
+  });
+
+  it('does not report enqueue failure if Redis accepted the job but DB status update failed', async () => {
+    repository.findPublishedProblemId.mockResolvedValue('p1');
+    repository.findAllowedLanguageId.mockResolvedValue('l1');
+    repository.insert.mockResolvedValue({
+      id: 's1',
+      status: 'PENDING',
+      submittedAt: 'now',
+    });
+    queue.add.mockResolvedValue({});
+    repository.markQueued.mockRejectedValue(new Error('database unavailable'));
+
+    await expect(service.create('user-1', input)).rejects.toMatchObject({
+      status: 503,
+      response: expect.objectContaining({
+        submissionId: 's1',
+        state: 'PENDING',
+        enqueueState: 'queued',
+      }),
+    });
+    expect(queue.add).toHaveBeenCalledOnce();
+    expect(repository.markQueued).toHaveBeenCalledWith('s1');
   });
 
   it('rejects unknown/unpublished problems and unsupported languages without inserting', async () => {

@@ -14,6 +14,11 @@ export interface JudgingContext {
   testCases: JudgingTestCase[];
 }
 
+export interface RecoverableSubmission {
+  id: string;
+  status: 'PENDING' | 'QUEUED' | 'RUNNING';
+}
+
 export interface JudgingTestCase {
   id: string;
   snapshotId: string;
@@ -42,14 +47,15 @@ export class JudgingRepository {
 
   constructor(@Inject(DATABASE_POOL) private readonly database: Pool) {}
 
-  async findRecoverableIds(
+  async findRecoverableSubmissions(
     afterId: string | null,
     limit: number,
-  ): Promise<string[]> {
-    const result = await this.database.query<{ id: string }>(
-      `SELECT s.id
+  ): Promise<RecoverableSubmission[]> {
+    const result = await this.database.query<RecoverableSubmission>(
+      `SELECT s.id, s.status
        FROM submissions s
-       WHERE s.status IN ('PENDING', 'QUEUED')
+       WHERE s.status IN ('PENDING', 'QUEUED', 'RUNNING')
+         AND s.judged_at IS NULL
          AND ($1::uuid IS NULL OR s.id > $1::uuid)
          AND EXISTS (
            SELECT 1
@@ -60,7 +66,7 @@ export class JudgingRepository {
        LIMIT $2`,
       [afterId, limit],
     );
-    return result.rows.map((row) => row.id);
+    return result.rows;
   }
 
   async markQueued(submissionId: string): Promise<void> {

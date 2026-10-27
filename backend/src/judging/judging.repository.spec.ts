@@ -2,6 +2,27 @@ import { JudgingRepository } from './judging.repository.js';
 import { testCaseFingerprint } from '../scoring/test-case-fingerprint.js';
 
 describe('JudgingRepository', () => {
+  it('selects only nonterminal pending, queued, and running submissions', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValueOnce({
+        rows: [{ id: 'submission-1', status: 'RUNNING' }],
+      }),
+    };
+    const repository = new JudgingRepository(database as never);
+
+    await expect(repository.findRecoverableSubmissions(null, 100)).resolves.toEqual([
+      { id: 'submission-1', status: 'RUNNING' },
+    ]);
+    const [recoverSql] = database.query.mock.calls[0];
+    expect(recoverSql).toContain("s.status IN ('PENDING', 'QUEUED', 'RUNNING')");
+    expect(recoverSql).toContain('s.judged_at IS NULL');
+
+    await repository.markQueued('submission-1');
+    const [markSql, values] = database.query.mock.calls[1];
+    expect(markSql).toContain("WHERE id = $1 AND status = 'PENDING'");
+    expect(values).toEqual(['submission-1']);
+  });
+
   it('serializes duplicate workers with a PostgreSQL advisory lock and releases the claim', async () => {
     const client = {
       query: vi

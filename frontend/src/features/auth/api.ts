@@ -20,11 +20,13 @@ type RefreshResponse = AuthResponse
 
 export class ApiError extends Error {
   readonly status: number
+  readonly submissionId?: string
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, submissionId?: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.submissionId = submissionId
   }
 }
 
@@ -158,12 +160,16 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as
-      | { message?: string | string[] }
+      | { message?: string | string[]; submissionId?: string }
       | null
     const message = Array.isArray(body?.message)
       ? body.message.join(' ')
       : body?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'
-    throw new ApiError(message, response.status)
+    throw new ApiError(
+      message,
+      response.status,
+      typeof body?.submissionId === 'string' ? body.submissionId : undefined,
+    )
   }
 
   if (response.status === 204) return undefined as T

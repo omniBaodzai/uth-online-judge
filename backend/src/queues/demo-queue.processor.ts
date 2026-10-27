@@ -7,8 +7,9 @@ import {
   type UppercaseTextJobData,
   type UppercaseTextJobResult,
 } from './demo-queue.constants.js';
+import { redisWorkerClient } from './redis-clients.js';
 
-@Processor(DEMO_QUEUE)
+@Processor(DEMO_QUEUE, { connection: redisWorkerClient })
 export class DemoQueueProcessor extends WorkerHost {
   private readonly logger = new Logger(DemoQueueProcessor.name);
 

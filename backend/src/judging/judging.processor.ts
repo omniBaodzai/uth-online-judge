@@ -8,6 +8,7 @@ import {
   getJudgingConcurrency,
   type JudgeSubmissionJobData,
 } from '../queues/judging-queue.constants.js';
+import { redisWorkerClient } from '../queues/redis-clients.js';
 import {
   Judge0InfrastructureError,
   Judge0SubmissionTimeoutError,
@@ -19,7 +20,10 @@ import {
   type JudgingContext,
 } from './judging.repository.js';
 
-@Processor(JUDGING_QUEUE, { concurrency: getJudgingConcurrency() })
+@Processor(JUDGING_QUEUE, {
+  concurrency: getJudgingConcurrency(),
+  connection: redisWorkerClient,
+})
 @Injectable()
 export class JudgingProcessor extends WorkerHost {
   private readonly logger = new Logger(JudgingProcessor.name);
@@ -41,7 +45,9 @@ export class JudgingProcessor extends WorkerHost {
     const claimStartedAt = performance.now();
     const claimed = await this.repository.claim(
       submissionId,
-      job.attemptsMade > 0 || job.stalledCounter > 0,
+      job.attemptsMade > 0 ||
+        job.stalledCounter > 0 ||
+        job.data.recoveryRetry === true,
     );
     this.logger.log(
       `Judging claim submission=${submissionId} claimed=${claimed} dbMs=${Math.round(performance.now() - claimStartedAt)}`,

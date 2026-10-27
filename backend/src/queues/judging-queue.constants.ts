@@ -3,6 +3,7 @@ export const JUDGE_SUBMISSION_JOB = 'judge-submission';
 
 export interface JudgeSubmissionJobData {
   submissionId: string;
+  recoveryRetry?: boolean;
   activeBatch?: {
     testCaseIds: string[];
     tokens: string[];
