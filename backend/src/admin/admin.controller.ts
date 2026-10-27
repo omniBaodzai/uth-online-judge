@@ -11,13 +11,18 @@ import {
   Put,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { PROBLEM_PDF_MAX_BYTES } from '../problems/problem-pdf-storage.service.js';
 import { AddJudge0LanguageDto } from './dto/admin-language.dto.js';
 import { AdminProblemDto, AdminProblemStatusDto } from './dto/admin-problem.dto.js';
+import { AdminSolutionDto } from './dto/admin-solution.dto.js';
 import { AdminTestCaseCollectionDto } from './dto/admin-test-case.dto.js';
 import { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.js';
 import { AdminRoleGuard } from './admin-role.guard.js';
@@ -90,6 +95,33 @@ export class AdminController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteProblem(@Param('id') id: string) {
     return this.admin.deleteProblem(id);
+  }
+
+  @Post('problems/:id/pdf')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('pdf', { limits: { fileSize: PROBLEM_PDF_MAX_BYTES, files: 1 } }))
+  @ApiConsumes('multipart/form-data')
+  uploadPdf(@Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+    return this.admin.uploadStatementPdf(id, file?.buffer);
+  }
+
+  @Delete('problems/:id/pdf')
+  removePdf(@Param('id') id: string) {
+    return this.admin.removeStatementPdf(id);
+  }
+
+  @Get('problems/:id/solution')
+  getSolution(@Param('id') id: string) {
+    return this.admin.getSolution(id);
+  }
+
+  @Put('problems/:id/solution')
+  saveSolution(
+    @Param('id') id: string,
+    @Body() input: AdminSolutionDto,
+    @Req() request: AdminRequest,
+  ) {
+    return this.admin.saveSolution(id, request.user.id, input);
   }
 
   @Get('problems/:id/test-cases')

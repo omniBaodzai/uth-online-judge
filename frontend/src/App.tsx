@@ -5,11 +5,16 @@ import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import ProblemsPage from './features/problems/pages/ProblemsPage'
 import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
 import SubmitSolutionPage from './features/problems/pages/SubmitSolutionPage'
+import ProblemPdfPage from './features/problems/pages/ProblemPdfPage'
+import ProblemSolutionPage from './features/problems/pages/ProblemSolutionPage'
+import ProblemBestSubmissionsPage from './features/problems/pages/ProblemBestSubmissionsPage'
 import { RequireAuth } from './features/auth/components/RequireAuth'
 import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
 import SubmissionDetailsPage from './features/submissions/pages/SubmissionDetailsPage'
 import MyProblemSubmissionsPage from './features/submissions/pages/MyProblemSubmissionsPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
+import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
+import UserProfilePage, { ProfileRedirect } from './features/profile/pages/UserProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
 import AppLayout from './components/layout/AppLayout'
 import PlaceholderPage from './components/layout/PlaceholderPage'
@@ -58,7 +63,8 @@ function App() {
           <Route path="login" element={<AuthPage mode="login" />} />
           <Route path="register" element={<AuthPage mode="register" />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route path="profile" element={<ProfileRedirect />} />
+          <Route path="users/:username" element={<UserProfilePage />} />
           <Route path="profile/edit" element={<ProfilePage edit />} />
           <Route path="problems" element={<ProblemsPage />} />
           <Route path="problems/:code" element={<ProblemDetailPage />} />
@@ -66,20 +72,21 @@ function App() {
             path="problems/:code/submit"
             element={<RequireAuth><SubmitSolutionPage /></RequireAuth>}
           />
-          <Route path="problems/:code/pdf" element={<PlaceholderPage title="Đề bài dạng PDF" />} />
+          <Route path="problems/:code/pdf" element={<ProblemPdfPage />} />
           <Route path="problems/:code/submissions" element={<SubmissionsPage />} />
           <Route
             path="problems/:code/submissions/me"
             element={<RequireAuth><MyProblemSubmissionsPage /></RequireAuth>}
           />
-          <Route path="problems/:code/submissions/best" element={<PlaceholderPage title="Bài nộp tốt nhất" />} />
-          <Route path="problems/:code/solution" element={<PlaceholderPage title="Lời giải bài tập" />} />
+          <Route path="problems/:code/submissions/best" element={<ProblemBestSubmissionsPage />} />
+          <Route path="problems/:code/solution" element={<ProblemSolutionPage />} />
           <Route path="contests" element={<PlaceholderPage title="Cuộc thi" />} />
           <Route
             path="submissions/:submissionId"
             element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}
           />
           <Route path="submissions" element={<SubmissionsPage />} />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
           <Route path="news" element={<NewsListPage />} />
           <Route path="news/:slug" element={<NewsDetailPage />} />

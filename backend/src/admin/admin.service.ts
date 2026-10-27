@@ -7,8 +7,10 @@ import {
 } from '@nestjs/common';
 import { Judge0ConfigError, Judge0Error, Judge0TimeoutError } from '../judge0/judge0.errors.js';
 import { Judge0Service } from '../judge0/judge0.service.js';
+import { ProblemPdfStorageService } from '../problems/problem-pdf-storage.service.js';
 import { AdminRepository } from './admin.repository.js';
 import type { AdminProblemDto } from './dto/admin-problem.dto.js';
+import type { AdminSolutionDto } from './dto/admin-solution.dto.js';
 import type { AdminTestCaseDto } from './dto/admin-test-case.dto.js';
 import type { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.js';
 import type { AdminProblemListQuery } from './admin.types.js';
@@ -18,7 +20,35 @@ export class AdminService {
   constructor(
     private readonly repository: AdminRepository,
     private readonly judge0: Judge0Service,
+    private readonly pdfStorage: ProblemPdfStorageService,
   ) {}
+
+  async uploadStatementPdf(id: string, buffer: Buffer | undefined) {
+    const url = await this.pdfStorage.save(buffer);
+    try {
+      const previous = await this.repository.replaceStatementPdf(id, url);
+      await this.pdfStorage.remove(previous);
+    } catch (error) {
+      await this.pdfStorage.remove(url);
+      throw error;
+    }
+    return this.repository.findProblem(id);
+  }
+
+  getSolution(id: string) {
+    return this.repository.findSolution(id);
+  }
+
+  async saveSolution(id: string, userId: string, input: AdminSolutionDto) {
+    await this.repository.saveSolution(id, userId, input.content, input.published);
+    return this.repository.findSolution(id);
+  }
+
+  async removeStatementPdf(id: string) {
+    const previous = await this.repository.replaceStatementPdf(id, null);
+    await this.pdfStorage.remove(previous);
+    return this.repository.findProblem(id);
+  }
 
   listProblems(query: ListAdminProblemsQueryDto) {
     const normalized: AdminProblemListQuery = {

@@ -10,7 +10,7 @@ import { AddJudge0LanguageDto } from './dto/admin-language.dto.js';
 describe('Admin language configuration', () => {
   const repository = { listConfiguredJudge0Ids: vi.fn(), enableLanguage: vi.fn() };
   const judge0 = { getLanguages: vi.fn() };
-  const service = new AdminService(repository as never, judge0 as never);
+  const service = new AdminService(repository as never, judge0 as never, {} as never);
 
   beforeEach(() => vi.resetAllMocks());
 

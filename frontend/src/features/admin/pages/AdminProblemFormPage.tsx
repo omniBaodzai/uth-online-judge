@@ -4,6 +4,7 @@ import { ApiError } from '../../auth/api'
 import { useAdmin } from '../useAdmin'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import MultiValuePicker from '../components/MultiValuePicker'
+import SolutionEditor from '../components/SolutionEditor'
 import TestCaseCollectionEditor from '../components/TestCaseCollectionEditor'
 import { validateProblemCode } from '../utils'
 import type {
@@ -333,6 +334,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
           }}>Xuất bản</button>
         </div>
       </form>
+      {problem && <SolutionEditor problemId={problem.id} />}
       {pendingPublish && (
         <ConfirmDialog
           title="Xuất bản bài tập demo?"

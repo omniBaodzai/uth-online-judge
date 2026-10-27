@@ -1,0 +1,144 @@
+.backdrop {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 40, 40, 0.6);
+}
+
+.dialog {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(15, 40, 40, 0.35);
+}
+
+.dialog h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1.25rem;
+}
+
+.hint {
+  margin: 6px 0 16px;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  background: #0f2828;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.frame:active {
+  cursor: grabbing;
+}
+
+.frame:focus-visible {
+  outline: 3px solid #f4c96b;
+  outline-offset: 2px;
+}
+
+.image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+}
+
+.zoomRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.zoomRow input {
+  min-width: 0;
+  flex: 1;
+  accent-color: var(--color-primary);
+}
+
+.zoomRow output {
+  min-width: 44px;
+  color: var(--color-muted);
+  text-align: right;
+}
+
+.error {
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #fdecea;
+  color: #b3261e;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.primary,
+.secondary {
+  padding: 10px 18px;
+  border: 1px solid var(--color-primary);
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--color-primary);
+}
+
+.secondary:hover {
+  background: rgba(0, 134, 137, 0.08);
+}

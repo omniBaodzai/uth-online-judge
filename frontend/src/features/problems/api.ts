@@ -55,6 +55,7 @@ export type ProblemDetailResponse = {
   publishedAt: string | null
   status: ProblemStatus
   hasSolution: boolean
+  pdfUrl?: string | null
   tags: Tag[]
   examples: { input: string; output: string }[]
   languages: { slug: string; name: string; version: string | null }[]
@@ -83,4 +84,44 @@ export function fetchTags(fetcher: Fetcher) {
 
 export function fetchProblemDetail(fetcher: Fetcher, code: string) {
   return fetcher<ProblemDetailResponse>(`/problems/${encodeURIComponent(code)}`)
+}
+
+export type ProblemSolutionResponse = { code: string; title: string; solution: string | null }
+
+export function fetchProblemSolution(fetcher: Fetcher, code: string) {
+  return fetcher<ProblemSolutionResponse>(`/problems/${encodeURIComponent(code)}/solution`)
+}
+
+export type BestSubmissionItem = {
+  rank: number
+  id: string
+  status: string
+  language: string
+  executionTimeMs: number | null
+  memoryUsedKb: number | null
+  codeLength: number
+  submittedAt: string
+  user: { id: string; username: string | null; fullName: string | null; avatarUrl: string | null }
+}
+
+export type BestSubmissionsResponse = {
+  problem: { code: string; title: string }
+  items: BestSubmissionItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export type BestSubmissionSource = { id: string; language: string; sourceCode: string; username: string | null }
+
+export function fetchBestSubmissions(fetcher: Fetcher, code: string, page: number, pageSize: number) {
+  return fetcher<BestSubmissionsResponse>(
+    `/problems/${encodeURIComponent(code)}/submissions/best?page=${page}&pageSize=${pageSize}`,
+  )
+}
+
+export function fetchBestSubmissionSource(fetcher: Fetcher, code: string, submissionId: string) {
+  return fetcher<BestSubmissionSource>(
+    `/problems/${encodeURIComponent(code)}/submissions/best/${encodeURIComponent(submissionId)}/source`,
+  )
 }

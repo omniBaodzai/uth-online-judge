@@ -27,6 +27,12 @@ export class ProblemsController {
     return this.problems.listTags();
   }
 
+  @Get(':code/solution')
+  @ApiOperation({ summary: 'Lời giải (Markdown) của bài tập; solution là null nếu chưa có' })
+  solution(@Param('code') code: string) {
+    return this.problems.getSolutionByCode(code);
+  }
+
   @Get(':code')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Chi tiết một bài tập đã xuất bản theo mã bài' })

@@ -1,0 +1,236 @@
+.main {
+  flex: 1;
+  padding: clamp(124px, 12vw, 136px) 0 clamp(42px, 6vw, 76px);
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
+    url('../../../assets/uth_background.jpg');
+  background-position: center, center, center top;
+  background-repeat: no-repeat;
+  background-size: auto, cover, cover;
+}
+
+.container {
+  display: flex;
+  width: min(1100px, calc(100% - 32px));
+  flex-direction: column;
+  gap: 16px;
+  margin-inline: auto;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.titleRow h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1.8rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tab,
+.tabActive {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.tabActive {
+  background: rgba(0, 134, 137, 0.12);
+  color: var(--color-primary);
+}
+
+.tab:focus-visible,
+.tabActive:focus-visible,
+.pageButton:focus-visible,
+.pageActive:focus-visible,
+.search:focus-visible {
+  outline: 3px solid #f4c96b;
+  outline-offset: 2px;
+}
+
+.card {
+  padding: 16px;
+  border: 1px solid #e0ebeb;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 3px rgba(15, 40, 40, 0.08);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageButton,
+.pageActive {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #cfdcdc;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.pageButton:hover:not(:disabled) {
+  background: #f1f8f7;
+}
+
+.pageButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.pageActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.gap {
+  color: var(--color-muted);
+}
+
+.search {
+  width: min(280px, 100%);
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid #cfdcdc;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+}
+
+.wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th {
+  padding: 12px 14px;
+  border-bottom: 1px solid #d5e2e2;
+  background: #eaf4f3;
+  color: #2d5659;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.table tbody tr:hover {
+  background: #f1f8f7;
+}
+
+.table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rank {
+  width: 70px;
+  font-weight: 760;
+}
+
+.rating {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.person span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.person strong {
+  color: var(--color-primary);
+}
+
+.person:hover strong {
+  text-decoration: underline;
+}
+
+.person small {
+  color: var(--color-muted);
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 0;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.state p {
+  margin: 0;
+}
+
+.state strong {
+  color: var(--color-ink);
+}

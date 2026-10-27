@@ -64,12 +64,12 @@ function ProblemDetailPage() {
             </Link>
             <ul className={styles.actions}>
               <li>
-                <a href={`${base}/pdf`} target="_blank" rel="noreferrer">
+                <Link to={`${base}/pdf`}>
                   <Icon>
                     <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 14h6M10 17h4" />
                   </Icon>
                   Xem dạng PDF
-                </a>
+                </Link>
               </li>
               <li>
                 <Link to={`${base}/submissions/me`}>

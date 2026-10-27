@@ -241,6 +241,68 @@ export class AdminRepository {
     }
   }
 
+  async findSolution(problemId: string): Promise<{ content: string; published: boolean }> {
+    const problem = await this.database.query('SELECT 1 FROM problems WHERE id = $1', [problemId]);
+    if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+    const result = await this.database.query<{ content_markdown: string; is_published: boolean }>(
+      'SELECT content_markdown, is_published FROM problem_editorials WHERE problem_id = $1',
+      [problemId],
+    );
+    const row = result.rows[0];
+    return { content: row?.content_markdown ?? '', published: row?.is_published ?? false };
+  }
+
+  // Nội dung rỗng xóa bản ghi; ngược lại upsert theo problem_id (UNIQUE).
+  async saveSolution(
+    problemId: string,
+    authorId: string,
+    content: string,
+    published: boolean,
+  ): Promise<void> {
+    const problem = await this.database.query('SELECT 1 FROM problems WHERE id = $1', [problemId]);
+    if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+    if (!content) {
+      await this.database.query('DELETE FROM problem_editorials WHERE problem_id = $1', [problemId]);
+      return;
+    }
+    await this.database.query(
+      `INSERT INTO problem_editorials (problem_id, author_id, content_markdown, is_published, published_at)
+       VALUES ($1, $2, $3, $4, CASE WHEN $4 THEN CURRENT_TIMESTAMP END)
+       ON CONFLICT (problem_id) DO UPDATE
+       SET content_markdown = EXCLUDED.content_markdown,
+           is_published = EXCLUDED.is_published,
+           published_at = CASE
+             WHEN EXCLUDED.is_published THEN COALESCE(problem_editorials.published_at, CURRENT_TIMESTAMP)
+             ELSE NULL END,
+           updated_at = CURRENT_TIMESTAMP`,
+      [problemId, authorId, content, published],
+    );
+  }
+
+  // Trả về URL PDF cũ để người gọi xóa file sau khi cập nhật DB thành công.
+  async replaceStatementPdf(id: string, url: string | null): Promise<string | null> {
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const current = await client.query<{ statement_pdf_url: string | null }>(
+        'SELECT statement_pdf_url FROM problems WHERE id = $1 FOR UPDATE',
+        [id],
+      );
+      if (!current.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+      await client.query(
+        'UPDATE problems SET statement_pdf_url = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [id, url],
+      );
+      await client.query('COMMIT');
+      return current.rows[0]?.statement_pdf_url ?? null;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async deleteProblem(id: string): Promise<void> {
     let result;
     try {

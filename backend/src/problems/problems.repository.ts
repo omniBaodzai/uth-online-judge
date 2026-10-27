@@ -89,6 +89,7 @@ type DetailRow = {
   memory_limit_mb: number;
   published_at: Date | null;
   author: string | null;
+  statement_pdf_url: string | null;
   has_solution: boolean;
   user_status: UserProblemStatus;
 };
@@ -196,7 +197,7 @@ export class ProblemsRepository {
       `SELECT p.id, p.problem_code, p.title, p.statement, p.input_description, p.output_description,
               p.constraints_text, p.difficulty, p.scoring_enabled, p.score,
               p.time_limit_ms, p.memory_limit_mb,
-              p.published_at,
+              p.published_at, p.statement_pdf_url,
               COALESCE(u.username, u.full_name) AS author,
               ${HAS_SOLUTION_SQL} AS has_solution,
               ${USER_STATUS_SQL} AS user_status
@@ -225,7 +226,28 @@ export class ProblemsRepository {
       publishedAt: row.published_at?.toISOString() ?? null,
       status: row.user_status,
       hasSolution: row.has_solution,
+      pdfUrl: row.statement_pdf_url,
     };
+  }
+
+  // Chỉ trả lời giải đã xuất bản của bài tập đã xuất bản; bài nháp/lưu trữ coi như không tồn tại.
+  async findPublishedSolution(
+    code: string,
+  ): Promise<{ code: string; title: string; solution: string | null } | null> {
+    const result = await this.database.query<{
+      problem_code: string;
+      title: string;
+      content_markdown: string | null;
+    }>(
+      `SELECT p.problem_code, p.title, e.content_markdown
+       FROM problems p
+       LEFT JOIN problem_editorials e ON e.problem_id = p.id AND e.is_published = TRUE
+       WHERE p.problem_code = $1 AND p.status = 'PUBLISHED'`,
+      [code],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return { code: row.problem_code, title: row.title, solution: row.content_markdown };
   }
 
   // Chỉ chọn đúng hai cột của test case mẫu; test ẩn bị loại bởi is_sample.

@@ -56,6 +56,7 @@ export interface ProblemDetail {
   publishedAt: string | null;
   status: UserProblemStatus;
   hasSolution: boolean;
+  pdfUrl: string | null;
   tags: TagSummary[];
   // Chỉ gồm test case được đánh dấu is_sample; test ẩn không bao giờ rời khỏi backend.
   examples: ProblemExample[];

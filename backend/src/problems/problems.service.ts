@@ -26,6 +26,12 @@ export class ProblemsService {
     return this.repository.listTags();
   }
 
+  async getSolutionByCode(code: string) {
+    const found = await this.repository.findPublishedSolution(code);
+    if (!found) throw new NotFoundException('Không tìm thấy bài tập.');
+    return found;
+  }
+
   async getByCode(code: string, userId: string | null): Promise<ProblemDetail> {
     const found = await this.repository.findPublishedByCode(code, userId);
     // Bài nháp/lưu trữ cũng trả 404 để không lộ sự tồn tại của chúng.

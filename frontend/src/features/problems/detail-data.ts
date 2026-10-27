@@ -1,3 +1,4 @@
+import { resolveAvatarUrl as resolveFileUrl } from '../auth/api'
 import type { ProblemStatus } from './data'
 import type { ProblemDetailResponse } from './api'
 
@@ -12,6 +13,7 @@ export type ProblemDetail = {
   title: string
   status: ProblemStatus
   hasSolution: boolean
+  pdfUrl: string | null
   scoringEnabled: boolean
   description: string[]
   input: string[]
@@ -60,6 +62,7 @@ export function toProblemDetail(data: ProblemDetailResponse): ProblemDetail {
     title: data.title,
     status: data.status,
     hasSolution: data.hasSolution,
+    pdfUrl: resolveFileUrl(data.pdfUrl),
     scoringEnabled: data.scoringEnabled,
     description: paragraphs(data.statement),
     input: paragraphs(data.inputDescription),

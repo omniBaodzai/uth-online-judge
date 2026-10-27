@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError, request as publicRequest } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import FilterDropdown from '../../problems/components/FilterDropdown'
@@ -18,8 +18,10 @@ function SubmissionsPage() {
   const { request: authRequest, accessToken, isLoading: isAuthLoading } = useAuth()
   // Trang công khai: khách dùng request không kèm token, người đã đăng nhập vẫn được đánh dấu bài của mình.
   const request = accessToken ? authRequest : publicRequest
-  const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [searchParams] = useSearchParams()
+  const initialQuery = (searchParams.get('q') ?? '').slice(0, 100)
+  const [query, setQuery] = useState(initialQuery)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
   const [verdict, setVerdict] = useState<string[]>([])
   const [language, setLanguage] = useState<string[]>([])
   const [page, setPage] = useState(1)

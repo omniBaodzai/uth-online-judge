@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { Judge0Module } from '../judge0/judge0.module.js';
+import { ProblemPdfStorageService } from '../problems/problem-pdf-storage.service.js';
 import { AdminController } from './admin.controller.js';
 import { AdminRepository } from './admin.repository.js';
 import { AdminRoleGuard } from './admin-role.guard.js';
@@ -12,6 +13,13 @@ import { AdminUsersService } from './admin-users.service.js';
 @Module({
   imports: [AuthModule, Judge0Module],
   controllers: [AdminController, AdminUsersController],
-  providers: [AdminRepository, AdminRoleGuard, AdminService, AdminUsersRepository, AdminUsersService],
+  providers: [
+    AdminRepository,
+    AdminRoleGuard,
+    AdminService,
+    AdminUsersRepository,
+    AdminUsersService,
+    ProblemPdfStorageService,
+  ],
 })
 export class AdminModule {}
