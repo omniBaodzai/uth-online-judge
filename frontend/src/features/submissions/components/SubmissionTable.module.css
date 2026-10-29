@@ -107,7 +107,7 @@
 
 .problem {
   display: block;
-  color: var(--color-ink);
+  color: #0a02ef;
   font-weight: 700;
   line-height: 1.4;
   text-decoration: none;

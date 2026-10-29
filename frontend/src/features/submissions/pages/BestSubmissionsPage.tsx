@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, request as publicRequest } from '../../auth/api'
 import { getBestSubmissions, type BestSubmissionPage as BestSubmissionsData } from '../../problems/submit/submission-service'
+import FilterDropdown from '../../problems/components/FilterDropdown'
 import SubmissionPagination from '../components/SubmissionPagination'
 import SubmissionStatsChart from '../components/SubmissionStatsChart'
 import SubmissionTable from '../components/SubmissionTable'
@@ -84,6 +85,10 @@ function BestSubmissionsContent({ code }: { code: string }) {
       setPage(1)
     },
   }), [data?.total, page, pageSize])
+  const languageOptions = useMemo(
+    () => (data?.languages ?? []).map((value) => ({ value, label: value })),
+    [data?.languages],
+  )
 
   const hasFilters = Boolean(debouncedQuery)
   const statistics = data?.statistics
@@ -121,7 +126,11 @@ function BestSubmissionsContent({ code }: { code: string }) {
           </h1>
         </header>
 
-        <form className={styles.filters} role="search" onSubmit={(event) => event.preventDefault()}>
+        <form
+          className={`${styles.filters} ${pageStyles.filters}`}
+          role="search"
+          onSubmit={(event) => event.preventDefault()}
+        >
           <div className={styles.search}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="6.5" />
@@ -139,21 +148,15 @@ function BestSubmissionsContent({ code }: { code: string }) {
               }}
             />
           </div>
-          <label className={pageStyles.languageFilter}>
-            <span>Ngôn ngữ</span>
-            <select
-              value={language}
-              disabled={!data?.languages.length}
-              onChange={(event) => {
-                setLanguage(event.target.value)
-                setPage(1)
-              }}
-            >
-              {data?.languages.length
-                ? data.languages.map((value) => <option key={value} value={value}>{value}</option>)
-                : <option value="">Chưa có ngôn ngữ</option>}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Ngôn ngữ"
+            options={languageOptions}
+            selected={language ? [language] : []}
+            onChange={(selected) => {
+              setLanguage(selected[0] ?? '')
+              setPage(1)
+            }}
+          />
           <button type="button" className={styles.reset} onClick={resetSearch} disabled={!query}>
             Đặt lại
           </button>

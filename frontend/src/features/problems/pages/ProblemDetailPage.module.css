@@ -82,7 +82,7 @@
 
 .header h1 {
   margin: 0;
-  color: var(--color-ink);
+  color: #008689;
   font-size: clamp(24px, 3.2vw, 32px);
   letter-spacing: -0.03em;
   line-height: 1.3;

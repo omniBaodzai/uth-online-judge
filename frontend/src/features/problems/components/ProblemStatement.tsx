@@ -65,7 +65,7 @@ function ProblemStatement({ problem, className = '' }: ProblemStatementProps) {
     <article className={`${styles.panel} ${styles.statement} ${className}`}>
       <header className={styles.header}>
         <h1>
-          <span className={styles.codeTag}>{problem.code}</span> — {problem.title}
+          {problem.title}
         </h1>
         <StatusBadge status={problem.status} />
       </header>
