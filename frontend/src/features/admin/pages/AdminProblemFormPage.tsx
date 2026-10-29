@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../auth/api'
 import { useAdmin } from '../useAdmin'
+import { monacoLanguageId } from '../../problems/submit/languages'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import MultiValuePicker from '../components/MultiValuePicker'
 import TestCaseCollectionEditor from '../components/TestCaseCollectionEditor'
@@ -33,9 +34,13 @@ function emptyDraft(): ProblemDraft {
     score: 1,
     testCases: [],
     testCaseRevision: 0,
+    editorials: [],
     status: 'draft',
   }
 }
+
+const editorReady = () => {}
+const MonacoEditor = lazy(() => import('../../problems/submit/MonacoEditor'))
 
 function toDraft(problem: AdminProblem, collection: AdminTestCaseCollection): ProblemDraft {
   const { id, updatedAt, examples, testCaseRevision, ...draft } = problem
@@ -137,6 +142,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [editorRevision, setEditorRevision] = useState(0)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft)
 
   useEffect(() => {
@@ -151,6 +157,16 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
 
   function update<K extends keyof ProblemDraft>(key: K, value: ProblemDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }))
+  }
+
+  function updateEditorial(index: number, field: 'title' | 'language' | 'sourceCode', value: string) {
+    setDraft((current) => ({
+      ...current,
+      editorials: current.editorials.map((editorial, currentIndex) => (
+        currentIndex === index ? { ...editorial, [field]: value } : editorial
+      )),
+    }))
+    setEditorRevision((revision) => revision + 1)
   }
 
   async function persist(status: 'draft' | 'published') {
@@ -170,6 +186,12 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
     }
     if (cleanDraft.testCases.some((testCase) => !testCase.name.trim() || testCase.expectedOutput.length === 0)) {
       setSaveError('Vui lòng nhập tên và đầu ra mong đợi cho mọi test case.')
+      return
+    }
+    if (cleanDraft.editorials.some((editorial) => (
+      !editorial.title.trim() || !editorial.language.trim() || !editorial.sourceCode.trim()
+    ))) {
+      setSaveError('Vui lòng nhập tiêu đề, ngôn ngữ và mã nguồn cho mọi lời giải.')
       return
     }
     if (status === 'published' && cleanDraft.testCases.length === 0) {
@@ -197,6 +219,12 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
               expectedOutput,
               kind,
               points: 1,
+            })),
+            editorials: cleanDraft.editorials.map(({ id, title, language, sourceCode }) => ({
+              ...(id ? { id } : {}),
+              title: title.trim(),
+              language: language.trim(),
+              sourceCode,
             })),
           }),
         },
@@ -259,7 +287,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
               <p className={styles.fieldHint}>Nhấn Enter để xuống dòng. Dòng trống sẽ tách thành đoạn mới; nội dung được hiển thị theo đúng cách bạn nhập.</p>
             </div>
             <MultiValuePicker
-              label="Chủ đề / tag"
+              label="Chủ đề"
               placeholder="Nhập chủ đề, ví dụ: Quy hoạch động"
               suggestions={tagOptions}
               values={draft.tags}
@@ -319,6 +347,91 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
               <div className={styles.field}><label htmlFor="memory-limit">Bộ nhớ (MB) <span className={styles.requiredMark}>*</span></label><input id="memory-limit" type="number" min="16" max="8192" step="16" required value={draft.memoryLimitMb} onChange={(event) => update('memoryLimitMb', Number(event.target.value))} /></div>
             </div>
           </div>
+        </section>
+        <section className={`${styles.panel} ${styles.formSection}`}>
+          <div className={styles.editorialHeading}>
+            <div>
+              <h2>Lời giải bài tập</h2>
+              <p className={styles.sectionHint}>Không bắt buộc. Chỉ hiển thị sau khi người học có ít nhất một kết quả chấm cuối cùng.</p>
+            </div>
+            <button
+              className={styles.buttonSecondary}
+              type="button"
+              disabled={saving}
+              onClick={() => update('editorials', [
+                ...draft.editorials,
+                {
+                  title: `Lời giải ${draft.editorials.length + 1}`,
+                  language: draft.languages[0] ?? configuredLanguages[0] ?? 'C++',
+                  sourceCode: '',
+                },
+              ])}
+            >
+              Thêm lời giải
+            </button>
+          </div>
+          {draft.editorials.length === 0 ? (
+            <p className={styles.fieldHint}>Bài tập chưa có lời giải. Bạn có thể thêm một lời giải cho mỗi ngôn ngữ.</p>
+          ) : (
+            <div className={styles.editorialList}>
+              {draft.editorials.map((editorial, index) => {
+                const languageOptions = [...new Set([...configuredLanguages, editorial.language].filter(Boolean))]
+                return (
+                  <article className={styles.editorialCard} key={editorial.id ?? `editorial-${index}`}>
+                    <div className={styles.editorialHeading}>
+                      <h3>Lời giải {index + 1}</h3>
+                      <button
+                        className={styles.buttonSecondary}
+                        type="button"
+                        disabled={saving}
+                        onClick={() => update('editorials', draft.editorials.filter((_, itemIndex) => itemIndex !== index))}
+                      >
+                        Xóa lời giải
+                      </button>
+                    </div>
+                    <div className={styles.editorialFields}>
+                      <div className={styles.field}>
+                        <label htmlFor={`editorial-title-${index}`}>Tiêu đề</label>
+                        <input
+                          id={`editorial-title-${index}`}
+                          maxLength={160}
+                          value={editorial.title}
+                          disabled={saving}
+                          onChange={(event) => updateEditorial(index, 'title', event.target.value)}
+                        />
+                      </div>
+                      <div className={styles.field}>
+                        <label htmlFor={`editorial-language-${index}`}>Ngôn ngữ lập trình</label>
+                        <select
+                          id={`editorial-language-${index}`}
+                          value={editorial.language}
+                          disabled={saving}
+                          onChange={(event) => updateEditorial(index, 'language', event.target.value)}
+                        >
+                          {languageOptions.map((language) => <option key={language} value={language}>{language}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className={styles.field}>
+                      <label>Mã nguồn lời giải</label>
+                      <div className={styles.editorialCodeEditor}>
+                        <Suspense fallback={<div className={styles.editorialEditorLoading} role="status">Đang tải trình soạn thảo…</div>}>
+                          <MonacoEditor
+                            value={editorial.sourceCode}
+                            language={monacoLanguageId(editorial.language)}
+                            revision={editorRevision}
+                            ariaLabel={`Mã nguồn lời giải ${index + 1}`}
+                            onChange={(sourceCode) => updateEditorial(index, 'sourceCode', sourceCode)}
+                            onReady={editorReady}
+                          />
+                        </Suspense>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
         </section>
         {saveError && <p className={styles.formMessage} role="alert">{saveError}</p>}
         <div className={styles.formActions}>

@@ -272,4 +272,53 @@ describe('AdminRepository', () => {
     expect(client.query).toHaveBeenCalledWith('ROLLBACK');
     expect(client.query).not.toHaveBeenCalledWith('COMMIT');
   });
+
+  it('creates and updates editorial items atomically and preserves the submitted IDs', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT scoring_enabled, score::text')) {
+          return { rows: [{ scoring_enabled: false, score: '100.00', test_case_revision: 0 }], rowCount: 1 };
+        }
+        if (sql.startsWith('UPDATE problems')) return { rows: [{ id: 'p1' }], rowCount: 1 };
+        if (sql.includes('UPDATE problem_editorials')) return { rows: [{ id: 'editorial-existing' }], rowCount: 1 };
+        if (sql.includes('INSERT INTO problem_editorials')) return { rows: [{ id: 'editorial-new' }], rowCount: 1 };
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+    const repository = new AdminRepository({ connect: vi.fn().mockResolvedValue(client) } as never);
+    vi.spyOn(repository, 'findProblem').mockResolvedValue({} as never);
+
+    await repository.saveProblem({
+      code: 'uth011',
+      title: 'T',
+      statement: 'S',
+      difficulty: 'easy',
+      tags: [],
+      languages: [],
+      timeLimitSeconds: 1,
+      memoryLimitMb: 256,
+      editorials: [
+        { id: 'editorial-existing', title: 'Updated', language: 'C++17', sourceCode: 'int main() {}' },
+        { title: 'Python', language: 'Python 3', sourceCode: 'print(1)' },
+      ],
+    } as never, 'admin-1', 'p1');
+
+    const updateEditorial = client.query.mock.calls.find(([sql]) => String(sql).includes('UPDATE problem_editorials'));
+    expect(updateEditorial?.[1]).toEqual([
+      'editorial-existing',
+      'p1',
+      'Updated',
+      'C++17',
+      'int main() {}',
+      'admin-1',
+    ]);
+    const insertEditorial = client.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO problem_editorials'));
+    expect(insertEditorial?.[1]).toEqual(['p1', 'admin-1', 'Python', 'Python 3', 'print(1)']);
+    expect(client.query).toHaveBeenCalledWith(
+      'DELETE FROM problem_editorials WHERE problem_id = $1 AND NOT (id = ANY($2::uuid[]))',
+      ['p1', ['editorial-existing', 'editorial-new']],
+    );
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
 });

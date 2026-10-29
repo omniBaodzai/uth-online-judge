@@ -31,7 +31,7 @@ function SubmissionStatsChart({ total, accepted, verdictCounts }: SubmissionStat
     <section className={styles.card} aria-labelledby="stats-title">
       <h2 id="stats-title" className={styles.heading}>Thống kê kết quả chấm</h2>
       <div className={styles.body}>
-        <p className={styles.desc}>Tỷ lệ các kết quả trên tổng số bài nộp</p>
+        <p className={styles.desc}></p>
 
         <div className={styles.chartWrap}>
           <svg

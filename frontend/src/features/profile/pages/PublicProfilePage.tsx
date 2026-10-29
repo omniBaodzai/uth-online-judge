@@ -13,7 +13,7 @@ function PublicProfilePage() {
     userId: id,
   })
 
-  if (loading) return <main className={styles.page} id="main-content" aria-live="polite"><p>Đang tải hồ sơ…</p></main>
+  if (loading) return <main className={styles.page} id="main-content" aria-live="polite"><p></p></main>
   if (error || !result) {
     return (
       <main className={styles.page} id="main-content" role={notFound ? undefined : 'alert'}>

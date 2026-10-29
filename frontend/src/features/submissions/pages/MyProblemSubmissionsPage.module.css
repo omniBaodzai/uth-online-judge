@@ -67,12 +67,12 @@
   gap: 12px;
   padding: 0 16px;
   border-bottom: 1px solid #e3eaea;
-  background: #f1f6f6;
+  background: #008689;
 }
 
 .panelHeading h2 {
   margin: 0;
-  color: var(--color-ink);
+  color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;

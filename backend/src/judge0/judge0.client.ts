@@ -14,7 +14,11 @@ export class Judge0Client {
     private readonly fetchFn: FetchFn = fetch,
   ) {}
 
-  async request(method: 'GET' | 'POST', path: string, body?: unknown): Promise<unknown> {
+  async request(
+    method: 'GET' | 'POST',
+    path: string,
+    body?: unknown,
+  ): Promise<unknown> {
     let response: Response;
     try {
       response = await this.fetchFn(`${this.config.baseUrl}${path}`, {
@@ -24,8 +28,14 @@ export class Judge0Client {
         signal: AbortSignal.timeout(this.config.requestTimeoutMs),
       });
     } catch (error) {
-      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-        throw new Judge0TimeoutError(`Judge0 did not respond within ${this.config.requestTimeoutMs}ms.`, { cause: error });
+      if (
+        error instanceof Error &&
+        (error.name === 'TimeoutError' || error.name === 'AbortError')
+      ) {
+        throw new Judge0TimeoutError(
+          `Judge0 ${method} ${safeEndpoint(path)} did not respond within ${this.config.requestTimeoutMs}ms.`,
+          { cause: error },
+        );
       }
       throw new Judge0UnavailableError('Cannot reach Judge0.', { cause: error });
     }
@@ -36,7 +46,16 @@ export class Judge0Client {
     try {
       return await response.json();
     } catch (error) {
-      throw new Judge0InvalidResponseError('Judge0 returned a non-JSON response.', { cause: error });
+      throw new Judge0InvalidResponseError(
+        'Judge0 returned a non-JSON response.',
+        { cause: error },
+      );
     }
   }
+}
+
+function safeEndpoint(path: string): string {
+  const pathname = path.split('?')[0] ?? path;
+  if (pathname === '/submissions/batch') return pathname;
+  return pathname.replace(/^\/submissions\/[^/]+$/, '/submissions/:token');
 }

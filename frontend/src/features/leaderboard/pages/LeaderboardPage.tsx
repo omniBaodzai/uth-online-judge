@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Crown } from 'lucide-react'
 import { resolveAvatarUrl } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import UserAvatar from '../../profile/components/UserAvatar'
@@ -50,8 +51,8 @@ function LeaderboardPage() {
     <main className={styles.main} id="main-content">
       <div className={styles.grid}>
         <header className={styles.header}>
-          <h1>Bảng xếp hạng</h1>
-          <p>Xếp hạng theo bài AC duy nhất, điểm tích lũy và hiệu suất thực thi.</p>
+          <h1>Bảng xếp hạng những coder chăm chỉ nhất</h1>
+          <p></p>
         </header>
 
         {user && data?.viewerRank ? (
@@ -91,7 +92,7 @@ function LeaderboardPage() {
             <p className={styles.state}>{query ? 'Không tìm thấy coder phù hợp.' : 'Chưa có coder để xếp hạng.'}</p>
           ) : null}
           {!error && pageItems.length > 0 ? (
-            <>
+            <div className={styles.tableScroll} tabIndex={0} aria-label="Danh sách bảng xếp hạng">
               <div className={styles.listHeader} aria-hidden="true">
                 <span>THỨ HẠNG</span>
                 <span>ĐIỂM</span>
@@ -101,9 +102,10 @@ function LeaderboardPage() {
               <ol className={styles.list}>
                 {pageItems.map((entry) => {
                   const isViewer = entry.userId === user?.id
+                  const isTopThree = entry.rank >= 1 && entry.rank <= 3
                   return (
                     <li
-                      className={`${styles.entry} ${entry.rank <= 3 ? styles[`top${entry.rank}`] : ''} ${isViewer ? styles.viewer : ''}`}
+                      className={`${styles.entry} ${isTopThree ? styles[`top${entry.rank}`] : ''} ${isViewer ? styles.viewer : ''}`}
                       key={entry.userId}
                       aria-current={isViewer ? 'true' : undefined}
                     >
@@ -112,7 +114,10 @@ function LeaderboardPage() {
                         to={profilePath(entry.username, entry.userId)}
                         aria-label={`Mở hồ sơ của ${entry.displayName}, hạng ${entry.rank}`}
                       >
-                        <span className={styles.rank} aria-label={`Hạng ${entry.rank}`}>{entry.rank}</span>
+                        <span className={styles.rank} aria-label={`Hạng ${entry.rank}`}>
+                          {entry.rank === 1 ? <Crown className={styles.crown} size={16} aria-hidden="true" /> : null}
+                          <span className={styles.rankNumber}>{entry.rank}</span>
+                        </span>
                         <span className={styles.points}>{entry.cumulativePoints}</span>
                         <span className={styles.coder}>
                           <UserAvatar
@@ -134,7 +139,7 @@ function LeaderboardPage() {
                   )
                 })}
               </ol>
-            </>
+            </div>
           ) : null}
           <div className={styles.footer}>
             <SubmissionPagination {...paginationProps} />

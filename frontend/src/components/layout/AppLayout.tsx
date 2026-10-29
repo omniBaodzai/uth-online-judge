@@ -17,7 +17,7 @@ function AppLayout() {
   return (
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#main-content">
-        Bỏ qua điều hướng, đến nội dung chính
+        
       </a>
       <SiteHeader />
       <BreadcrumbProvider>

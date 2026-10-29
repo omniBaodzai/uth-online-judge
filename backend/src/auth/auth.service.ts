@@ -123,9 +123,9 @@ export class AuthService {
       organization?: string | null;
     },
   ): Promise<PublicUser> {
-    if (!Object.hasOwn(input, 'fullName') && !Object.hasOwn(input, 'avatarUrl') &&
-        !Object.hasOwn(input, 'coverImageUrl') && !Object.hasOwn(input, 'coverCrop') &&
-        !Object.hasOwn(input, 'bio') && !Object.hasOwn(input, 'organization')) {
+    if (input.fullName === undefined && input.avatarUrl === undefined &&
+        input.coverImageUrl === undefined && input.coverCrop === undefined &&
+        input.bio === undefined && input.organization === undefined) {
       throw new BadRequestException('Hãy nhập ít nhất một thông tin cần cập nhật.');
     }
 
@@ -171,7 +171,7 @@ export class AuthService {
     const avatarUrl = await this.avatars.save(file);
     try {
       return await this.updateProfile(userId, {
-        ...(Object.hasOwn(input, 'fullName') ? { fullName: input.fullName } : {}),
+        ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
         avatarUrl,
       });
     } catch (error) {

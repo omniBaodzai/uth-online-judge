@@ -97,12 +97,12 @@ export class UsersService {
       organization?: string | null;
     },
   ): Promise<PublicUser | null> {
-    const updateFullName = Object.hasOwn(input, 'fullName');
-    const updateAvatarUrl = Object.hasOwn(input, 'avatarUrl');
-    const updateCoverImageUrl = Object.hasOwn(input, 'coverImageUrl');
-    const updateCoverCrop = Object.hasOwn(input, 'coverCrop') || updateCoverImageUrl;
-    const updateBio = Object.hasOwn(input, 'bio');
-    const updateOrganization = Object.hasOwn(input, 'organization');
+    const updateFullName = input.fullName !== undefined;
+    const updateAvatarUrl = input.avatarUrl !== undefined;
+    const updateCoverImageUrl = input.coverImageUrl !== undefined;
+    const updateCoverCrop = input.coverCrop !== undefined || updateCoverImageUrl;
+    const updateBio = input.bio !== undefined;
+    const updateOrganization = input.organization !== undefined;
     const result = await this.database.query<PublicUser>(
       `UPDATE users
        SET full_name = CASE WHEN $2 THEN $3 ELSE full_name END,
@@ -118,17 +118,17 @@ export class UsersService {
       [
         id,
         updateFullName,
-        updateFullName ? input.fullName?.trim() || null : null,
+        updateFullName ? input.fullName?.trim() ?? null : null,
         updateAvatarUrl,
-        updateAvatarUrl ? input.avatarUrl?.trim() || null : null,
+        updateAvatarUrl ? input.avatarUrl?.trim() ?? null : null,
         updateCoverImageUrl,
-        updateCoverImageUrl ? input.coverImageUrl?.trim() || null : null,
+        updateCoverImageUrl ? input.coverImageUrl?.trim() ?? null : null,
         updateCoverCrop,
         input.coverCrop ? JSON.stringify(input.coverCrop) : null,
         updateBio,
-        updateBio ? input.bio?.trim() || null : null,
+        updateBio ? input.bio?.trim() ?? null : null,
         updateOrganization,
-        updateOrganization ? input.organization?.trim() || null : null,
+        updateOrganization ? input.organization?.trim() ?? null : null,
       ],
     );
 

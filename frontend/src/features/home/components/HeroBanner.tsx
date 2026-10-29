@@ -21,9 +21,7 @@ function HeroBanner() {
         <div className={styles.actions}>
           <Link className={styles.primaryAction} to="/problems">
             Khám phá bài tập
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M4 10h11m-4-4 4 4-4 4" />
-            </svg>
+            
           </Link>
           <Link className={styles.secondaryAction} to="/contests">
             Tham gia kỳ thi

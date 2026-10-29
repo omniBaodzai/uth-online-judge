@@ -9,6 +9,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -17,6 +18,29 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { AdminTestCaseDto } from './admin-test-case.dto.js';
+
+export class AdminProblemEditorialDto {
+  @ValidateIf((editorial: AdminProblemEditorialDto) => editorial.id !== undefined)
+  @IsUUID('4')
+  id?: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(160)
+  title!: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  language!: string;
+
+  @IsString()
+  @MaxLength(100_000)
+  @Matches(/\S/, { message: 'Mã nguồn lời giải không được để trống.' })
+  sourceCode!: string;
+}
 
 export const PROBLEM_CODE_PATTERN = /^[a-z0-9_]{1,50}$/;
 export const PROBLEM_CODE_MESSAGE =
@@ -107,12 +131,19 @@ export class AdminProblemDto {
   @Min(0)
   testCasesRevision?: number;
 
-  @IsOptional()
+  @ValidateIf((problem: AdminProblemDto) => problem.testCases !== undefined)
   @IsArray()
   @ArrayMaxSize(1000)
   @ValidateNested({ each: true })
   @Type(() => AdminTestCaseDto)
   testCases?: AdminTestCaseDto[];
+
+  @ValidateIf((problem: AdminProblemDto) => problem.editorials !== undefined)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => AdminProblemEditorialDto)
+  editorials?: AdminProblemEditorialDto[];
 }
 
 export class AdminProblemStatusDto {

@@ -119,7 +119,7 @@ function SubmissionsPage() {
           ) : (
             <>
               <h1>Danh sách bài nộp</h1>
-              <p>{profileUserId ? 'Lịch sử bài nộp của coder này.' : 'Theo dõi kết quả chấm và lịch sử nộp bài của các coder.'}</p>
+              <p>{profileUserId ? '' : ''}</p>
             </>
           )}
         </header>

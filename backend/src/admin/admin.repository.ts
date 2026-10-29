@@ -7,6 +7,7 @@ import type { AdminProblemDto } from './dto/admin-problem.dto.js';
 import type { AdminTestCaseDto } from './dto/admin-test-case.dto.js';
 import type {
   AdminProblem,
+  AdminProblemEditorial,
   AdminProblemListQuery,
   AdminProblemPage,
   AdminTestCase,
@@ -42,6 +43,13 @@ type TestCaseRow = {
   points: string | number;
   position: number;
   is_active: boolean;
+};
+
+type EditorialRow = {
+  id: string;
+  title: string;
+  language: string;
+  source_code: string;
 };
 
 const PROBLEM_FIELDS = `
@@ -116,6 +124,13 @@ export class AdminRepository {
        ORDER BY position ASC`,
       [id],
     );
+    const editorials = await this.database.query<EditorialRow>(
+      `SELECT id, title, language, source_code
+       FROM problem_editorials
+       WHERE problem_id = $1
+       ORDER BY created_at ASC, id ASC`,
+      [id],
+    );
     return {
       ...mapProblem(row),
       examples: examples.rows.map((item) => ({
@@ -123,6 +138,7 @@ export class AdminRepository {
         input: item.input_data,
         output: item.expected_output,
       })),
+      editorials: editorials.rows.map(mapEditorial),
     };
   }
 
@@ -190,6 +206,9 @@ export class AdminRepository {
 
       await this.replaceTags(client, savedId, input.tags);
       await this.replaceLanguages(client, savedId, input.languages);
+      if (input.editorials !== undefined) {
+        await this.replaceEditorials(client, savedId, userId, input.editorials);
+      }
       if (input.testCases !== undefined) {
         await this.replaceTestCasesInTransaction(
           client,
@@ -515,6 +534,61 @@ export class AdminRepository {
     }
   }
 
+  private async replaceEditorials(
+    client: PoolClient,
+    problemId: string,
+    authorId: string,
+    editorials: NonNullable<AdminProblemDto['editorials']>,
+  ): Promise<void> {
+    const ids = editorials.flatMap((editorial) => editorial.id ? [editorial.id] : []);
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException('Mỗi lời giải chỉ được xuất hiện một lần.');
+    }
+    const retainedIds = [...ids];
+
+    for (const editorial of editorials) {
+      if (editorial.id) {
+        const updated = await client.query(
+          `UPDATE problem_editorials
+           SET title = $3, language = $4, source_code = $5, author_id = $6,
+               is_published = TRUE, published_at = COALESCE(published_at, CURRENT_TIMESTAMP),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND problem_id = $2
+           RETURNING id`,
+          [
+            editorial.id,
+            problemId,
+            editorial.title.trim(),
+            editorial.language.trim(),
+            editorial.sourceCode,
+            authorId,
+          ],
+        );
+        if (!updated.rowCount) {
+          throw new BadRequestException('Lời giải không thuộc bài tập này.');
+        }
+      } else {
+        const inserted = await client.query<{ id: string }>(
+          `INSERT INTO problem_editorials
+             (problem_id, author_id, title, language, source_code, content_markdown, is_published, published_at)
+             VALUES ($1, $2, $3, $4, $5, '', TRUE, CURRENT_TIMESTAMP)
+             RETURNING id`,
+          [problemId, authorId, editorial.title.trim(), editorial.language.trim(), editorial.sourceCode],
+        );
+        const createdId = inserted.rows[0]?.id;
+        if (!createdId) throw new Error('Editorial insert did not return an id');
+        retainedIds.push(createdId);
+      }
+    }
+
+    await client.query(
+      retainedIds.length
+        ? 'DELETE FROM problem_editorials WHERE problem_id = $1 AND NOT (id = ANY($2::uuid[]))'
+        : 'DELETE FROM problem_editorials WHERE problem_id = $1',
+      retainedIds.length ? [problemId, retainedIds] : [problemId],
+    );
+  }
+
 }
 
 function problemValues(
@@ -558,8 +632,18 @@ function mapProblem(row: ProblemRow): AdminProblem {
     score: Number(row.score),
     testCaseRevision: row.test_case_revision,
     examples: [],
+    editorials: [],
     status: row.status.toLowerCase() as AdminProblem['status'],
     updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+function mapEditorial(row: EditorialRow): AdminProblemEditorial {
+  return {
+    id: row.id,
+    title: row.title,
+    language: row.language,
+    sourceCode: row.source_code,
   };
 }
 

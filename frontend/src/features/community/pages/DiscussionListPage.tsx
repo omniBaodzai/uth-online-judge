@@ -37,7 +37,7 @@ function DiscussionListPage() {
         <header className={styles.header}>
           <div>
             <h1>Thảo luận</h1>
-            <p>Đặt câu hỏi và trao đổi cùng cộng đồng UTH Online Judge.</p>
+            <p></p>
           </div>
           <CreateDiscussionButton className={styles.primaryButton} />
         </header>

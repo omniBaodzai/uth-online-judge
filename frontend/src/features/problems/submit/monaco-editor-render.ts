@@ -3,6 +3,7 @@ export type MonacoEditorRenderProps<Editor> = {
   revision: number
   onChange: (value: string) => void
   onReady: (editor: Editor | null) => void
+  ariaLabel?: string
 }
 
 export function areMonacoEditorRenderPropsEqual<Editor>(
@@ -13,6 +14,7 @@ export function areMonacoEditorRenderPropsEqual<Editor>(
     previous.language === next.language &&
     previous.revision === next.revision &&
     previous.onChange === next.onChange &&
-    previous.onReady === next.onReady
+    previous.onReady === next.onReady &&
+    previous.ariaLabel === next.ariaLabel
   )
 }

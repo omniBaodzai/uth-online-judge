@@ -271,6 +271,18 @@ describe('Judge0Service', () => {
       build(vi.fn().mockRejectedValue(timeout)).checkHealth(),
     ).rejects.toBeInstanceOf(Judge0TimeoutError);
     await expect(
+      build(vi.fn().mockRejectedValue(timeout)).createSubmissionBatch([
+        {
+          languageId: 54,
+          sourceCode: 'int main(){}',
+          stdin: '',
+          expectedOutput: '',
+          cpuTimeLimitSeconds: 1,
+          memoryLimitKb: 128000,
+        },
+      ]),
+    ).rejects.toThrow('POST /submissions/batch');
+    await expect(
       build(vi.fn().mockResolvedValue(new Response('<html>'))).checkHealth(),
     ).rejects.toBeInstanceOf(Judge0InvalidResponseError);
   });
@@ -556,15 +568,20 @@ describe('loadJudge0Config', () => {
   it('uses defaults and accepts positive integer overrides', () => {
     const defaults = loadJudge0Config({ JUDGE0_API_URL: 'http://h' });
     expect(defaults).toMatchObject({
-      requestTimeoutMs: 10000,
+      requestTimeoutMs: 30000,
       pollIntervalMs: 100,
       maxPollAttempts: 30,
     });
     const custom = loadJudge0Config({
       JUDGE0_API_URL: 'http://h',
+      JUDGE0_REQUEST_TIMEOUT_MS: '45000',
       JUDGE0_MAX_POLL_ATTEMPTS: '5',
       JUDGE0_POLL_INTERVAL_MS: '-1',
     });
-    expect(custom).toMatchObject({ maxPollAttempts: 5, pollIntervalMs: 100 });
+    expect(custom).toMatchObject({
+      requestTimeoutMs: 45000,
+      maxPollAttempts: 5,
+      pollIntervalMs: 100,
+    });
   });
 });

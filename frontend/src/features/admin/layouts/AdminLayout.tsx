@@ -25,7 +25,7 @@ function AdminLayout() {
 
   return (
     <div className={styles.adminShell}>
-      <a className={styles.skipLink} href="#admin-main">Bỏ qua điều hướng</a>
+      <a className={styles.skipLink} href="#admin-main"></a>
       {sidebarOpen && <button className={styles.mobileScrim} aria-label="Đóng menu" onClick={() => setSidebarOpen(false)} />}
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`} aria-label="Điều hướng quản trị">
         <Link className={styles.brand} to="/admin" onClick={() => setSidebarOpen(false)}>

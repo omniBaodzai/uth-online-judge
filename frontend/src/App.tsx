@@ -5,6 +5,7 @@ import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
 import ProblemsPage from './features/problems/pages/ProblemsPage'
 import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
 import SubmitSolutionPage from './features/problems/pages/SubmitSolutionPage'
+import ProblemSolutionPage from './features/problems/pages/ProblemSolutionPage'
 import { RequireAuth } from './features/auth/components/RequireAuth'
 import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
 import SubmissionDetailsPage from './features/submissions/pages/SubmissionDetailsPage'
@@ -78,7 +79,10 @@ function App() {
             element={<RequireAuth><MyProblemSubmissionsPage /></RequireAuth>}
           />
           <Route path="problems/:code/submissions/best" element={<PlaceholderPage title="Bài nộp tốt nhất" />} />
-          <Route path="problems/:code/solution" element={<PlaceholderPage title="Lời giải bài tập" />} />
+          <Route
+            path="problems/:code/solution"
+            element={<RequireAuth><ProblemSolutionPage /></RequireAuth>}
+          />
           <Route path="contests" element={<PlaceholderPage title="Cuộc thi" />} />
           <Route
             path="submissions/:submissionId"

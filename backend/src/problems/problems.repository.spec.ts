@@ -125,4 +125,30 @@ describe('ProblemsRepository', () => {
     expect(sql).not.toContain('email');
     expect(values).toEqual([null, 'NOPE']);
   });
+
+  it('requires an owned finalized submission and excludes every queued judging status', async () => {
+    database.query.mockResolvedValueOnce({ rows: [{ eligible: true }] });
+
+    await expect(repository.hasFinalizedSubmission('problem-1', 'user-1')).resolves.toBe(true);
+
+    const [sql, values] = database.query.mock.calls[0];
+    expect(sql).toContain("status NOT IN ('PENDING', 'QUEUED', 'RUNNING', 'PROCESSING')");
+    expect(sql).not.toContain('ACCEPTED');
+    expect(values).toEqual(['problem-1', 'user-1']);
+  });
+
+  it('selects only published solution source and maps each language independently', async () => {
+    database.query.mockResolvedValueOnce({
+      rows: [{ id: 'editorial-1', title: 'Python', language: 'Python', source_code: 'print(1)' }],
+    });
+
+    await expect(repository.findPublishedEditorials('problem-1')).resolves.toEqual([
+      { id: 'editorial-1', title: 'Python', language: 'Python', sourceCode: 'print(1)' },
+    ]);
+
+    const [sql, values] = database.query.mock.calls[0];
+    expect(sql).toContain('source_code');
+    expect(sql).toContain('is_published = TRUE');
+    expect(values).toEqual(['problem-1']);
+  });
 });

@@ -78,7 +78,7 @@ function ProblemStatement({ problem, className = '' }: ProblemStatementProps) {
       </section>
       {problem.input.length > 0 && (
         <section>
-          <h2>Đầu vào (Input)</h2>
+          <h2>Đầu vào</h2>
           {problem.input.map((text, i) => (
             <p key={i}>{text}</p>
           ))}
@@ -86,7 +86,7 @@ function ProblemStatement({ problem, className = '' }: ProblemStatementProps) {
       )}
       {problem.constraints.length > 0 && (
         <section>
-          <h2>Giới hạn (Constraints)</h2>
+          <h2>Giới hạn</h2>
           <ul className={styles.constraints}>
             {problem.constraints.map((text, i) => (
               <li key={i}><code>{text}</code></li>
@@ -96,7 +96,7 @@ function ProblemStatement({ problem, className = '' }: ProblemStatementProps) {
       )}
       {problem.output.length > 0 && (
         <section>
-          <h2>Đầu ra (Output)</h2>
+          <h2>Đầu ra</h2>
           {problem.output.map((text, i) => (
             <p key={i}>{text}</p>
           ))}

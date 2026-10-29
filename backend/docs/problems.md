@@ -7,11 +7,14 @@ Uses tables from `sql/migrations/002_problems_and_judging.sql` and the problem-l
 | `GET /problems` (page, pageSize≤50, search, tags, status, sort, order) | optional | problems, problem_tags, tags, submissions |
 | `GET /problems/tags` | none | tags |
 | `GET /problems/:code` | optional | problems, problem_test_cases (samples only), programming_languages, problem_editorials (flag only) |
+| `GET /problems/:code/solution` | JWT + owned finalized submission | published problem_editorials |
 | `POST /submissions` `{problemCode, language, sourceCode}` | JWT | submissions, submission_test_case_snapshots |
 | `GET /submissions/:id` | JWT, owner only | submissions |
 
-Only PUBLISHED problems are returned. Admin endpoints require an authenticated ADMIN role; hidden tests and editorial content are never exposed.
+Only PUBLISHED problems are returned. The solution endpoint uses the user ID from the JWT and permits access after any submission reaches a final verdict; `PENDING`, `QUEUED`, and `RUNNING` do not qualify. Admin endpoints require an authenticated ADMIN role. Public problem/list APIs expose only the `hasSolution` flag, never editorial source code.
 Submissions are stored and queued for asynchronous judging. Apply `006_submission_judging.sql` and `007_optional_problem_scoring.sql` before starting the judging-enabled backend with optional scoring.
+
+Admins manage editorial solutions as the optional `editorials` collection in `POST /admin/problems` and `PATCH /admin/problems/:id`. Each item has an optional existing `id`, `title`, `language`, and `sourceCode`; saving the collection creates/updates the supplied items and removes omitted items in the same transaction as the problem. `GET /admin/problems/:id` includes the collection. All these routes use the shared JWT and ADMIN role guards.
 
 ## Problem scoring
 
@@ -45,7 +48,7 @@ Requires at least one registered user. Creates UTH001 (published) and UTH900 (dr
 
 ## Limitations
 
-- Solution page is still a placeholder; comments have no table (shown as unavailable).
+- Comments have no table (shown as unavailable).
 - `SubmissionsPage` still uses mock data.
 - No rate limit on submissions.
 - Problems without enabled language associations or active test cases cannot accept submissions.

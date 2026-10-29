@@ -36,7 +36,7 @@ function NewsListPage() {
         <header className={styles.header}>
           <div>
             <h1>Tin tức</h1>
-            <p>Thông báo và bài viết chính thức từ ban quản trị UTH Online Judge.</p>
+            <p></p>
           </div>
         </header>
 

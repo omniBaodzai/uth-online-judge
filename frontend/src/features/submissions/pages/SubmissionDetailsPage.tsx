@@ -233,16 +233,16 @@ function SubmissionDetailsContent() {
       <div className={styles.page}>
         <header className={styles.header}>
           <div className={styles.headerText}>
-            <p className={styles.eyebrow}>CHI TIẾT BÀI NỘP</p>
+            
             <h1>Bài nộp của {submission.username || 'bạn'}</h1>
             <p className={styles.problemCode}>
               Cho bài <Link to={`/problems/${encodeURIComponent(submission.problemCode)}`}>{submission.problemCode} — {submission.problemTitle}</Link>
             </p>
-            <div className={styles.submissionMeta}>
+            {/* <div className={styles.submissionMeta}>
               <span>{formatDate(submission.submittedAt)}</span>
               <span>{submission.language}</span>
               <code>{submission.id}</code>
-            </div>
+            </div> */}
           </div>
           <span className={`${styles.verdictBadge} ${STATUS_CLASSES[submission.status] ?? styles.internalError}`} role="status" aria-live="polite">
             {active && <span className={styles.statusDot} aria-hidden="true" />}
@@ -288,7 +288,7 @@ function SubmissionDetailsContent() {
           <div className={styles.sectionHeading}>
             <div>
               <h2 id="test-results-heading">Kết quả từng test</h2>
-              <p>{completedTests} / {submission.testResults.length} test đã chấm · Không hiển thị dữ liệu test.</p>
+              <p></p>
             </div>
             {active && <span className={styles.liveLabel}>Đang cập nhật tự động</span>}
           </div>
@@ -332,7 +332,7 @@ function SubmissionDetailsContent() {
           <div className={styles.sectionHeading}>
             <div>
               <h2 id="source-heading">Xem mã nguồn</h2>
-              <p>Chỉ đọc · {submission.language}</p>
+          
             </div>
             <div className={styles.sourceActions}>
               <button type="button" className={styles.secondaryButton} onClick={() => void copySource()}>

@@ -28,7 +28,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   return (
     <main aria-live="polite" className="auth-route-status">
-      {isLoading ? 'Đang kiểm tra phiên đăng nhập…' : 'Đang chuyển đến trang đăng nhập…'}
+      {isLoading ? '' : 'Đang chuyển đến trang đăng nhập…'}
     </main>
   )
 }

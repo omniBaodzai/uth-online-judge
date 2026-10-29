@@ -7,6 +7,13 @@ export type AdminProblemExample = {
   output: string;
 };
 
+export type AdminProblemEditorial = {
+  id: string;
+  title: string;
+  language: string;
+  sourceCode: string;
+};
+
 export type AdminProblem = {
   id: string;
   code: string;
@@ -25,6 +32,7 @@ export type AdminProblem = {
   score: number;
   testCaseRevision: number;
   examples: AdminProblemExample[];
+  editorials: AdminProblemEditorial[];
   status: AdminProblemStatus;
   updatedAt: string;
 };

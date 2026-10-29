@@ -1,6 +1,7 @@
 import { Judge0ConfigError } from './judge0.errors.js';
 
 export const JUDGE0_CONFIG = 'JUDGE0_CONFIG';
+export const DEFAULT_JUDGE0_REQUEST_TIMEOUT_MS = 30_000;
 
 export interface Judge0Config {
   baseUrl: string;
@@ -28,7 +29,10 @@ export function loadJudge0Config(env: NodeJS.ProcessEnv = process.env): Judge0Co
   }
   return {
     baseUrl: raw.replace(/\/+$/, ''),
-    requestTimeoutMs: positiveInt(env.JUDGE0_REQUEST_TIMEOUT_MS, 10_000),
+    requestTimeoutMs: positiveInt(
+      env.JUDGE0_REQUEST_TIMEOUT_MS,
+      DEFAULT_JUDGE0_REQUEST_TIMEOUT_MS,
+    ),
     pollIntervalMs: positiveInt(env.JUDGE0_POLL_INTERVAL_MS, 100),
     maxPollAttempts: positiveInt(env.JUDGE0_MAX_POLL_ATTEMPTS, 30),
   };

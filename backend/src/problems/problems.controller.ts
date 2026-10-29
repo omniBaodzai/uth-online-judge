@@ -1,11 +1,13 @@
 import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import { ListProblemsQueryDto } from './dto/list-problems-query.dto.js';
 import { ProblemsService } from './problems.service.js';
 
 type MaybeAuthenticatedRequest = Request & { user?: { id: string } | null };
+type AuthenticatedRequest = Request & { user: { id: string } };
 
 @ApiTags('Problems')
 @Controller('problems')
@@ -33,5 +35,14 @@ export class ProblemsController {
   @ApiOkResponse({ description: 'Chi tiết bài tập (không gồm test case ẩn)' })
   detail(@Param('code') code: string, @Req() request: MaybeAuthenticatedRequest) {
     return this.problems.getByCode(code, request.user?.id ?? null);
+  }
+
+  @Get(':code/solution')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Xem lời giải sau khi đã có ít nhất một kết quả chấm cuối cùng' })
+  @ApiOkResponse({ description: 'Thông tin bài tập và các lời giải đã xuất bản' })
+  editorial(@Param('code') code: string, @Req() request: AuthenticatedRequest) {
+    return this.problems.getEditorial(code, request.user.id);
   }
 }

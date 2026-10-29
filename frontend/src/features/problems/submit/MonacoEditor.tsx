@@ -11,13 +11,14 @@ type MonacoEditorProps = {
   revision: number
   onChange: (value: string) => void
   onReady: (editor: CodeEditor | null) => void
+  ariaLabel?: string
 }
 
-function MonacoEditorView({ value, language, revision, onChange, onReady }: MonacoEditorProps) {
+function MonacoEditorView({ value, language, revision, onChange, onReady, ariaLabel }: MonacoEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<CodeEditor | null>(null)
   const onChangeRef = useRef(onChange)
-  const initial = useRef({ value, language, onReady })
+  const initial = useRef({ value, language, onReady, ariaLabel })
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -38,7 +39,7 @@ function MonacoEditorView({ value, language, revision, onChange, onReady }: Mona
       scrollBeyondLastLine: false,
       renderLineHighlight: 'line',
       padding: { top: 12, bottom: 12 },
-      ariaLabel: 'Trình soạn thảo mã nguồn',
+      ariaLabel: initial.current.ariaLabel ?? 'Trình soạn thảo mã nguồn',
     })
     editorRef.current = editor
     const subscription = editor.onDidChangeModelContent(() => onChangeRef.current(editor.getValue()))
@@ -58,7 +59,7 @@ function MonacoEditorView({ value, language, revision, onChange, onReady }: Mona
     if (!editor || !model) return
     if (model.getLanguageId() !== language) monaco.editor.setModelLanguage(model, language)
     if (editor.getValue() !== value) editor.setValue(value)
-  }, [language, revision])
+  }, [language, revision, value])
 
   return <div ref={containerRef} className={styles.monaco} />
 }

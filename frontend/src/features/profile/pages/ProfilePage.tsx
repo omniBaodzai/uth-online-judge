@@ -16,7 +16,7 @@ function ProfilePage() {
   return (
     <div className={styles.page}>
       <RequireAuth>
-        {loading ? <p className={styles.feedback} aria-live="polite">Đang tải hồ sơ…</p> : null}
+        {loading ? <p className={styles.feedback} aria-live="polite"></p> : null}
         {error ? <p className={styles.feedback} role="alert">{error}</p> : null}
         {profile && user ? (
           <ProfileExperience

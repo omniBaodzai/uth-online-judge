@@ -8,6 +8,17 @@ export type ProblemExample = {
   output: string
 }
 
+export type AdminProblemEditorial = {
+  id: string
+  title: string
+  language: string
+  sourceCode: string
+}
+
+export type AdminProblemEditorialDraft = Omit<AdminProblemEditorial, 'id'> & {
+  id?: string
+}
+
 export type AdminProblem = {
   id: string
   code: string
@@ -26,6 +37,7 @@ export type AdminProblem = {
   score: number
   testCaseRevision: number
   examples: ProblemExample[]
+  editorials: AdminProblemEditorial[]
   status: AdminProblemStatus
   updatedAt: string
 }
@@ -74,9 +86,10 @@ export type AdminDashboard = {
   recent: AdminProblem[]
 }
 
-export type ProblemDraft = Omit<AdminProblem, 'id' | 'updatedAt' | 'examples' | 'testCaseRevision'> & {
+export type ProblemDraft = Omit<AdminProblem, 'id' | 'updatedAt' | 'examples' | 'testCaseRevision' | 'editorials'> & {
   testCases: AdminTestCaseDraft[]
   testCaseRevision: number
+  editorials: AdminProblemEditorialDraft[]
 }
 
 export type AdminUserRole = 'STUDENT' | 'ADMIN'

@@ -17,6 +17,7 @@ import UserAvatar from '../components/UserAvatar'
 import { AVATAR_ACCEPTED_TYPES, AVATAR_MAX_BYTES, isSupportedAvatarUrl } from '../avatar-constants'
 import { toProfileViewModel } from '../api'
 import type { ProfileViewModel } from '../api'
+import { buildProfileUpdate } from '../profile-edit'
 import { usePublicProfile } from '../usePublicProfile'
 import styles from './ProfilePage.module.css'
 
@@ -32,7 +33,7 @@ function ProfileEditPage() {
   return (
     <RequireAuth>
       <main className={styles.main} id="main-content">
-        {loading ? <p className={styles.status} aria-live="polite">Đang tải hồ sơ…</p> : null}
+        {loading ? <p className={styles.status} aria-live="polite"></p> : null}
         {error ? <p className={styles.feedback} role="alert">{error}</p> : null}
         {profile && user ? (
           <ProfileEditForm
@@ -64,7 +65,10 @@ function ProfileEditForm({
   onUploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
 }) {
   const navigate = useNavigate()
-  const [fullName, setFullName] = useState(profile.displayName)
+  const initialFullName = user.full_name ?? ''
+  const initialBio = profile.bio
+  const initialOrganization = profile.organization
+  const [fullName, setFullName] = useState(initialFullName)
   const [bio, setBio] = useState(profile.bio)
   const [organization, setOrganization] = useState(profile.organization)
   const [avatarUrl, setAvatarUrl] = useState(() => resolveAvatarUrl(profile.avatarUrl))
@@ -175,11 +179,15 @@ function ProfileEditForm({
     setSuccess('')
     setIsSaving(true)
     try {
-      await onSave({
-        fullName: fullName.trim() || null,
-        bio: bio.trim() || null,
-        organization: organization.trim() || null,
-      })
+      const update = buildProfileUpdate(
+        {
+          fullName: initialFullName,
+          bio: initialBio,
+          organization: initialOrganization,
+        },
+        { fullName, bio, organization },
+      )
+      if (Object.keys(update).length > 0) await onSave(update)
       if (stagedAvatar) {
         try {
           const savedUser = await onUploadAvatar(stagedAvatar, null)
@@ -207,9 +215,6 @@ function ProfileEditForm({
   return (
     <section className={styles.editPage} aria-labelledby="profile-edit-title">
       <header className={styles.editHeading}>
-        <p className={styles.eyebrow}>Cài đặt tài khoản</p>
-        <h1 id="profile-edit-title">Chỉnh sửa hồ sơ</h1>
-        <p>Cập nhật thông tin hiển thị công khai của bạn.</p>
       </header>
 
       <div className={styles.editLayout}>
@@ -266,7 +271,6 @@ function ProfileEditForm({
                       if (event.key === 'Enter') event.preventDefault()
                     }}
                   />
-                  <p className={styles.avatarHint}>Máy chủ ảnh cần cho phép CORS để trình chỉnh sửa có thể xử lý ảnh an toàn.</p>
                   <button
                     className={styles.primaryButton}
                     type="button"
@@ -312,7 +316,6 @@ function ProfileEditForm({
               <div><dt>Username</dt><dd>@{profile.username}</dd></div>
               <div><dt>Email</dt><dd>{user.email}</dd></div>
             </dl>
-            <p className={styles.avatarHint}>Username và email chỉ đọc, không thể chỉnh sửa tại đây.</p>
           </section>
         </aside>
 

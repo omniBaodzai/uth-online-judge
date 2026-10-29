@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ProblemsRepository } from './problems.repository.js';
+import type { EditorialSolution } from './problems.repository.js';
 import type {
   ProblemDetail,
   ProblemListQuery,
@@ -24,6 +25,24 @@ export class ProblemsService {
 
   listTags(): Promise<TagSummary[]> {
     return this.repository.listTags();
+  }
+
+  async getEditorial(code: string, userId: string): Promise<{
+    problem: { code: string; title: string };
+    editorials: EditorialSolution[];
+  }> {
+    const problem = await this.repository.findPublishedProblemForEditorial(code);
+    if (!problem) throw new NotFoundException('Không tìm thấy bài tập.');
+
+    const eligible = await this.repository.hasFinalizedSubmission(problem.id, userId);
+    if (!eligible) {
+      throw new ForbiddenException('Bạn cần nộp bài và nhận kết quả chấm ít nhất một lần để mở khóa lời giải');
+    }
+
+    return {
+      problem: { code: problem.code, title: problem.title },
+      editorials: await this.repository.findPublishedEditorials(problem.id),
+    };
   }
 
   async getByCode(code: string, userId: string | null): Promise<ProblemDetail> {

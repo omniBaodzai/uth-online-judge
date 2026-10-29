@@ -57,9 +57,7 @@ function ProblemDetailPage() {
           <section className={styles.panel} aria-labelledby="actions-title">
             <h2 id="actions-title" className={styles.sideTitle}>Thao tác</h2>
             <Link className={styles.submit} to={submitPath} data-authenticated={Boolean(user)}>
-              <Icon>
-                <path d="m5 12 4 4 10-10" />
-              </Icon>
+              
               Gửi bài giải
             </Link>
             <ul className={styles.actions}>

@@ -19,4 +19,5 @@ test('rerenders Monaco for a language change, explicit reset, or handler change'
   assert.equal(areMonacoEditorRenderPropsEqual(props, { ...props, language: 'java' }), false)
   assert.equal(areMonacoEditorRenderPropsEqual(props, { ...props, revision: 1 }), false)
   assert.equal(areMonacoEditorRenderPropsEqual(props, { ...props, onChange: () => undefined }), false)
+  assert.equal(areMonacoEditorRenderPropsEqual(props, { ...props, ariaLabel: 'Solution code' }), false)
 })

@@ -13,6 +13,13 @@ import type {
   UserProblemStatus,
 } from './problems.types.js';
 
+export type EditorialSolution = {
+  id: string;
+  title: string;
+  language: string;
+  sourceCode: string;
+};
+
 // Chỉ các giá trị trong bảng này được ghép vào ORDER BY; dữ liệu người dùng không bao giờ vào SQL.
 const SORT_SQL: Record<ProblemSortField, string> = {
   code: 'problem_code',
@@ -186,6 +193,53 @@ export class ProblemsRepository {
       'SELECT name, slug FROM tags ORDER BY name',
     );
     return result.rows;
+  }
+
+  async findPublishedProblemForEditorial(
+    code: string,
+  ): Promise<{ id: string; code: string; title: string } | null> {
+    const result = await this.database.query<{ id: string; code: string; title: string }>(
+      `SELECT id, problem_code AS code, title
+       FROM problems
+       WHERE problem_code = $1 AND status = 'PUBLISHED'`,
+      [code],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async hasFinalizedSubmission(problemId: string, userId: string): Promise<boolean> {
+    const result = await this.database.query<{ eligible: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM submissions
+         WHERE problem_id = $1 AND user_id = $2
+           AND status NOT IN ('PENDING', 'QUEUED', 'RUNNING', 'PROCESSING')
+       ) AS eligible`,
+      [problemId, userId],
+    );
+    return result.rows[0]?.eligible ?? false;
+  }
+
+  async findPublishedEditorials(problemId: string): Promise<EditorialSolution[]> {
+    const result = await this.database.query<{
+      id: string;
+      title: string;
+      language: string;
+      source_code: string;
+    }>(
+      `SELECT id, title, language,
+              COALESCE(NULLIF(source_code, ''), content_markdown) AS source_code
+       FROM problem_editorials
+       WHERE problem_id = $1 AND is_published = TRUE
+       ORDER BY created_at ASC, id ASC`,
+      [problemId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      language: row.language,
+      sourceCode: row.source_code,
+    }));
   }
 
   async findPublishedByCode(

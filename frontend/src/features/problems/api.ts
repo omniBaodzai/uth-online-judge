@@ -60,6 +60,16 @@ export type ProblemDetailResponse = {
   languages: { slug: string; name: string; version: string | null }[]
 }
 
+export type ProblemEditorialResponse = {
+  problem: { code: string; title: string }
+  editorials: {
+    id: string
+    title: string
+    language: string
+    sourceCode: string
+  }[]
+}
+
 export function buildListQuery(params: ProblemListParams): string {
   const search = new URLSearchParams()
   if (params.page) search.set('page', String(params.page))
@@ -83,4 +93,8 @@ export function fetchTags(fetcher: Fetcher) {
 
 export function fetchProblemDetail(fetcher: Fetcher, code: string) {
   return fetcher<ProblemDetailResponse>(`/problems/${encodeURIComponent(code)}`)
+}
+
+export function fetchProblemEditorial(fetcher: Fetcher, code: string) {
+  return fetcher<ProblemEditorialResponse>(`/problems/${encodeURIComponent(code)}/solution`)
 }

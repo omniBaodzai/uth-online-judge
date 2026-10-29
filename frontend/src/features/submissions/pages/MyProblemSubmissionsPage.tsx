@@ -322,7 +322,7 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
                 <h2 id="stats-title">THỐNG KÊ KẾT QUẢ CHẤM</h2>
               </div>
               <div className={styles.statsBody} aria-busy={loading}>
-                <p className={styles.statsSubtitle}>Tỷ lệ các kết quả trên tổng số bài nộp</p>
+                <p className={styles.statsSubtitle}></p>
                 <div
                   className={styles.donutChart}
                   role="img"

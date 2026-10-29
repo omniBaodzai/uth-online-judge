@@ -134,4 +134,36 @@ describe('Admin DTOs', () => {
     const errors = await validate(invalid);
     expect(errors.map((error) => error.property)).toContain('expectedOutput');
   });
+
+  it('validates optional multiple editorial entries and their source code', async () => {
+    const valid = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      editorials: [
+        { title: 'C++', language: 'C++17', sourceCode: '#include <iostream>' },
+        { title: 'Python', language: 'Python 3', sourceCode: 'print(1)' },
+      ],
+    });
+    await expect(validate(valid, { whitelist: true, forbidNonWhitelisted: true })).resolves.toHaveLength(0);
+
+    const invalid = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      editorials: [{ title: ' ', language: 'C++', sourceCode: '  ' }],
+    });
+    const errors = await validate(invalid);
+    expect(errors[0]?.property).toBe('editorials');
+    expect(errors[0]?.children?.[0]?.children?.map((error) => error.property)).toEqual(
+      expect.arrayContaining(['title', 'sourceCode']),
+    );
+  });
+
+  it('allows an empty editorial collection when a problem has no solutions', async () => {
+    const problem = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      editorials: [],
+    });
+    await expect(validate(problem, { whitelist: true, forbidNonWhitelisted: true })).resolves.toHaveLength(0);
+  });
 });

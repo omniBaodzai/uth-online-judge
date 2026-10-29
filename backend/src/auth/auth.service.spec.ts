@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { AuthSessionRepository } from './auth-session.repository.js';
 import { AvatarStorageService } from './avatar-storage.service.js';
 import { AuthService, hashRefreshToken } from './auth.service.js';
+import { ProfileUpdateDto } from './dto/profile-update.dto.js';
 import { UsersService, type PublicUser, type UserRecord } from '../users/users.service.js';
 
 vi.mock('bcrypt', () => ({
@@ -193,6 +194,9 @@ describe('AuthService', () => {
     await expect(service.updateProfile(user.id, {})).rejects.toBeInstanceOf(
       BadRequestException,
     );
+    await expect(service.updateProfile(user.id, new ProfileUpdateDto())).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     expect(users.updateProfile).not.toHaveBeenCalled();
   });
 
@@ -243,6 +247,19 @@ describe('AuthService', () => {
       fullName: 'Student Name',
       avatarUrl: stored,
     });
+  });
+
+  it('does not clear the full name when avatar upload DTO leaves it undefined', async () => {
+    const stored = '/uploads/avatars/new.webp';
+    avatars.save.mockResolvedValue(stored);
+    users.findById.mockResolvedValue(publicUser(user));
+    users.updateProfile.mockResolvedValue({ ...publicUser(user), avatar_url: stored });
+    const input = new ProfileUpdateDto();
+    expect(Object.hasOwn(input, 'fullName')).toBe(true);
+
+    await service.uploadAvatar(user.id, Buffer.from('image'), input);
+
+    expect(users.updateProfile).toHaveBeenCalledWith(user.id, { avatarUrl: stored });
   });
 
   it('deletes the stored file when the profile update fails', async () => {
