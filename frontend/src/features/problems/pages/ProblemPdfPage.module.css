@@ -1,0 +1,179 @@
+.main {
+  flex: 1;
+  padding: clamp(124px, 12vw, 136px) 0 clamp(42px, 6vw, 76px);
+  background: #f3f7f7;
+}
+
+.toolbar {
+  display: flex;
+  width: min(210mm, calc(100% - 32px));
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 auto 16px;
+  padding: 10px 14px;
+  border: 1px solid #dbe5e5;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-primary);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: rgba(0, 134, 137, 0.08);
+}
+
+.primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.primary:hover {
+  background: var(--color-primary-dark);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+/* Bản xem trước khổ A4 (210mm) với lề 1.5cm. */
+.paper {
+  box-sizing: border-box;
+  width: min(210mm, calc(100% - 32px));
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 15mm;
+  background: #fff;
+  box-shadow: 0 6px 24px rgba(15, 40, 40, 0.14);
+  color: #000;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+}
+
+.paper h1 {
+  margin: 0 0 4px;
+  font-size: 18pt;
+}
+
+.paper h2 {
+  margin: 18px 0 6px;
+  font-size: 13pt;
+}
+
+.paper h3 {
+  margin: 10px 0 6px;
+  font-size: 12pt;
+}
+
+.paper p {
+  margin: 0 0 8px;
+}
+
+.paper ul {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.paper code,
+.paper pre {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.header {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #000;
+}
+
+.limits {
+  margin: 0;
+  font-size: 11pt;
+}
+
+.example {
+  break-inside: avoid;
+}
+
+.exampleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.exampleGrid pre {
+  min-height: 2.5em;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: 11pt;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .paper {
+    padding: 20px;
+  }
+
+  .exampleGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 1.5cm;
+}
+
+@media print {
+  /* Chỉ giữ lại tài liệu: ẩn mọi phần tử của AppLayout (header, breadcrumb, footer, nút nổi) không chứa trang này. */
+  :global(body.problem-pdf-print) {
+    background: #fff;
+  }
+
+  :global(body.problem-pdf-print #root > div > *:not(:has(#problem-pdf-document))) {
+    display: none !important;
+  }
+
+  .main {
+    padding: 0;
+    background: #fff;
+  }
+
+  .toolbar {
+    display: none;
+  }
+
+  .paper {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .exampleGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

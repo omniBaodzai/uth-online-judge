@@ -1,0 +1,47 @@
+.shell {
+  position: relative;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+}
+
+.breadcrumbSlot {
+  position: absolute;
+  z-index: 2;
+  top: 82px;
+  left: 50%;
+  width: min(1240px, calc(100% - 64px));
+  transform: translateX(-50%);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 1001;
+  top: 12px;
+  left: 12px;
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+@media (max-width: 600px) {
+  .breadcrumbSlot {
+    top: 78px;
+    width: calc(100% - 40px);
+  }
+}

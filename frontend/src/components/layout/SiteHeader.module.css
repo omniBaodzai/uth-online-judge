@@ -1,0 +1,645 @@
+.header {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: grid;
+  width: min(1240px, calc(100% - 48px));
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  min-height: 2cqh;
+  align-items: center;
+  column-gap: clamp(8px, 1.2vw, 18px);
+  margin: 16px auto 0;
+  padding: 4px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 8px 24px rgba(4, 34, 42, 0.14);
+  animation: header-enter 480ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.brand {
+  display: flex;
+  width: 154px;
+  min-width: 0;
+  justify-self: start;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 7px;
+}
+
+.brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.menuPanel {
+  display: contents;
+  min-width: 0;
+}
+
+.navigation {
+  min-width: 0;
+  justify-self: center;
+}
+
+.navigationList {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0px, 0.25vw, 4px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navigationLink {
+  position: relative;
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 clamp(6px, 0.55vw, 9px);
+  border-radius: 999px;
+  color: #174b4e;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.navigationLink::after {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  left: 12px;
+  height: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  border-radius: 2px;
+  background: #008689;
+  content: '';
+  transition: transform 200ms ease;
+}
+
+.navigationLink:hover,
+.navigationLink:focus-visible {
+  background: #eaf7f6;
+  color: #006d70;
+}
+
+.navigationLink:hover::after,
+.navigationLink:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.navigationLink:active {
+  transform: scale(0.97);
+}
+
+.accountActions {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 9px;
+}
+
+.accountMenu {
+  position: relative;
+}
+
+.accountSkeleton {
+  display: flex;
+  gap: 9px;
+}
+
+.accountSkeleton span {
+  display: block;
+  width: 88px;
+  height: 38px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e3efee 25%, #f3f9f8 50%, #e3efee 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.accountButton {
+  display: inline-flex;
+  min-height: 42px;
+  max-width: 290px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid rgba(0, 134, 137, 0.25);
+  border-radius: 999px;
+  background: #f5fbfa;
+  color: #174b4e;
+  cursor: pointer;
+  font: inherit;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.accountButton:hover,
+.accountButton[aria-expanded='true'] {
+  border-color: #008689;
+  background: #eaf7f6;
+}
+
+.accountChevron {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  margin: -3px 3px 0 2px;
+  border-right: 2px solid #006d70;
+  border-bottom: 2px solid #006d70;
+  font-size: 0;
+  transform: rotate(45deg);
+  transition: transform 180ms ease, margin 180ms ease;
+}
+
+.accountButton[aria-expanded='true'] .accountChevron {
+  margin-top: 3px;
+  transform: rotate(-135deg);
+}
+
+.accountDropdown {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: max-content;
+  min-width: 210px;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid rgba(0, 134, 137, 0.16);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(4, 28, 35, 0.16);
+  animation: dropdown-enter 140ms ease-out both;
+}
+
+.accountDropdown a,
+.accountDropdown button {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #174b4e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.accountDropdown a:hover,
+.accountDropdown button:hover {
+  background: #eaf7f6;
+  color: #006d70;
+}
+
+.accountDropdown button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.userGreeting {
+  max-width: 205px;
+  overflow: hidden;
+  color: #174b4e;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionStatus {
+  color: #526d6e;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.logoutError {
+  margin: 0;
+  color: #a52f2f;
+  font-size: 12px;
+}
+
+.logoutSuccess {
+  position: absolute;
+  z-index: 1100;
+  top: calc(100% + 10px);
+  right: 18px;
+  display: flex;
+  min-width: min(320px, calc(100vw - 32px));
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 14px 15px;
+  border: 1px solid #b8dfca;
+  border-radius: 12px;
+  background: #f2fbf5;
+  box-shadow: 0 12px 32px rgba(16, 67, 43, 0.16);
+  color: #174b32;
+  overflow: hidden;
+  animation:
+    success-toast-enter 200ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    success-toast-exit 300ms ease-in 4700ms forwards;
+}
+
+.logoutSuccess::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  transform: scaleX(1);
+  transform-origin: left;
+  background: #27965e;
+  content: '';
+  animation: success-toast-progress 5s linear both;
+}
+
+.successIcon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #d7f1e1;
+  color: #17653e;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.logoutSuccess > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.logoutSuccess strong {
+  font-size: 14px;
+}
+
+.logoutSuccess > span:nth-child(2) > span {
+  color: #456b56;
+  font-size: 13px;
+}
+
+.logoutSuccess button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-left: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #456b56;
+  cursor: pointer;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.logoutSuccess button:hover {
+  background: #e1f3e8;
+}
+
+@keyframes success-toast-enter {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes success-toast-exit {
+  to {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+@keyframes success-toast-progress {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.registerLink,
+.loginLink {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid #008689;
+  border-radius: 999px;
+  color: #006d70;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.loginLink {
+  cursor: pointer;
+}
+
+.registerLink {
+  background: #008689;
+  color: #fff;
+}
+
+.registerLink:hover {
+  transform: translateY(-2px);
+  background: #006f72;
+  box-shadow: 0 7px 16px rgba(0, 105, 108, 0.2);
+}
+
+.loginLink {
+  background: #fff;
+}
+
+.loginLink:hover {
+  transform: translateY(-2px);
+  background: #eaf7f6;
+}
+
+.loginLink:disabled {
+  transform: none;
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.registerLink:active,
+.loginLink:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.menuToggle {
+  display: none;
+}
+
+@keyframes dropdown-enter {
+  from {
+    transform: translateY(-3px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes header-enter {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1160px) {
+  .header {
+    width: min(100% - 48px, 1040px);
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 64px;
+    justify-content: space-between;
+    padding: 4px 14px;
+  }
+
+  .brand {
+    width: 148px;
+  }
+
+  .menuToggle {
+    display: inline-flex;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid rgba(0, 134, 137, 0.28);
+    border-radius: 12px;
+    background: #f2f9f8;
+    color: #006d70;
+    cursor: pointer;
+    transition: background-color 180ms ease;
+  }
+
+  .menuToggle:hover {
+    background: #e4f3f2;
+  }
+
+  .menuToggle span {
+    width: 19px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    transition:
+      transform 180ms ease,
+      opacity 180ms ease;
+  }
+
+  .menuToggle[aria-expanded='true'] span:first-child {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .menuToggle[aria-expanded='true'] span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .menuToggle[aria-expanded='true'] span:last-child {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  .menuPanel {
+    position: absolute;
+    top: calc(100% - 3px);
+    right: 0;
+    left: 0;
+    display: none;
+    flex: initial;
+    align-items: stretch;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid rgba(0, 134, 137, 0.16);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 42px rgba(4, 28, 35, 0.16);
+  }
+
+  .menuPanelOpen {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .navigationList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 0;
+  }
+
+  .navigationLink {
+    width: 100%;
+    min-height: 46px;
+    justify-content: flex-start;
+    padding-inline: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #174b4e;
+  }
+
+  .navigationLink::after {
+    right: auto;
+    bottom: 5px;
+    left: 12px;
+    width: 34px;
+  }
+
+  .accountActions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 134, 137, 0.16);
+  }
+
+  .accountMenu {
+    width: 100%;
+  }
+
+  .accountButton {
+    width: 100%;
+    max-width: none;
+    justify-content: space-between;
+  }
+
+  .accountDropdown {
+    position: static;
+    width: 100%;
+    margin-top: 5px;
+    box-shadow: none;
+  }
+
+  .accountSkeleton {
+    width: 100%;
+  }
+
+  .accountSkeleton span {
+    flex: 1 1 0;
+    height: 46px;
+  }
+
+  .registerLink,
+  .loginLink {
+    flex: 1 1 0;
+    min-height: 46px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  .header {
+    width: calc(100% - 36px);
+    min-height: 60px;
+    margin-top: 12px;
+    padding: 4px 12px;
+    border-radius: 14px;
+  }
+
+  .brand {
+    width: 138px;
+    flex-basis: 138px;
+    padding: 5px;
+  }
+
+  .menuToggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .menuPanel {
+    top: calc(100% - 1px);
+    padding: 10px;
+  }
+
+  .navigationList {
+    grid-template-columns: 1fr;
+  }
+
+  .logoutSuccess {
+    top: calc(100% + 8px);
+    right: 0;
+    left: 0;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    animation: none;
+  }
+
+  .navigationLink,
+  .navigationLink::after,
+  .registerLink,
+  .loginLink,
+  .menuToggle,
+  .menuToggle span {
+    transition: none;
+  }
+
+  .accountSkeleton span,
+  .accountButton,
+  .accountDropdown,
+  .logoutSuccess {
+    animation: none;
+    transition: none;
+  }
+
+  .logoutSuccess::after {
+    animation: none;
+  }
+}

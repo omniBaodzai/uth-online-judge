@@ -1,0 +1,74 @@
+:root {
+  font-family:
+    Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #183337;
+  background: #f3f7f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --color-primary: #008689;
+  --color-primary-dark: #006d70;
+  --color-ink: #183337;
+  --color-muted: #64777a;
+  --color-surface: #fff;
+  --color-page: #f3f7f7;
+  --color-border: #e4ecec;
+  --shadow-card: 0 12px 32px rgba(24, 51, 55, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+body,
+button,
+a {
+  font-family: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+::selection {
+  color: #fff;
+  background: var(--color-primary);
+}
+
+:focus-visible {
+  outline: 3px solid #f4c96b;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

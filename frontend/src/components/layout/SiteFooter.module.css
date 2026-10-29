@@ -1,0 +1,136 @@
+.footer {
+  background: #008689;
+  color: #e6f0ef;
+}
+
+.footerInner {
+  display: grid;
+  width: min(1240px, calc(100% - 64px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(24px, 3vw, 48px);
+  margin-inline: auto;
+  padding: 52px 0 44px;
+}
+
+.brandColumn {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.brandColumn h2,
+.footerColumn h2 {
+  margin: 0 0 16px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.brand {
+  display: inline-flex;
+  width: 178px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.brandColumn p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.descriptionList {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.footerColumn {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.footerColumn h2 {
+  margin-bottom: 2px;
+}
+
+.footerColumn a,
+.footerColumn span {
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.footerColumn a:hover,
+.footerColumn a:focus-visible {
+  color: #a7f0e4;
+}
+
+.brand:focus-visible,
+.footerColumn a:focus-visible {
+  outline: 2px solid #b9f1e9;
+  outline-offset: 4px;
+}
+
+.footerBottom {
+  width: min(1240px, calc(100% - 64px));
+  margin-inline: auto;
+  padding: 18px 0 20px;
+  border-top: 1px solid rgba(230, 240, 239, 0.28);
+  color: rgba(255, 255, 255, 0.78);
+  text-align: center;
+  font-size: 13px;
+}
+
+.footerBottom p {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .footerInner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .footerInner,
+  .footerBottom {
+    width: calc(100% - 40px);
+  }
+
+  .footerInner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding: 38px 0 30px;
+  }
+
+  .brandColumn {
+    max-width: 420px;
+  }
+
+  .brand {
+    width: 160px;
+  }
+
+  .footerBottom {
+    padding-block: 15px 18px;
+  }
+}

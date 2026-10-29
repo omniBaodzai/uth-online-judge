@@ -1,0 +1,52 @@
+.scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.months {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 4px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.months span {
+  white-space: nowrap;
+}
+
+.grid {
+  display: flex;
+  width: max-content;
+  gap: 3px;
+}
+
+.week {
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+}
+
+.cell,
+.empty {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+.l0 { background: #ebf2f2; }
+.l1 { background: #b7e4c7; }
+.l2 { background: #74c69d; }
+.l3 { background: #2d9b78; }
+.l4 { background: #006f66; }
+
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 10px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
