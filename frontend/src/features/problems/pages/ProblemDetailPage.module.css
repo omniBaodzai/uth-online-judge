@@ -399,7 +399,8 @@
   list-style: none;
 }
 
-.actions a {
+.actions a,
+.actions button {
   display: flex;
   min-height: 40px;
   align-items: center;
@@ -407,13 +408,23 @@
   padding: 0 10px;
   border-radius: 8px;
   color: #2d4549;
+  cursor: pointer;
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
   transition: background-color 160ms ease, color 160ms ease;
 }
 
-.actions a:hover {
+.actions button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+}
+
+.actions a:hover,
+.actions button:hover {
   background: #f1f8f7;
   color: var(--color-primary-dark);
 }

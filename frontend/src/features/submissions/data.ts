@@ -3,6 +3,7 @@ import { formatMemoryMiB } from './submission-metrics'
 
 export type Submission = {
   id: string
+  rank?: number
   status: string
   submittedAt: string
   username: string | null

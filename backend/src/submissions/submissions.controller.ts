@@ -17,7 +17,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
 import { GlobalSubmissionsQueryDto } from './dto/global-submissions.dto.js';
-import { ProblemSubmissionsParamsDto, ProblemSubmissionsQueryDto } from './dto/problem-submissions.dto.js';
+import {
+  BestSubmissionsQueryDto,
+  ProblemSubmissionsParamsDto,
+  ProblemSubmissionsQueryDto,
+} from './dto/problem-submissions.dto.js';
 import { SubmissionsService } from './submissions.service.js';
 
 type AuthenticatedRequest = Request & { user: { id: string } };
@@ -56,6 +60,15 @@ export class SubmissionsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.submissions.getProblemSubmissions(request.user.id, params.problemCode, query);
+  }
+
+  @Get('best/:problemCode')
+  @ApiOperation({ summary: 'Bảng xếp hạng bài nộp Accepted tốt nhất theo ngôn ngữ (không có mã nguồn)' })
+  getBestForProblem(
+    @Param() params: ProblemSubmissionsParamsDto,
+    @Query() query: BestSubmissionsQueryDto,
+  ) {
+    return this.submissions.getBestSubmissions(params.problemCode, query);
   }
 
   @Get(':id')

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import ReportModal from '../components/ReportModal'
 import ProblemStatement from '../components/ProblemStatement'
+import ProblemPrintView from '../components/ProblemPrintView'
 import ProblemStateMessage from '../components/ProblemStateMessage'
 import { useProblemDetail } from '../useProblemDetail'
 import styles from './ProblemDetailPage.module.css'
@@ -62,12 +63,12 @@ function ProblemDetailPage() {
             </Link>
             <ul className={styles.actions}>
               <li>
-                <a href={`${base}/pdf`} target="_blank" rel="noreferrer">
+                <button type="button" onClick={() => window.print()}>
                   <Icon>
                     <path d="M7 3h7l5 5v13H7zM14 3v5h5M10 14h6M10 17h4" />
                   </Icon>
                   Xem dạng PDF
-                </a>
+                </button>
               </li>
               <li>
                 <Link to={`${base}/submissions/me`}>
@@ -87,7 +88,7 @@ function ProblemDetailPage() {
                 </Link>
               </li>
               <li>
-                <Link to={`${base}/submissions/best`}>
+                <Link to={`${base}/best-submissions`}>
                   <Icon>
                     <path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v2a3 3 0 0 0 3 3M16 6h4v2a3 3 0 0 1-3 3M12 13v4M8 20h8" />
                   </Icon>
@@ -165,6 +166,7 @@ function ProblemDetailPage() {
       </div>
 
       {reportOpen && <ReportModal onClose={() => setReportOpen(false)} />}
+      <ProblemPrintView problem={problem} />
     </main>
   )
 }

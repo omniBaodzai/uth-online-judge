@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Crown } from 'lucide-react'
 import { formatExecutionTime, formatMemory, getVerdictBadge, type Submission } from '../data'
 import styles from './SubmissionTable.module.css'
 
@@ -6,6 +7,9 @@ type SubmissionTableProps = {
   items: Submission[]
   isLoading?: boolean
   hasFilters: boolean
+  showRank?: boolean
+  emptyTitle?: string
+  emptyDescription?: string
   // Trang theo từng bài tập đã nêu tên bài ở tiêu đề nên không lặp lại cột này.
   hideProblem?: boolean
 }
@@ -13,7 +17,15 @@ type SubmissionTableProps = {
 const dateFormat = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
 const timeFormat = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
-function SubmissionTable({ items, isLoading = false, hasFilters, hideProblem = false }: SubmissionTableProps) {
+function SubmissionTable({
+  items,
+  isLoading = false,
+  hasFilters,
+  hideProblem = false,
+  showRank = false,
+  emptyTitle,
+  emptyDescription,
+}: SubmissionTableProps) {
   if (isLoading) {
     return (
       <ul className={styles.skeletons} aria-label="Đang tải dữ liệu" aria-busy="true">
@@ -27,8 +39,8 @@ function SubmissionTable({ items, isLoading = false, hasFilters, hideProblem = f
   if (items.length === 0) {
     return (
       <div className={styles.empty}>
-        <strong>{hasFilters ? 'Không tìm thấy bài nộp phù hợp' : 'Chưa có bài nộp nào'}</strong>
-        <p>{hasFilters ? 'Hãy thử đổi từ khóa hoặc đặt lại bộ lọc.' : 'Các bài nộp mới sẽ xuất hiện tại đây.'}</p>
+        <strong>{emptyTitle ?? (hasFilters ? 'Không tìm thấy bài nộp phù hợp' : 'Chưa có bài nộp nào')}</strong>
+        <p>{emptyDescription ?? (hasFilters ? 'Hãy thử đổi từ khóa hoặc đặt lại bộ lọc.' : 'Các bài nộp mới sẽ xuất hiện tại đây.')}</p>
       </div>
     )
   }
@@ -38,6 +50,7 @@ function SubmissionTable({ items, isLoading = false, hasFilters, hideProblem = f
       <table className={styles.table}>
         <thead>
           <tr>
+            {showRank && <th scope="col">Thứ hạng</th>}
             <th scope="col">Kết quả</th>
             <th scope="col">Thời gian nộp</th>
             <th scope="col">Coder</th>
@@ -55,6 +68,12 @@ function SubmissionTable({ items, isLoading = false, hasFilters, hideProblem = f
             const badgeStyle = { color: meta.color, background: meta.background }
             return (
               <tr key={item.id}>
+                {showRank && (
+                  <td className={styles.rank}>
+                    {item.rank === 1 && <Crown size={16} aria-hidden="true" />}
+                    <span>{item.rank ?? '—'}</span>
+                  </td>
+                )}
                 <td>
                   {/* Chỉ chủ bài nộp mới xem được chi tiết, nên người khác chỉ thấy nhãn kết quả. */}
                   {item.canViewDetails ? (

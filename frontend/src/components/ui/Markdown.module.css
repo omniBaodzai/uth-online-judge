@@ -68,6 +68,12 @@
   font-size: 0.9em;
 }
 
+.math {
+  font-family: "Cambria Math", "Times New Roman", serif;
+  font-style: italic;
+  white-space: normal;
+}
+
 .markdown pre {
   overflow-x: auto;
   padding: 14px 16px;

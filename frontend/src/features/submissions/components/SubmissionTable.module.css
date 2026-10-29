@@ -9,6 +9,19 @@
   font-size: 14px;
 }
 
+.rank {
+  color: #435d60;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.rank svg {
+  margin-right: 5px;
+  color: #d29b19;
+  vertical-align: -3px;
+}
+
 .table th {
   padding: 13px 14px;
   border-bottom: 1px solid #d5e2e2;

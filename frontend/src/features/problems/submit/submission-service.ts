@@ -113,6 +113,22 @@ export type GlobalSubmissionFilters = {
   userId?: string
 }
 
+export type BestSubmissionPage = {
+  problem: { code: string; title: string }
+  language: string | null
+  languages: string[]
+  items: Array<GlobalSubmissionItem & { rank: number }>
+  total: number
+  page: number
+  pageSize: number
+  statistics: {
+    total: number
+    accepted: number
+    acceptanceRate: number
+    verdictCounts: Record<string, number>
+  }
+}
+
 type RequestFn = <T>(path: string, init?: RequestInit) => Promise<T>
 
 // Gửi bài lên backend để xếp hàng chấm bất đồng bộ.
@@ -150,6 +166,25 @@ export function getGlobalSubmissions(
   if (filters.userId) query.set('userId', filters.userId)
 
   return request<GlobalSubmissionPage>(`/submissions?${query.toString()}`, { signal })
+}
+
+export function getBestSubmissions(
+  request: RequestFn,
+  problemCode: string,
+  filters: { page: number; pageSize: number; q?: string; language?: string },
+  signal?: AbortSignal,
+): Promise<BestSubmissionPage> {
+  const query = new URLSearchParams({
+    page: String(filters.page),
+    pageSize: String(filters.pageSize),
+  })
+  if (filters.q) query.set('q', filters.q)
+  if (filters.language) query.set('language', filters.language)
+
+  return request<BestSubmissionPage>(
+    `/submissions/best/${encodeURIComponent(problemCode)}?${query.toString()}`,
+    { signal },
+  )
 }
 
 export function getMyProblemSubmissions(

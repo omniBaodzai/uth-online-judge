@@ -1,0 +1,252 @@
+.printDocument {
+  display: none;
+  color: #111;
+  background: #fff;
+  font-family: Arial, "Segoe UI", sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+}
+
+.header {
+  padding-bottom: 12pt;
+  border-bottom: 1px solid #aeb8b8;
+}
+
+.code {
+  margin: 0 0 4pt;
+  color: #333;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 9pt;
+  letter-spacing: 0.06em;
+}
+
+.header h1 {
+  margin: 0 0 12pt;
+  color: #111;
+  font-size: 23pt;
+  line-height: 1.2;
+}
+
+.limits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8pt 28pt;
+  margin: 0;
+}
+
+.limits > div {
+  display: flex;
+  gap: 5pt;
+}
+
+.limits dt {
+  font-weight: 700;
+}
+
+.limits dd {
+  margin: 0;
+}
+
+.section {
+  margin-top: 15pt;
+}
+
+.section > h2 {
+  margin: 0 0 6pt;
+  padding-bottom: 3pt;
+  border-bottom: 1px solid #d5dddd;
+  color: #111;
+  font-size: 13pt;
+  line-height: 1.35;
+}
+
+.section > div {
+  margin: 0 0 7pt;
+}
+
+.section p {
+  margin: 0 0 7pt;
+  color: #111;
+}
+
+.section h3,
+.section h4 {
+  color: #111;
+}
+
+.constraints {
+  margin: 0;
+  padding-left: 19pt;
+}
+
+.constraints li {
+  margin: 0 0 3pt;
+}
+
+.example {
+  margin: 8pt 0 12pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.example h3 {
+  margin: 0 0 5pt;
+  font-size: 10.5pt;
+}
+
+.exampleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10pt;
+}
+
+.examplePart {
+  min-width: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.examplePart h4 {
+  margin: 0;
+  padding: 4pt 7pt;
+  border: 1px solid #cbd4d4;
+  background: #f0f3f3;
+  font-size: 8.5pt;
+  text-transform: uppercase;
+}
+
+.examplePart pre {
+  min-height: 28pt;
+  margin: 0;
+  padding: 7pt;
+  overflow-wrap: anywhere;
+  border: 1px solid #cbd4d4;
+  border-top: 0;
+  background: #fff;
+  color: #111;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 9pt;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: normal;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+@page {
+  size: A4;
+  margin: 17mm 17mm 18mm;
+}
+
+@media print {
+  :global(html),
+  :global(body) {
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  :global(body > :not(.print-document)) {
+    display: none !important;
+  }
+
+  .printDocument {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #111 !important;
+    background: #fff !important;
+    font-family: Arial, "Segoe UI", sans-serif !important;
+    font-size: 10.5pt !important;
+    line-height: 1.55 !important;
+    visibility: visible !important;
+  }
+
+  .printDocument *,
+  .printDocument *::before,
+  .printDocument *::after {
+    visibility: visible !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .printDocument h1,
+  .printDocument h2,
+  .printDocument h3,
+  .printDocument h4 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  .printDocument .markdown,
+  .printDocument .markdown h2,
+  .printDocument .markdown h3,
+  .printDocument .markdown h4,
+  .printDocument .markdown p,
+  .printDocument .markdown li {
+    color: #111 !important;
+  }
+
+  .printDocument .markdown {
+    font-size: 10.5pt !important;
+    line-height: 1.55 !important;
+  }
+
+  .printDocument .markdown pre,
+  .printDocument .markdown pre code {
+    color: #111 !important;
+    background: #f2f4f4 !important;
+    font-family: Consolas, "Courier New", monospace !important;
+    font-size: 9pt !important;
+  }
+
+  .printDocument .markdown pre {
+    max-width: 100% !important;
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .printDocument .markdown blockquote {
+    border-left-color: #777 !important;
+    background: #f7f7f7 !important;
+    color: #111 !important;
+  }
+
+  .printDocument pre,
+  .printDocument blockquote,
+  .printDocument li,
+  .printDocument table,
+  .printDocument .example,
+  .printDocument .exampleGrid {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  .printDocument pre,
+  .printDocument code {
+    color: #111 !important;
+    background: #f2f4f4 !important;
+    font-family: Consolas, "Courier New", monospace !important;
+    font-size: 9pt !important;
+  }
+
+  .printDocument pre {
+    max-width: 100% !important;
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .printDocument a {
+    color: #111 !important;
+    text-decoration: underline;
+  }
+}

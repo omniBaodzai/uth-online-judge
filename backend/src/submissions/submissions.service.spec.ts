@@ -4,6 +4,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
 import {
+  BestSubmissionsQueryDto,
   ProblemSubmissionsParamsDto,
   ProblemSubmissionsQueryDto,
 } from './dto/problem-submissions.dto.js';
@@ -19,6 +20,7 @@ describe('SubmissionsService', () => {
     markQueued: vi.fn(),
     findOwned: vi.fn(),
     findProblemSubmissions: vi.fn(),
+    findBestSubmissions: vi.fn(),
   };
   const queue = { add: vi.fn() };
   const service = new SubmissionsService(repository as never, queue as never);
@@ -177,6 +179,40 @@ describe('SubmissionsService', () => {
         page: 1,
         pageSize: 10,
       }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('returns the per-language best-submission board for a published problem', async () => {
+    const result = { problem: { code: 'UTH001', title: 'Tổng hai số' }, items: [] };
+    repository.findBestSubmissions.mockResolvedValue(result);
+
+    await expect(
+      service.getBestSubmissions('UTH001', {
+        page: 2,
+        pageSize: 20,
+        language: 'C++',
+        q: 'coder',
+      }),
+    ).resolves.toBe(result);
+    expect(repository.findBestSubmissions).toHaveBeenCalledWith(
+      'UTH001',
+      'C++',
+      { page: 2, pageSize: 20, language: 'C++', q: 'coder' },
+    );
+    await service.getBestSubmissions('UTH001', {
+      page: 1,
+      pageSize: 10,
+      language: 'Python',
+    });
+    expect(repository.findBestSubmissions).toHaveBeenLastCalledWith(
+      'UTH001',
+      'Python',
+      { page: 1, pageSize: 10, language: 'Python' },
+    );
+
+    repository.findBestSubmissions.mockResolvedValue(null);
+    await expect(
+      service.getBestSubmissions('MISSING', { page: 1, pageSize: 10 }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
@@ -436,6 +472,112 @@ describe('SubmissionsRepository', () => {
     expect(statisticsSql).toContain('counted.user_id = $2');
     expect(statisticsSql).not.toContain('LIMIT');
     expect(statisticsSql).not.toContain('status = $3');
+  });
+
+  it('ranks one best Accepted submission per coder before search and pagination', async () => {
+    database.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 'problem-1', problem_code: 'UTH001', title: 'Tổng hai số' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ name: 'C++' }, { name: 'Python' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          items: [{
+            id: 'submission-1',
+            rank: 1,
+            status: 'ACCEPTED',
+            submitted_at: '2026-01-01T00:00:00.000Z',
+            username: 'alice',
+            problem_code: 'UTH001',
+            problem_title: 'Tổng hai số',
+            language: 'C++',
+            execution_time_ms: 10,
+            memory_used_kb: 128,
+          }],
+          total: 1,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ status: 'ACCEPTED', count: 4 }, { status: 'WRONG_ANSWER', count: 2 }],
+      });
+
+    const result = await repository.findBestSubmissions('UTH001', 'C++', {
+      page: 2,
+      pageSize: 10,
+      q: 'alice',
+    });
+
+    expect(result).toMatchObject({
+      problem: { code: 'UTH001', title: 'Tổng hai số' },
+      language: 'C++',
+      languages: ['C++', 'Python'],
+      items: [{
+        id: 'submission-1',
+        rank: 1,
+        status: 'ACCEPTED',
+        username: 'alice',
+        canViewDetails: false,
+      }],
+      total: 1,
+      statistics: {
+        total: 6,
+        accepted: 4,
+        verdictCounts: { ACCEPTED: 4, WRONG_ANSWER: 2 },
+      },
+    });
+
+    const rankingSql = database.query.mock.calls[2][0] as string;
+    expect(rankingSql).toContain("s.status = 'ACCEPTED'");
+    expect(rankingSql).toContain('DISTINCT ON (user_id)');
+    expect(rankingSql).toContain('ROW_NUMBER() OVER');
+    expect(rankingSql).toContain(
+      'execution_time_ms ASC NULLS LAST,',
+    );
+    expect(rankingSql).toContain(
+      'memory_used_kb ASC NULLS LAST, submitted_at ASC, id ASC',
+    );
+    expect(rankingSql.indexOf('ROW_NUMBER() OVER')).toBeLessThan(
+      rankingSql.indexOf('username ILIKE $3'),
+    );
+    expect(rankingSql).not.toContain('source_code');
+    expect(database.query.mock.calls[2][1]).toEqual([
+      'problem-1',
+      'C++',
+      '%alice%',
+      10,
+      10,
+    ]);
+    expect(database.query.mock.calls[3][1]).toEqual([
+      'problem-1',
+      'C++',
+      '%alice%',
+    ]);
+  });
+
+  it('does not create an all-language ranking before the user selects a language', async () => {
+    database.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 'problem-1', problem_code: 'UTH001', title: 'Tổng hai số' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ name: 'C++' }] })
+      .mockResolvedValueOnce({ rows: [{ items: [], total: 0 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await repository.findBestSubmissions('UTH001', undefined, {
+      page: 1,
+      pageSize: 10,
+    });
+
+    expect(result).toMatchObject({ language: null, languages: ['C++'], items: [], total: 0 });
+    const rankingSql = database.query.mock.calls[2][0] as string;
+    expect(rankingSql).toContain('AND $2::text IS NOT NULL AND l.name = $2');
+    expect(database.query.mock.calls[2][1]).toEqual([
+      'problem-1',
+      null,
+      null,
+      10,
+      0,
+    ]);
   });
 
   it('does not expose scores for submissions from an unscored problem', async () => {
@@ -779,6 +921,29 @@ describe('CreateSubmissionDto', () => {
           )
         ).length,
       ).toBeGreaterThan(0);
+    });
+
+    describe('BestSubmissionsQueryDto', () => {
+      const errors = (raw: Record<string, unknown>) =>
+        validate(plainToInstance(BestSubmissionsQueryDto, raw), {
+          whitelist: true,
+          forbidNonWhitelisted: true,
+        });
+
+      it('accepts a bounded query and language', async () => {
+        expect(
+          await errors({ page: '2', pageSize: '20', q: 'alice', language: 'C++' }),
+        ).toHaveLength(0);
+      });
+
+      it.each([
+        [{ page: '0' }],
+        [{ pageSize: '51' }],
+        [{ q: 'x'.repeat(101) }],
+        [{ language: 'C++ ; drop' }],
+      ])('rejects invalid search, language, or pagination %j', async (value) => {
+        expect((await errors(value)).length).toBeGreaterThan(0);
+      });
     });
   });
 

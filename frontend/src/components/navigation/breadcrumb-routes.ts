@@ -36,6 +36,7 @@ const routes: RouteDefinition[] = [
   { pattern: '/problems/:code/submit', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Gửi bài giải' }] },
   { pattern: '/problems/:code/submissions/me', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Bài nộp của tôi' }] },
   { pattern: '/problems/:code/submissions/best', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Bài nộp tốt nhất' }] },
+  { pattern: '/problems/:code/best-submissions', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Bài nộp tốt nhất' }] },
   { pattern: '/problems/:code/submissions', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Danh sách bài nộp' }] },
   { pattern: '/problems/:code/solution', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Lời giải bài tập' }] },
   { pattern: '/problems/:code/pdf', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Đề bài dạng PDF' }] },

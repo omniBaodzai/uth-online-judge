@@ -8,13 +8,14 @@ type SubmissionStatsChartProps = {
   total: number
   accepted: number
   verdictCounts: Record<string, number>
+  subtitle?: string
 }
 
 const RADIUS = 52
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 // Biểu đồ vành khuyên bằng SVG, không cần thêm thư viện biểu đồ.
-function SubmissionStatsChart({ total, accepted, verdictCounts }: SubmissionStatsChartProps) {
+function SubmissionStatsChart({ total, accepted, verdictCounts, subtitle }: SubmissionStatsChartProps) {
   const acRate = total === 0 ? 0 : (accepted / total) * 100
   const legend = getSubmissionVerdictLegend(verdictCounts, total)
 
@@ -31,7 +32,7 @@ function SubmissionStatsChart({ total, accepted, verdictCounts }: SubmissionStat
     <section className={styles.card} aria-labelledby="stats-title">
       <h2 id="stats-title" className={styles.heading}>Thống kê kết quả chấm</h2>
       <div className={styles.body}>
-        <p className={styles.desc}></p>
+        {subtitle && <p className={styles.desc}>{subtitle}</p>}
 
         <div className={styles.chartWrap}>
           <svg

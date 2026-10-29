@@ -16,6 +16,7 @@ import {
 import type { GlobalSubmissionPage, GlobalSubmissionQuery } from './global-submissions.js';
 import {
   SubmissionsRepository,
+  type BestSubmissionPage,
   type CreatedSubmission,
   type ProblemSubmissionPage,
   type SubmissionView,
@@ -108,6 +109,19 @@ export class SubmissionsService {
       query.pageSize,
       query.status,
       query.language,
+    );
+    if (!submissions) throw new NotFoundException('Không tìm thấy bài tập.');
+    return submissions;
+  }
+
+  async getBestSubmissions(
+    problemCode: string,
+    query: { page: number; pageSize: number; q?: string; language?: string },
+  ): Promise<BestSubmissionPage> {
+    const submissions = await this.repository.findBestSubmissions(
+      problemCode,
+      query.language,
+      query,
     );
     if (!submissions) throw new NotFoundException('Không tìm thấy bài tập.');
     return submissions;

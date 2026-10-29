@@ -10,6 +10,7 @@ import { RequireAuth } from './features/auth/components/RequireAuth'
 import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
 import SubmissionDetailsPage from './features/submissions/pages/SubmissionDetailsPage'
 import MyProblemSubmissionsPage from './features/submissions/pages/MyProblemSubmissionsPage'
+import BestSubmissionsPage from './features/submissions/pages/BestSubmissionsPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
 import ProfileEditPage from './features/profile/pages/ProfileEditPage'
 import PublicProfilePage from './features/profile/pages/PublicProfilePage'
@@ -74,11 +75,12 @@ function App() {
           />
           <Route path="problems/:code/pdf" element={<PlaceholderPage title="Đề bài dạng PDF" />} />
           <Route path="problems/:code/submissions" element={<SubmissionsPage />} />
+          <Route path="problems/:code/best-submissions" element={<BestSubmissionsPage />} />
           <Route
             path="problems/:code/submissions/me"
             element={<RequireAuth><MyProblemSubmissionsPage /></RequireAuth>}
           />
-          <Route path="problems/:code/submissions/best" element={<PlaceholderPage title="Bài nộp tốt nhất" />} />
+          <Route path="problems/:code/submissions/best" element={<BestSubmissionsPage />} />
           <Route
             path="problems/:code/solution"
             element={<RequireAuth><ProblemSolutionPage /></RequireAuth>}

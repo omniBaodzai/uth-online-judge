@@ -80,6 +80,36 @@ export interface ProblemSubmissionPage {
   statistics: ProblemSubmissionStatistics;
 }
 
+export interface BestSubmissionItem {
+  id: string;
+  rank: number;
+  status: 'ACCEPTED';
+  submittedAt: string;
+  username: string | null;
+  problemCode: string;
+  problemTitle: string;
+  language: string;
+  executionTimeMs: number | null;
+  memoryUsedKb: number | null;
+  canViewDetails: false;
+}
+
+export interface BestSubmissionPage {
+  problem: { code: string; title: string };
+  language: string | null;
+  languages: string[];
+  items: BestSubmissionItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  statistics: {
+    total: number;
+    accepted: number;
+    acceptanceRate: number;
+    verdictCounts: Record<string, number>;
+  };
+}
+
 interface GlobalSubmissionRow {
   id: string;
   status: string;
@@ -601,6 +631,146 @@ export class SubmissionsRepository {
         ),
         languages: statistics.languages,
       },
+    };
+  }
+
+  async findBestSubmissions(
+    problemCode: string,
+    language: string | undefined,
+    query: { page: number; pageSize: number; q?: string },
+  ): Promise<BestSubmissionPage | null> {
+    const problemResult = await this.database.query<{
+      problem_code: string;
+      title: string;
+      id: string;
+    }>(
+      `SELECT id, problem_code, title
+       FROM problems
+       WHERE UPPER(problem_code) = UPPER($1) AND status = 'PUBLISHED'`,
+      [problemCode],
+    );
+    const problem = problemResult.rows[0];
+    if (!problem) return null;
+
+    const search = query.q
+      ? `%${escapeLikePattern(query.q)}%`
+      : null;
+    const offset = (query.page - 1) * query.pageSize;
+    const [languagesResult, listResult, statisticsResult] = await Promise.all([
+      this.database.query<{ name: string }>(
+        `SELECT DISTINCT l.name
+         FROM submissions s
+         JOIN programming_languages l ON l.id = s.language_id
+         WHERE s.problem_id = $1 AND s.status = 'ACCEPTED'
+         ORDER BY l.name`,
+        [problem.id],
+      ),
+      this.database.query<{
+        items: Array<{
+          id: string;
+          rank: number;
+          status: 'ACCEPTED';
+          submitted_at: string;
+          username: string | null;
+          problem_code: string;
+          problem_title: string;
+          language: string;
+          execution_time_ms: number | null;
+          memory_used_kb: number | null;
+        }>;
+        total: number;
+      }>(
+        `WITH accepted AS (
+           SELECT s.id, s.user_id, s.submitted_at, s.execution_time_ms,
+                  s.memory_used_kb, u.username, p.problem_code,
+                  p.title AS problem_title, l.name AS language
+           FROM submissions s
+           JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+           JOIN users u ON u.id = s.user_id
+           JOIN programming_languages l ON l.id = s.language_id
+           WHERE s.problem_id = $1 AND s.status = 'ACCEPTED'
+             AND $2::text IS NOT NULL AND l.name = $2
+         ),
+         best_per_coder AS (
+           SELECT DISTINCT ON (user_id)
+                  id, user_id, submitted_at, execution_time_ms,
+                  memory_used_kb, username, problem_code, problem_title, language
+           FROM accepted
+           ORDER BY user_id, execution_time_ms ASC NULLS LAST,
+                    memory_used_kb ASC NULLS LAST, submitted_at ASC, id ASC
+         ),
+         ranked AS (
+           SELECT ROW_NUMBER() OVER (
+                    ORDER BY execution_time_ms ASC NULLS LAST,
+                             memory_used_kb ASC NULLS LAST,
+                             submitted_at ASC, id ASC
+                  )::int AS rank,
+                  id, submitted_at, execution_time_ms, memory_used_kb,
+                  username, problem_code, problem_title, language
+           FROM best_per_coder
+         ),
+         filtered AS (
+           SELECT * FROM ranked
+           WHERE ($3::text IS NULL OR username ILIKE $3 ESCAPE '\\')
+         ),
+         page_rows AS (
+           SELECT * FROM filtered
+           ORDER BY rank
+           LIMIT $4 OFFSET $5
+         )
+         SELECT
+           COALESCE(
+             (SELECT json_agg(
+                json_build_object(
+                  'id', id, 'rank', rank, 'status', 'ACCEPTED',
+                  'submitted_at', submitted_at, 'username', username,
+                  'problem_code', problem_code, 'problem_title', problem_title,
+                  'language', language, 'execution_time_ms', execution_time_ms,
+                  'memory_used_kb', memory_used_kb
+                ) ORDER BY rank
+              ) FROM page_rows),
+             '[]'::json
+           ) AS items,
+           (SELECT COUNT(*)::int FROM filtered) AS total`,
+        [problem.id, language ?? null, search, query.pageSize, offset],
+      ),
+      this.database.query<{ status: string; count: number }>(
+        `SELECT s.status, COUNT(*)::int AS count
+         FROM submissions s
+         JOIN users u ON u.id = s.user_id
+         JOIN programming_languages l ON l.id = s.language_id
+         WHERE s.problem_id = $1 AND $2::text IS NOT NULL AND l.name = $2
+           AND ($3::text IS NULL OR u.username ILIKE $3 ESCAPE '\\')
+         GROUP BY s.status`,
+        [problem.id, language ?? null, search],
+      ),
+    ]);
+
+    const list = listResult.rows[0];
+    if (!list) throw new Error('Không thể tải bảng xếp hạng bài nộp tốt.');
+    const statistics = buildGlobalStatistics(statisticsResult.rows);
+
+    return {
+      problem: { code: problem.problem_code, title: problem.title },
+      language: language ?? null,
+      languages: languagesResult.rows.map((row) => row.name),
+      items: list.items.map((item) => ({
+        id: item.id,
+        rank: Number(item.rank),
+        status: item.status,
+        submittedAt: item.submitted_at,
+        username: item.username,
+        problemCode: item.problem_code,
+        problemTitle: item.problem_title,
+        language: item.language,
+        executionTimeMs: item.execution_time_ms,
+        memoryUsedKb: item.memory_used_kb,
+        canViewDetails: false,
+      })),
+      total: Number(list.total),
+      page: query.page,
+      pageSize: query.pageSize,
+      statistics,
     };
   }
 }
