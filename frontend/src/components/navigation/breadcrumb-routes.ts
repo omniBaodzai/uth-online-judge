@@ -62,6 +62,7 @@ const routes: RouteDefinition[] = [
   { pattern: '/users/:username', build: ({ username }) => [home, { label: 'Hồ sơ' }, { label: username }] },
   { pattern: '/contests', build: () => [home, { label: 'Cuộc thi' }] },
   { pattern: '/leaderboard', build: () => [home, { label: 'Bảng xếp hạng' }] },
+  { pattern: '/contact', build: () => [home, { label: 'Liên hệ' }] },
   { pattern: '/organizations', build: () => [home, { label: 'Tổ chức' }] },
   { pattern: '/admin/problems/new', build: () => [admin, adminProblemList, { label: 'Tạo bài tập' }] },
   { pattern: '/admin/problems/:id/edit', build: () => [admin, adminProblemList, { label: 'Chỉnh sửa bài tập' }] },

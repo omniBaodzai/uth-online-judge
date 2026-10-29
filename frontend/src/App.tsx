@@ -13,6 +13,7 @@ import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
 import SubmissionDetailsPage from './features/submissions/pages/SubmissionDetailsPage'
 import MyProblemSubmissionsPage from './features/submissions/pages/MyProblemSubmissionsPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
+import ContactPage from './features/contact/pages/ContactPage'
 import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
 import UserProfilePage, { ProfileRedirect } from './features/profile/pages/UserProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
@@ -87,6 +88,7 @@ function App() {
           />
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
+          <Route path="contact" element={<ContactPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
           <Route path="news" element={<NewsListPage />} />
           <Route path="news/:slug" element={<NewsDetailPage />} />

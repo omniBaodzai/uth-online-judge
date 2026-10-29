@@ -28,12 +28,12 @@ function SiteFooter() {
         </div>
         <div className={styles.footerColumn}>
           <h2>Thông tin liên hệ</h2>
-          <a href="huynhlebaoes@gmail.com">Email: huynhlebaoes@gmail.com</a>
+          <a href="mailto:uthoj.mywork@gmail.com">Email: uthoj.mywork@gmail.com</a>
           <span>Đơn vị: UTH Online Judge</span>
           <span>
             Trường Đại học Giao thông Vận tải Thành phố Hồ Chí Minh
           </span>
-          <a href="mailto:huynhlebaoes@gmail.com?subject=Ho%20tro%20UTH%20Online%20Judge">
+          <a href="mailto:uthoj.mywork@gmail.com?subject=Ho%20tro%20UTH%20Online%20Judge">
             Gửi yêu cầu hỗ trợ
           </a>
         </div>
@@ -52,7 +52,7 @@ function SiteFooter() {
           <Link to="/contests">Tham gia kỳ thi</Link>
           <Link to="/submissions">Xem trạng thái bài nộp</Link>
           <a href="#community">Đọc tin tức và thảo luận</a>
-          <a href="mailto:huynhlebaoes@gmail.com?subject=Bao%20loi%20UTH%20Online%20Judge">
+          <a href="mailto:uthoj.mywork@gmail.com?subject=Bao%20loi%20UTH%20Online%20Judge">
             Báo lỗi hoặc cần trợ giúp
           </a>
         </div>

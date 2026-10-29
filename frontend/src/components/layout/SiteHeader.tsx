@@ -12,8 +12,8 @@ const navigationLinks = [
   { label: 'Bảng xếp hạng', href: '/leaderboard' },
   { label: 'Cuộc thi', href: '/contests' },
   { label: 'Tổ chức', href: '/organizations' },
-  { label: 'Báo lỗi', href: 'mailto:huynhlebaoes@gmail.com?subject=Bao%20loi%20UTH%20Online%20Judge' },
-  { label: 'Liên hệ', href: '#contact' },
+  { label: 'Báo lỗi', href: 'mailto:uthoj.mywork@gmail.com?subject=Bao%20loi%20UTH%20Online%20Judge' },
+  { label: 'Liên hệ', href: '/contact' },
 ]
 
 const LOGOUT_TOAST_DURATION_MS = 5000

@@ -1,5 +1,5 @@
 // Thông tin liên hệ dùng chung, lấy từ phần chân trang và menu hiện có.
-export const CONTACT_EMAIL = 'huynhlebaoes@gmail.com'
+export const CONTACT_EMAIL = 'uthoj.mywork@gmail.com'
 
 export const contactLinks = [
   {
