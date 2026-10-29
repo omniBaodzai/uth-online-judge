@@ -399,7 +399,7 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
       {!editing ? (
         <div className={styles.commentTools}>
           <ReactionBar summary={comment.reactions} path={`/discussion-comments/${encodeURIComponent(comment.id)}/reaction`} small />
-          {!isReply && !locked ? (
+          {!locked ? (
             <button className={styles.linkButton} type="button" onClick={startReply}>Trả lời</button>
           ) : null}
           {comment.canEdit ? <button className={styles.linkButton} type="button" onClick={() => setEditing(true)}>Sửa</button> : null}

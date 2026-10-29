@@ -27,6 +27,8 @@ import type { Request, Response } from 'express';
 import type {} from 'multer';
 import { AuthService, type AuthResult } from './auth.service.js';
 import { AVATAR_MAX_BYTES } from './avatar-storage.service.js';
+import { COVER_MAX_BYTES } from './cover-storage.service.js';
+import { CoverUploadDto } from './dto/cover-upload.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { ProfileUpdateDto } from './dto/profile-update.dto.js';
@@ -110,7 +112,7 @@ export class AuthController {
   @Patch('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cập nhật họ tên hoặc ảnh đại diện người dùng hiện tại' })
+  @ApiOperation({ summary: 'Cập nhật thông tin hồ sơ người dùng hiện tại' })
   @ApiOkResponse({ description: 'Thông tin người dùng đã được cập nhật' })
   async updateMe(
     @Req() request: AuthenticatedRequest,
@@ -133,6 +135,22 @@ export class AuthController {
     @Body() input: ProfileUpdateDto,
   ) {
     return this.auth.uploadAvatar(request.user.id, file?.buffer, input);
+  }
+
+  @Post('me/cover')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('cover', { limits: { fileSize: COVER_MAX_BYTES, files: 1 } }))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Tải ảnh bìa đã cắt cho hồ sơ hiện tại (PNG, JPEG, WebP hoặc GIF, tối đa 5 MB)' })
+  @ApiOkResponse({ description: 'Thông tin người dùng sau khi cập nhật ảnh bìa' })
+  async uploadCover(
+    @Req() request: AuthenticatedRequest,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() input: CoverUploadDto,
+  ) {
+    return this.auth.uploadCover(request.user.id, file?.buffer, input.crop);
   }
 }
 

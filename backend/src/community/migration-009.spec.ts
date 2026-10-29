@@ -5,6 +5,7 @@ import { ReactionsRepository } from './reactions.repository.js';
 
 const migration = readFileSync(new URL('../../sql/migrations/009_discussion_interactions.sql', import.meta.url), 'utf8');
 const code = migration.replace(/--.*$/gm, '');
+const nestedRepliesMigration = readFileSync(new URL('../../sql/migrations/012_nested_discussion_replies.sql', import.meta.url), 'utf8');
 
 // Hành vi thực tế của ràng buộc được kiểm tra trên PostgreSQL tạm bằng test/sql/run-009-check.ps1.
 describe('migration 009 safeguards', () => {
@@ -32,6 +33,16 @@ describe('migration 009 safeguards', () => {
 
   it('does not drop or rewrite existing data', () => {
     expect(migration).not.toMatch(/DROP TABLE|TRUNCATE|DELETE FROM|ALTER COLUMN/i);
+  });
+});
+
+describe('migration 012 nested replies', () => {
+  it('replaces the depth restriction with a cycle check', () => {
+    expect(nestedRepliesMigration).toMatch(/DROP TRIGGER IF EXISTS trg_discussion_comments_depth/);
+    expect(nestedRepliesMigration).toMatch(/CREATE TRIGGER trg_discussion_comments_parent/);
+    expect(nestedRepliesMigration).toMatch(/WITH RECURSIVE ancestors/);
+    expect(nestedRepliesMigration).toMatch(/WHERE id = NEW\.id/);
+    expect(nestedRepliesMigration).not.toMatch(/parent_parent_id/);
   });
 });
 
@@ -66,6 +77,26 @@ describe('deleteComment', () => {
     const cleanup = String(query.mock.calls[2][0]);
     expect(cleanup).toMatch(/p\.deleted_at IS NOT NULL[\s\S]*NOT EXISTS/);
     expect(query.mock.calls[2][1]).toEqual(['p1']);
+  });
+
+  it('cleans up soft-deleted ancestors across nested replies', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ parentId: 'p2' }] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ parentId: 'p1' }] })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    await new DiscussionsRepository({ query } as never).deleteComment('leaf');
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[2][1]).toEqual(['p2']);
+    expect(query.mock.calls[3][1]).toEqual(['p1']);
+  });
+
+  it('loads descendants recursively when listing replies', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    await new DiscussionsRepository({ query } as never).listReplies(['c1']);
+    expect(String(query.mock.calls[0][0])).toMatch(/WITH RECURSIVE descendants/);
+    expect(String(query.mock.calls[0][0])).toMatch(/child\.parent_id = parent\.id/);
   });
 });
 

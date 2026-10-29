@@ -10,6 +10,33 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.headingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.viewAll {
+  flex: 0 0 auto;
+  color: var(--color-primary-dark);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.viewAll:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.message {
+  margin: 0;
+  padding: 18px 20px;
+  color: #5f7376;
+  font-size: 13px;
+}
+
 .title {
   margin: 0;
   color: var(--color-ink);
@@ -88,6 +115,13 @@
   font-size: 12px;
   font-weight: 750;
   transition: background-color 160ms ease, color 160ms ease;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
 }
 
 .top1 .avatar {

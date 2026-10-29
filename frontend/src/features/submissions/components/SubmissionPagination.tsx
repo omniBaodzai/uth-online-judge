@@ -6,6 +6,8 @@ type SubmissionPaginationProps = {
   totalItems: number
   pageSizes: number[]
   label: string
+  summaryLabel?: string
+  additionalSummary?: string
   showPageSize?: boolean
   onPageChange: (page: number) => void
   onPageSizeChange: (size: number) => void
@@ -30,6 +32,8 @@ function SubmissionPagination({
   totalItems,
   pageSizes,
   label,
+  summaryLabel = 'bài nộp',
+  additionalSummary,
   showPageSize = true,
   onPageChange,
   onPageSizeChange,
@@ -41,7 +45,8 @@ function SubmissionPagination({
   return (
     <div className={styles.root}>
       <p className={styles.summary}>
-        Hiển thị <strong>{from}–{to}</strong> trên <strong>{totalItems}</strong> bài nộp
+        Hiển thị <strong>{from}–{to}</strong> trên <strong>{totalItems}</strong> {summaryLabel}
+        {additionalSummary ? <span> · {additionalSummary}</span> : null}
       </p>
       <nav className={styles.pages} aria-label={`Phân trang ${label}`}>
         <button

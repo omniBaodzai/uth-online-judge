@@ -18,6 +18,10 @@ const user: UserRecord = {
   password_hash: 'hashed-password',
   full_name: null,
   avatar_url: null,
+  cover_image_url: null,
+  cover_crop: null,
+  bio: null,
+  organization: null,
   is_active: true,
   role: 'STUDENT',
   created_at: new Date('2026-01-01T00:00:00.000Z'),
@@ -39,10 +43,12 @@ describe('AuthService', () => {
   };
   let jwt: { signAsync: ReturnType<typeof vi.fn> };
   let avatars: { save: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> };
+  let covers: { save: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
     avatars = { save: vi.fn(), remove: vi.fn().mockResolvedValue(undefined) };
+    covers = { save: vi.fn(), remove: vi.fn().mockResolvedValue(undefined) };
     users = {
       create: vi.fn(),
       findByIdentifier: vi.fn(),
@@ -62,6 +68,7 @@ describe('AuthService', () => {
       sessions as unknown as AuthSessionRepository,
       jwt as unknown as JwtService,
       avatars as unknown as AvatarStorageService,
+      covers as never,
     );
   });
 
@@ -253,6 +260,50 @@ describe('AuthService', () => {
     await expect(service.uploadAvatar(user.id, undefined)).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it('stores the cover and crop metadata for the authenticated user', async () => {
+    const crop = { x: 10, y: 20, width: 1280, height: 400, sourceWidth: 1600, sourceHeight: 900, aspect: 3.2 };
+    const stored = '/uploads/covers/cover.webp';
+    covers.save.mockResolvedValue(stored);
+    users.findById.mockResolvedValue(publicUser(user));
+    users.updateProfile.mockResolvedValue({ ...publicUser(user), cover_image_url: stored, cover_crop: crop });
+
+    await expect(service.uploadCover(user.id, Buffer.from('image'), crop)).resolves.toMatchObject({
+      cover_image_url: stored,
+      cover_crop: crop,
+    });
+    expect(users.updateProfile).toHaveBeenCalledWith(user.id, { coverImageUrl: stored, coverCrop: crop });
+  });
+
+  it('rejects missing files and invalid crop metadata before storage', async () => {
+    await expect(service.uploadCover(user.id, undefined, {
+      x: 0, y: 0, width: 1, height: 1, sourceWidth: 1, sourceHeight: 1, aspect: 1,
+    })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.uploadCover(user.id, Buffer.from('image'), {
+      x: 200, y: 0, width: 100, height: 100, sourceWidth: 100, sourceHeight: 100, aspect: 1,
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(covers.save).not.toHaveBeenCalled();
+  });
+
+  it('removes a newly stored cover if the database update fails', async () => {
+    const stored = '/uploads/covers/cover.webp';
+    const crop = { x: 0, y: 0, width: 1280, height: 400, sourceWidth: 1280, sourceHeight: 400, aspect: 3.2 };
+    covers.save.mockResolvedValue(stored);
+    users.findById.mockResolvedValue(publicUser(user));
+    users.updateProfile.mockResolvedValue(null);
+
+    await expect(service.uploadCover(user.id, Buffer.from('image'), crop)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(covers.remove).toHaveBeenCalledWith(stored);
+  });
+
+  it('removes a previous managed cover after a profile URL replacement', async () => {
+    const previous = { ...publicUser(user), cover_image_url: '/uploads/covers/old.webp' };
+    users.findById.mockResolvedValue(previous);
+    users.updateProfile.mockResolvedValue({ ...previous, cover_image_url: 'https://example.com/new.jpg', cover_crop: null });
+
+    await service.updateProfile(user.id, { coverImageUrl: 'https://example.com/new.jpg' });
+    expect(covers.remove).toHaveBeenCalledWith(previous.cover_image_url);
   });
 });
 

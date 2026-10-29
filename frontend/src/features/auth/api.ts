@@ -4,6 +4,18 @@ export type AuthUser = {
   email: string
   full_name: string | null
   avatar_url: string | null
+  cover_image_url: string | null
+  cover_crop: {
+    x: number
+    y: number
+    width: number
+    height: number
+    sourceWidth: number
+    sourceHeight: number
+    aspect: number
+  } | null
+  bio: string | null
+  organization: string | null
   is_active: boolean
   role: 'STUDENT' | 'ADMIN'
   created_at: string
@@ -88,13 +100,42 @@ export async function getProfileWithRefresh(
 }
 
 export async function updateProfileWithRefresh(
-  input: { fullName?: string | null; avatarUrl?: string | null },
+  input: {
+    fullName?: string | null
+    avatarUrl?: string | null
+    coverImageUrl?: string | null
+    bio?: string | null
+    organization?: string | null
+  },
   accessToken: string,
   onRefresh: (nextAccessToken: string) => void,
 ): Promise<AuthUser> {
   return requestProtected<AuthUser>('/auth/me', accessToken, onRefresh, {
     method: 'PATCH',
     body: JSON.stringify(input),
+  })
+}
+
+export async function uploadCoverWithRefresh(
+  file: File,
+  crop: {
+    x: number
+    y: number
+    width: number
+    height: number
+    sourceWidth: number
+    sourceHeight: number
+    aspect: number
+  },
+  accessToken: string,
+  onRefresh: (nextAccessToken: string) => void,
+): Promise<AuthUser> {
+  const body = new FormData()
+  body.append('cover', file, file.name)
+  body.append('crop', JSON.stringify(crop))
+  return requestProtected<AuthUser>('/auth/me/cover', accessToken, onRefresh, {
+    method: 'POST',
+    body,
   })
 }
 
@@ -106,7 +147,7 @@ export async function uploadAvatarWithRefresh(
 ): Promise<AuthUser> {
   const body = new FormData()
   body.append('avatar', file, file.name)
-  body.append('fullName', fullName ?? '')
+  if (fullName !== null) body.append('fullName', fullName)
   return requestProtected<AuthUser>('/auth/me/avatar', accessToken, onRefresh, {
     method: 'POST',
     body,

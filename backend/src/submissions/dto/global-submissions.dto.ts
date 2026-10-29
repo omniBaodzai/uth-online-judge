@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { SUBMISSION_STATUSES } from './problem-submissions.dto.js';
 
 export class GlobalSubmissionsQueryDto {
@@ -36,4 +36,8 @@ export class GlobalSubmissionsQueryDto {
   @IsString({ message: 'Ngôn ngữ phải là chuỗi ký tự.' })
   @Matches(/^[\p{L}\p{N} ._()+#-]{1,100}$/u, { message: 'Ngôn ngữ không hợp lệ.' })
   language?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Mã coder không hợp lệ.' })
+  userId?: string;
 }

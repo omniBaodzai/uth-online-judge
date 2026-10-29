@@ -10,6 +10,8 @@ import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
 import SubmissionDetailsPage from './features/submissions/pages/SubmissionDetailsPage'
 import MyProblemSubmissionsPage from './features/submissions/pages/MyProblemSubmissionsPage'
 import ProfilePage from './features/profile/pages/ProfilePage'
+import ProfileEditPage from './features/profile/pages/ProfileEditPage'
+import PublicProfilePage from './features/profile/pages/PublicProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
 import AppLayout from './components/layout/AppLayout'
 import PlaceholderPage from './components/layout/PlaceholderPage'
@@ -27,6 +29,7 @@ import NewsDetailPage from './features/community/pages/NewsDetailPage'
 import DiscussionListPage from './features/community/pages/DiscussionListPage'
 import DiscussionDetailPage from './features/community/pages/DiscussionDetailPage'
 import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
+import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
 import { ToastProvider } from './components/ui/Toast'
 import { AdminProvider } from './features/admin/AdminContext'
 import { RequireAdmin } from './features/admin/components/RequireAdmin'
@@ -59,7 +62,9 @@ function App() {
           <Route path="register" element={<AuthPage mode="register" />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="profile/edit" element={<ProfilePage edit />} />
+          <Route path="profile/edit" element={<ProfileEditPage />} />
+          <Route path="users/id/:id" element={<PublicProfilePage />} />
+          <Route path="users/:username" element={<PublicProfilePage />} />
           <Route path="problems" element={<ProblemsPage />} />
           <Route path="problems/:code" element={<ProblemDetailPage />} />
           <Route
@@ -81,6 +86,7 @@ function App() {
           />
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
+                    <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="news" element={<NewsListPage />} />
           <Route path="news/:slug" element={<NewsDetailPage />} />
           <Route path="discussions" element={<DiscussionListPage />} />

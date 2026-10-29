@@ -28,7 +28,6 @@ export type DiscussionView = Omit<DiscussionRecord, 'authorId' | 'hasOthersComme
 
 export type CommentView = Omit<CommentRecord, 'authorId'> & {
   reactions: ReactionSummary;
-  // Chỉ bình luận gốc mới có phản hồi (một cấp); phản hồi luôn có mảng rỗng.
   replies: CommentView[];
   canEdit: boolean;
   canDelete: boolean;
@@ -93,18 +92,23 @@ export class DiscussionsService {
     const discussion = await this.require(id);
     const page = await this.discussions.listComments(id, query);
     const replies = await this.discussions.listReplies(page.items.map((comment) => comment.id));
+    const repliesByParent = new Map<string, CommentRecord[]>();
+    for (const reply of replies) {
+      if (!reply.parentId) continue;
+      const children = repliesByParent.get(reply.parentId) ?? [];
+      children.push(reply);
+      repliesByParent.set(reply.parentId, children);
+    }
     const summaries = await this.reactions.summaries(
       'COMMENT',
       [...page.items, ...replies].filter((comment) => !comment.isDeleted).map((comment) => comment.id),
       viewer?.id ?? null,
     );
-    const toView = (comment: CommentRecord, children: CommentRecord[]): CommentView =>
-      this.toCommentView(comment, viewer, discussion.isLocked, summaries, children);
 
     return {
       ...page,
       items: page.items.map((comment) =>
-        toView(comment, replies.filter((reply) => reply.parentId === comment.id)),
+        this.toCommentView(comment, viewer, discussion.isLocked, summaries, repliesByParent),
       ),
     };
   }
@@ -154,14 +158,13 @@ export class DiscussionsService {
     else await this.requireComment(targetId);
   }
 
-  // Chỉ một cấp: cha phải tồn tại, cùng chủ đề, chưa bị xóa và là bình luận gốc.
+  // Cha phải tồn tại, cùng chủ đề và chưa bị xóa.
   private async assertCanReplyTo(discussionId: string, parentId: string): Promise<void> {
     const parent = await this.discussions.findComment(parentId);
     if (!parent) throw new NotFoundException(COMMENT_NOT_FOUND);
     if (parent.discussionId !== discussionId) {
       throw new BadRequestException('Bình luận cần trả lời không thuộc chủ đề này.');
     }
-    if (parent.parentId) throw new BadRequestException('Chỉ có thể trả lời bình luận gốc, không trả lời một phản hồi.');
     if (parent.isDeleted) throw new BadRequestException('Bình luận này đã bị xóa nên không thể trả lời.');
   }
 
@@ -183,17 +186,20 @@ export class DiscussionsService {
     viewer: Viewer | null,
     locked: boolean,
     summaries: Map<string, ReactionSummary>,
-    replies: CommentRecord[],
+    repliesByParent: Map<string, CommentRecord[]>,
   ): CommentView {
     const { authorId, ...rest } = comment;
     const own = viewer?.id === authorId;
+    const replies = (repliesByParent.get(comment.id) ?? []).map((reply) =>
+      this.toCommentView(reply, viewer, locked, summaries, repliesByParent),
+    );
     if (comment.isDeleted) {
       return {
         ...rest,
         authorName: 'Người dùng đã xóa',
         content: '',
         reactions: emptyReactionSummary(),
-        replies: replies.map((reply) => this.toCommentView(reply, viewer, locked, summaries, [])),
+        replies,
         canEdit: false,
         canDelete: false,
       };
@@ -201,7 +207,7 @@ export class DiscussionsService {
     return {
       ...rest,
       reactions: summaries.get(comment.id) ?? emptyReactionSummary(),
-      replies: replies.map((reply) => this.toCommentView(reply, viewer, locked, summaries, [])),
+      replies,
       canEdit: own && !locked,
       canDelete: viewer !== null && (own || viewer.role === 'ADMIN'),
     };

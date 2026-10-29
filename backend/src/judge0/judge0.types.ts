@@ -1,4 +1,6 @@
 // Raw shapes returned by Judge0 CE v1.13.1.
+export const MAX_JUDGE0_BATCH_SIZE = 8;
+
 export interface Judge0RawStatus {
   id: number;
   description: string;

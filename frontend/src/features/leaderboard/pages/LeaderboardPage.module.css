@@ -1,0 +1,372 @@
+.main {
+  flex: 1;
+  padding: clamp(104px, 12vw, 128px) 0 clamp(42px, 6vw, 76px);
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
+    url('../../../assets/uth_background.jpg');
+  background-position: center, center, center top;
+  background-repeat: no-repeat;
+  background-size: auto, cover, cover;
+}
+
+.grid {
+  display: grid;
+  width: min(1240px, calc(100% - 64px));
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'header' 'filters' 'pager' 'table';
+  align-items: start;
+  margin-inline: auto;
+}
+
+.header {
+  grid-area: header;
+}
+
+.header h1 {
+  margin: 0 0 6px;
+  color: var(--color-ink);
+  font-size: clamp(26px, 3.4vw, 34px);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.description {
+  margin: 0 0 18px;
+  color: var(--color-muted);
+  font-size: 15px;
+}
+
+.viewerRank {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 9px 12px;
+  border: 1px solid #b9ded8;
+  border-radius: 8px;
+  background: #eaf6f3;
+  color: #155b55;
+  font-size: 14px;
+}
+
+.card {
+  grid-area: table;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(224, 235, 235, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-card);
+}
+
+.filters {
+  grid-area: filters;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(224, 235, 235, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-card);
+}
+
+.search {
+  position: relative;
+  display: flex;
+  min-width: 240px;
+  flex: 1 1 320px;
+  align-items: center;
+}
+
+.search svg {
+  position: absolute;
+  left: 13px;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-linecap: round;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.search input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px 0 40px;
+  border: 1px solid #d5e2e2;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.search input:hover {
+  border-color: #aac8c9;
+}
+
+.search input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 134, 137, 0.16);
+}
+
+.topPagination {
+  grid-area: pager;
+  margin-bottom: 12px;
+}
+
+.listHeader,
+.rowLink {
+  display: grid;
+  grid-template-columns: minmax(116px, 0.9fr) minmax(116px, 0.9fr) minmax(0, 2.2fr) minmax(116px, 0.9fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+}
+
+.listHeader {
+  min-height: 46px;
+  border-bottom: 1px solid #e3ebeb;
+  background: #f5f8f8;
+  color: #52686b;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.listHeader span:not(:nth-child(3)) {
+  text-align: center;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  background: #fff;
+  border-bottom: 1px solid #e8eeee;
+  color: var(--color-ink);
+  transition: background-color 140ms ease;
+}
+
+.entry:last-child {
+  border-bottom: 0;
+}
+
+.top1 {
+  background: #fffdf7;
+}
+
+.top2 {
+  background: #fff;
+}
+
+.top3 {
+  background: #fff;
+}
+
+.viewer {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.rowLink {
+  min-height: 72px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink:hover {
+  background: #f5f9f8;
+}
+
+.rowLink:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid #f4c96b;
+  outline-offset: -3px;
+}
+
+.rank {
+  color: #5f7376;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  text-align: center;
+  justify-self: stretch;
+}
+
+.points,
+.solvedCount {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.points {
+  color: var(--color-primary-dark);
+  text-align: center;
+}
+
+.solvedCount {
+  text-align: center;
+}
+
+.coder {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+}
+
+.top1 .rank {
+  color: #946400;
+}
+
+.top2 .rank {
+  color: #526b76;
+}
+
+.top3 .rank {
+  color: #98532a;
+}
+
+.identity {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.identity strong,
+.identity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.identity span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.metric {
+  display: grid;
+  gap: 3px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.metric strong {
+  color: var(--color-ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.performance strong {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.achievement {
+  color: #52686b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.state {
+  margin: 0;
+  padding: 28px 20px;
+  color: var(--color-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.footer {
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.error {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f3c9c9;
+  background: #fde7e7;
+  color: #a12626;
+  font-size: 13.5px;
+}
+
+@media (max-width: 980px) {
+  .rowLink {
+    grid-template-columns: minmax(90px, 0.9fr) minmax(90px, 0.9fr) minmax(0, 2.2fr) minmax(90px, 0.9fr);
+    gap: 9px;
+    padding: 14px 16px;
+  }
+}
+
+@media (max-width: 680px) {
+  .grid {
+    width: calc(100% - 32px);
+  }
+
+  .description {
+    font-size: 14px;
+  }
+
+  .filters {
+    padding: 10px;
+  }
+
+  .rowLink {
+    grid-template-columns: minmax(58px, 0.8fr) minmax(48px, 0.65fr) minmax(0, 1.8fr) minmax(62px, 0.8fr);
+    gap: 6px;
+    padding: 11px 9px;
+  }
+
+  .coder {
+    gap: 7px;
+  }
+
+  .coder :global(.avatar) {
+    width: 30px;
+    height: 30px;
+  }
+
+  .points,
+  .solvedCount,
+  .rank {
+    font-size: 13px;
+  }
+
+  .listHeader {
+    grid-template-columns: minmax(58px, 0.8fr) minmax(48px, 0.65fr) minmax(0, 1.8fr) minmax(62px, 0.8fr);
+    gap: 6px;
+    padding: 10px 9px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .identity strong {
+    font-size: 13px;
+  }
+
+  .identity span {
+    font-size: 11px;
+  }
+
+  .footer {
+    padding: 12px;
+  }
+}

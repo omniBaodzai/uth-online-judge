@@ -37,6 +37,7 @@ export interface GlobalSubmissionQuery {
   problemCode?: string;
   status?: string;
   language?: string;
+  userId?: string;
 }
 
 // Vô hiệu hóa ký tự đại diện của ILIKE để từ khóa người dùng chỉ được hiểu theo nghĩa đen.

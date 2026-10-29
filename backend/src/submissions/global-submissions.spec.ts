@@ -39,6 +39,12 @@ describe('global submissions query validation', () => {
     const { errors } = await validateQuery({ status: 'INTERNAL_ERROR', language: 'C++ (GCC 9.2.0)' });
     expect(errors).toHaveLength(0);
   });
+
+  it('accepts a UUID for exact profile-history filtering and rejects malformed IDs', async () => {
+    const userId = 'cbe7201d-02e4-4a60-a3ce-2313178b43df';
+    expect((await validateQuery({ userId })).errors).toHaveLength(0);
+    expect((await validateQuery({ userId: 'not-a-uuid' })).errors.length).toBeGreaterThan(0);
+  });
 });
 
 describe('global submission helpers', () => {
@@ -118,7 +124,7 @@ describe('SubmissionsRepository.findGlobalSubmissions', () => {
     });
 
     const [sql, params] = query.mock.calls[0] as [string, unknown[]];
-    expect(params).toEqual(['WRONG_ANSWER', 'C++', "%a'; DROP TABLE users;--\\%%", 20, 20, 'viewer-1', null]);
+    expect(params).toEqual(['WRONG_ANSWER', 'C++', "%a'; DROP TABLE users;--\\%%", 20, 20, 'viewer-1', null, null]);
     expect(sql).not.toContain('DROP TABLE');
     expect(sql).toContain('ORDER BY submitted_at DESC, id DESC');
   });
@@ -226,7 +232,7 @@ describe('problem-specific global submissions', () => {
     for (const index of [2, 3]) {
       const [sql, params] = query.mock.calls[index] as [string, unknown[]];
       expect(sql).toContain('problem_code = $1');
-      expect(params).toEqual(['uth012']);
+      expect(params).toEqual(['uth012', null]);
     }
   });
 });

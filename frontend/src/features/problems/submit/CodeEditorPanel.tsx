@@ -66,6 +66,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
   const [initialDraft] = useState(() => loadDraft(key, languages))
   const [language, setLanguage] = useState<string>(initialDraft?.language ?? languages[0]?.slug ?? '')
   const [codes, setCodes] = useState<Drafts>(initialDraft?.codes ?? {})
+  const [editorRevision, setEditorRevision] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -131,6 +132,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
 
   function resetCode() {
     setCodes((prev) => ({ ...prev, [language]: current.template }))
+    setEditorRevision((revision) => revision + 1)
     setConfirmReset(false)
     setNotice('')
   }
@@ -205,6 +207,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
             <MonacoEditor
               value={code}
               language={current.monacoId}
+              revision={editorRevision}
               onChange={handleChange}
               onReady={handleReady}
             />

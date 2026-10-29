@@ -9,8 +9,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { AuthSessionRepository } from './auth-session.repository.js';
 import { AvatarStorageService } from './avatar-storage.service.js';
+import { CoverStorageService } from './cover-storage.service.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { UsersService, type PublicUser, type UserRecord } from '../users/users.service.js';
+import { UsersService, type CoverCropMetadata, type PublicUser, type UserRecord } from '../users/users.service.js';
 
 const BCRYPT_COST = 12;
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -32,6 +33,7 @@ export class AuthService {
     private readonly sessions: AuthSessionRepository,
     private readonly jwt: JwtService,
     private readonly avatars: AvatarStorageService,
+    private readonly covers: CoverStorageService,
   ) {}
 
   async register(input: RegisterDto): Promise<AuthResult> {
@@ -112,9 +114,18 @@ export class AuthService {
 
   async updateProfile(
     userId: string,
-    input: { fullName?: string | null; avatarUrl?: string | null },
+    input: {
+      fullName?: string | null;
+      avatarUrl?: string | null;
+      coverImageUrl?: string | null;
+      coverCrop?: CoverCropMetadata | null;
+      bio?: string | null;
+      organization?: string | null;
+    },
   ): Promise<PublicUser> {
-    if (!Object.hasOwn(input, 'fullName') && !Object.hasOwn(input, 'avatarUrl')) {
+    if (!Object.hasOwn(input, 'fullName') && !Object.hasOwn(input, 'avatarUrl') &&
+        !Object.hasOwn(input, 'coverImageUrl') && !Object.hasOwn(input, 'coverCrop') &&
+        !Object.hasOwn(input, 'bio') && !Object.hasOwn(input, 'organization')) {
       throw new BadRequestException('Hãy nhập ít nhất một thông tin cần cập nhật.');
     }
 
@@ -126,7 +137,26 @@ export class AuthService {
     if (previous && previous.avatar_url !== user.avatar_url) {
       await this.avatars.remove(previous.avatar_url);
     }
+    if (previous && previous.cover_image_url !== user.cover_image_url) {
+      await this.covers.remove(previous.cover_image_url);
+    }
     return user;
+  }
+
+  async uploadCover(
+    userId: string,
+    file: Buffer | undefined,
+    crop: CoverCropMetadata,
+  ): Promise<PublicUser> {
+    if (!file) throw new BadRequestException('Vui lòng chọn ảnh bìa.');
+    validateCoverCrop(crop);
+    const coverImageUrl = await this.covers.save(file);
+    try {
+      return await this.updateProfile(userId, { coverImageUrl, coverCrop: crop });
+    } catch (error) {
+      await this.covers.remove(coverImageUrl);
+      throw error;
+    }
   }
 
   async uploadAvatar(
@@ -193,6 +223,10 @@ function toPublicUser(user: UserRecord | PublicUser): PublicUser {
     email: user.email,
     full_name: user.full_name,
     avatar_url: user.avatar_url,
+    cover_image_url: user.cover_image_url,
+    cover_crop: user.cover_crop,
+    bio: user.bio,
+    organization: user.organization,
     is_active: user.is_active,
     role: user.role,
     created_at: user.created_at,
@@ -207,4 +241,18 @@ function isUniqueViolation(error: unknown): boolean {
     'code' in error &&
     error.code === '23505'
   );
+}
+
+function validateCoverCrop(crop: CoverCropMetadata): void {
+  const values = [crop.x, crop.y, crop.width, crop.height, crop.sourceWidth, crop.sourceHeight, crop.aspect];
+  if (
+    values.some((value) => !Number.isFinite(value)) ||
+    crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0 ||
+    crop.sourceWidth <= 0 || crop.sourceHeight <= 0 || crop.aspect <= 0 ||
+    crop.x + crop.width > crop.sourceWidth + 1 ||
+    crop.y + crop.height > crop.sourceHeight + 1 ||
+    Math.abs(crop.width / crop.height - crop.aspect) > 0.02
+  ) {
+    throw new BadRequestException('Thông số cắt ảnh bìa không hợp lệ.');
+  }
 }

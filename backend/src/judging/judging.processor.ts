@@ -14,7 +14,10 @@ import {
   Judge0SubmissionTimeoutError,
 } from '../judge0/judge0.errors.js';
 import { Judge0Service } from '../judge0/judge0.service.js';
-import { Judge0Verdict } from '../judge0/judge0.types.js';
+import {
+  Judge0Verdict,
+  MAX_JUDGE0_BATCH_SIZE,
+} from '../judge0/judge0.types.js';
 import {
   JudgingRepository,
   type JudgingContext,
@@ -131,7 +134,7 @@ export class JudgingProcessor extends WorkerHost {
           if (
             resumedBatch.testCaseIds.length !== resumedBatch.tokens.length ||
             resumedBatch.testCaseIds.length === 0 ||
-            resumedBatch.testCaseIds.length > 4 ||
+            resumedBatch.testCaseIds.length > MAX_JUDGE0_BATCH_SIZE ||
             new Set(resumedBatch.testCaseIds).size !==
               resumedBatch.testCaseIds.length ||
             new Set(resumedBatch.tokens).size !== resumedBatch.tokens.length

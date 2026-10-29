@@ -1,3 +1,5 @@
+import { MAX_JUDGE0_BATCH_SIZE } from '../judge0/judge0.types.js';
+
 export const JUDGING_QUEUE = 'judging';
 export const JUDGE_SUBMISSION_JOB = 'judge-submission';
 
@@ -41,7 +43,7 @@ export function getJudgingGlobalConcurrency(
 export function getJudgingBatchSize(
   value = process.env.JUDGING_BATCH_SIZE,
 ): number {
-  const parsed = Number(value ?? 4);
-  if (!Number.isInteger(parsed) || parsed < 1) return 4;
-  return Math.min(parsed, 4);
+  const parsed = Number(value ?? MAX_JUDGE0_BATCH_SIZE);
+  if (!Number.isInteger(parsed) || parsed < 1) return MAX_JUDGE0_BATCH_SIZE;
+  return Math.min(parsed, MAX_JUDGE0_BATCH_SIZE);
 }

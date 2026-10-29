@@ -4,6 +4,19 @@ import type { AuthUser } from './api'
 export type ProfileUpdate = {
   fullName?: string | null
   avatarUrl?: string | null
+  coverImageUrl?: string | null
+  bio?: string | null
+  organization?: string | null
+}
+
+export type CoverCrop = {
+  x: number
+  y: number
+  width: number
+  height: number
+  sourceWidth: number
+  sourceHeight: number
+  aspect: number
 }
 
 export type AuthContextValue = {
@@ -19,6 +32,7 @@ export type AuthContextValue = {
   refreshProfile: () => Promise<void>
   updateProfile: (input: ProfileUpdate) => Promise<AuthUser>
   uploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
+  uploadCover: (file: File, crop: CoverCrop) => Promise<AuthUser>
   request: <T>(path: string, init?: RequestInit) => Promise<T>
 }
 

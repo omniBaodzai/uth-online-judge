@@ -9,9 +9,10 @@ import { SubmissionsModule } from './submissions/submissions.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { Judge0Module } from './judge0/judge0.module.js';
 import { CommunityModule } from './community/community.module.js';
+import { LeaderboardModule } from './leaderboard/leaderboard.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, DemoQueueModule, ProblemsModule, SubmissionsModule, AdminModule, Judge0Module, CommunityModule],
+  imports: [DatabaseModule, AuthModule, DemoQueueModule, ProblemsModule, SubmissionsModule, AdminModule, Judge0Module, CommunityModule, LeaderboardModule],
   controllers: [AppController],
   providers: [AppService],
 })

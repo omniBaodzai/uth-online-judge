@@ -144,6 +144,22 @@ describe('Judge0Service', () => {
     ).rejects.toBeInstanceOf(Judge0InvalidResponseError);
   });
 
+  it('accepts eight submissions per batch and rejects a batch above the cap', async () => {
+    const inputs = Array.from({ length: 8 }, (_, index) => ({
+      languageId: 54,
+      sourceCode: 'int main(){}',
+      stdin: String(index),
+    }));
+    const fetchFn = vi.fn().mockResolvedValue(
+      json(inputs.map((_input, index) => ({ token: `token-${index}` })), 201),
+    );
+
+    await expect(build(fetchFn).createSubmissionBatch(inputs)).resolves.toHaveLength(8);
+    await expect(
+      build(vi.fn()).createSubmissionBatch([...inputs, inputs[0]]),
+    ).rejects.toBeInstanceOf(Judge0InvalidResponseError);
+  });
+
   it('rejects a missing or unsafe token on creation', async () => {
     await expect(
       build(vi.fn().mockResolvedValue(json({}))).createSubmission({
@@ -368,6 +384,39 @@ describe('Judge0Service', () => {
     }
   });
 
+  it('caps polling backoff at 500 ms', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = {
+        submissions: [{ token: 'token-1', status: { id: 2, description: 'Processing' } }],
+      };
+      const finished = {
+        submissions: [{ token: 'token-1', status: { id: 3, description: 'Accepted' } }],
+      };
+      let responseNumber = 0;
+      const fetchFn = vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(json(responseNumber++ < 4 ? pending : finished)),
+        );
+      const waiting = build(fetchFn).waitForResults(['token-1'], 10_000);
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(fetchFn).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(fetchFn).toHaveBeenCalledTimes(4);
+      await vi.advanceTimersByTimeAsync(499);
+      expect(fetchFn).toHaveBeenCalledTimes(4);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(waiting).resolves.toMatchObject({ timedOut: false });
+      expect(fetchFn).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('persists completed batch cases once and polls only the remaining tokens', async () => {
     vi.useFakeTimers();
     try {
@@ -508,7 +557,7 @@ describe('loadJudge0Config', () => {
     const defaults = loadJudge0Config({ JUDGE0_API_URL: 'http://h' });
     expect(defaults).toMatchObject({
       requestTimeoutMs: 10000,
-      pollIntervalMs: 200,
+      pollIntervalMs: 100,
       maxPollAttempts: 30,
     });
     const custom = loadJudge0Config({
@@ -516,6 +565,6 @@ describe('loadJudge0Config', () => {
       JUDGE0_MAX_POLL_ATTEMPTS: '5',
       JUDGE0_POLL_INTERVAL_MS: '-1',
     });
-    expect(custom).toMatchObject({ maxPollAttempts: 5, pollIntervalMs: 200 });
+    expect(custom).toMatchObject({ maxPollAttempts: 5, pollIntervalMs: 100 });
   });
 });

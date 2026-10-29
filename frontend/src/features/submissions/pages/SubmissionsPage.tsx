@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError, request as publicRequest } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import FilterDropdown from '../../problems/components/FilterDropdown'
@@ -15,6 +15,8 @@ const SEARCH_DEBOUNCE_MS = 300
 function SubmissionsPage() {
   // Có `code` khi hiển thị theo bài tập (/problems/:code/submissions).
   const { code: problemCode } = useParams<{ code: string }>()
+  const [searchParams] = useSearchParams()
+  const profileUserId = searchParams.get('userId') ?? undefined
   const { request: authRequest, accessToken, isLoading: isAuthLoading } = useAuth()
   // Trang công khai: khách dùng request không kèm token, người đã đăng nhập vẫn được đánh dấu bài của mình.
   const request = accessToken ? authRequest : publicRequest
@@ -35,7 +37,7 @@ function SubmissionsPage() {
 
   const selectedVerdict = verdict[0]
   const selectedLanguage = language[0]
-  const requestKey = JSON.stringify([page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage, problemCode, retryKey])
+  const requestKey = JSON.stringify([page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage, problemCode, profileUserId, retryKey])
   const isLoading = settled?.key !== requestKey
   const error = settled?.key === requestKey ? settled.error : ''
 
@@ -45,7 +47,7 @@ function SubmissionsPage() {
     const controller = new AbortController()
     getGlobalSubmissions(
       request,
-      { page, pageSize, q: debouncedQuery, status: selectedVerdict, language: selectedLanguage, problemCode },
+      { page, pageSize, q: debouncedQuery, status: selectedVerdict, language: selectedLanguage, problemCode, userId: profileUserId },
       controller.signal,
     )
       .then((result) => {
@@ -69,7 +71,7 @@ function SubmissionsPage() {
         })
       })
     return () => controller.abort()
-  }, [request, isAuthLoading, requestKey, page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage, problemCode])
+  }, [request, isAuthLoading, requestKey, page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage, problemCode, profileUserId])
 
   const languageFilterOptions = useMemo(
     () => (data?.filters.languages ?? []).map((value) => ({ value, label: value })),
@@ -117,7 +119,7 @@ function SubmissionsPage() {
           ) : (
             <>
               <h1>Danh sách bài nộp</h1>
-              <p>Theo dõi kết quả chấm và lịch sử nộp bài của các coder.</p>
+              <p>{profileUserId ? 'Lịch sử bài nộp của coder này.' : 'Theo dõi kết quả chấm và lịch sử nộp bài của các coder.'}</p>
             </>
           )}
         </header>

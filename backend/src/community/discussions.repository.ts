@@ -158,10 +158,19 @@ export class DiscussionsRepository {
   async listReplies(parentIds: string[]): Promise<CommentRecord[]> {
     if (parentIds.length === 0) return [];
     const result = await this.pool.query<CommentRecord>(
-      `SELECT ${COMMENT_COLUMNS}
+      `WITH RECURSIVE descendants(id) AS (
+         SELECT c.id
+         FROM public.discussion_comments c
+         WHERE c.parent_id = ANY($1::uuid[])
+         UNION
+         SELECT child.id
+         FROM public.discussion_comments child
+         JOIN descendants parent ON child.parent_id = parent.id
+       )
+       SELECT ${COMMENT_COLUMNS}
        FROM public.discussion_comments c
+       JOIN descendants d ON d.id = c.id
        JOIN public.users u ON u.id = c.author_id
-       WHERE c.parent_id = ANY($1::uuid[])
        ORDER BY c.created_at ASC, c.id ASC`,
       [parentIds],
     );
@@ -202,8 +211,7 @@ export class DiscussionsRepository {
     );
   }
 
-  // Bình luận còn phản hồi được xóa mềm (giữ chỗ) để không làm mất phản hồi của người khác;
-  // ngược lại xóa hẳn, và dọn bình luận cha đã xóa mềm nếu đây là phản hồi cuối cùng của nó.
+  // Bình luận còn phản hồi được xóa mềm; khi xóa lá, dọn các cha đã xóa mềm nếu chúng hết phản hồi.
   async deleteComment(id: string): Promise<void> {
     const soft = await this.pool.query(
       `UPDATE public.discussion_comments c
@@ -219,13 +227,16 @@ export class DiscussionsRepository {
        RETURNING c.parent_id AS "parentId"`,
       [id],
     );
-    const parentId = removed.rows[0]?.parentId;
-    if (!parentId) return;
-    await this.pool.query(
-      `DELETE FROM public.discussion_comments p
-       WHERE p.id = $1 AND p.deleted_at IS NOT NULL
-         AND NOT EXISTS (SELECT 1 FROM public.discussion_comments r WHERE r.parent_id = p.id)`,
-      [parentId],
-    );
+    let parentId = removed.rows[0]?.parentId;
+    while (parentId) {
+      const cleanup = await this.pool.query<{ parentId: string | null }>(
+        `DELETE FROM public.discussion_comments p
+         WHERE p.id = $1 AND p.deleted_at IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM public.discussion_comments r WHERE r.parent_id = p.id)
+         RETURNING p.parent_id AS "parentId"`,
+        [parentId],
+      );
+      parentId = cleanup.rows[0]?.parentId ?? null;
+    }
   }
 }

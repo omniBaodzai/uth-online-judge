@@ -12,6 +12,7 @@ import {
 import {
   JUDGE0_STATUS,
   Judge0Verdict,
+  MAX_JUDGE0_BATCH_SIZE,
   type CreateJudge0SubmissionInput,
   type Judge0About,
   type Judge0Language,
@@ -103,9 +104,9 @@ export class Judge0Service {
   async createSubmissionBatch(
     inputs: CreateJudge0SubmissionInput[],
   ): Promise<string[]> {
-    if (inputs.length === 0 || inputs.length > 4) {
+    if (inputs.length === 0 || inputs.length > MAX_JUDGE0_BATCH_SIZE) {
       throw new Judge0InvalidResponseError(
-        'Judge0 batch size must be between 1 and 4.',
+        `Judge0 batch size must be between 1 and ${MAX_JUDGE0_BATCH_SIZE}.`,
       );
     }
     const startedAt = performance.now();
@@ -213,7 +214,7 @@ export class Judge0Service {
   ): Promise<{ results: Judge0SubmissionResult[]; timedOut: boolean }> {
     if (
       tokens.length === 0 ||
-      tokens.length > 4 ||
+      tokens.length > MAX_JUDGE0_BATCH_SIZE ||
       tokens.some((token) => !TOKEN_PATTERN.test(token)) ||
       new Set(tokens).size !== tokens.length
     ) {
@@ -434,7 +435,7 @@ function durationBetween(
 
 function nextPollDelay(baseMs: number, attempt: number): number {
   const exponent = Math.min(Math.max(attempt - 1, 0), 4);
-  return Math.min(3_000, Math.max(100, baseMs) * 2 ** exponent);
+  return Math.min(500, Math.max(100, baseMs) * 2 ** exponent);
 }
 
 function elapsedMs(startedAt: number): number {

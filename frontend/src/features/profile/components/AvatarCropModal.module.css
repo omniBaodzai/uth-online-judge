@@ -1,6 +1,6 @@
 .backdrop {
   position: fixed;
-  z-index: 100;
+  z-index: 1300;
   inset: 0;
   display: grid;
   place-items: center;
@@ -16,6 +16,10 @@
   background: #fff;
   box-shadow: 0 24px 60px rgba(4, 28, 35, 0.3);
   outline: none;
+}
+
+.coverDialog {
+  width: min(900px, 100%);
 }
 
 .dialog h2 {
@@ -53,6 +57,11 @@
   user-select: none;
 }
 
+.coverCropBox {
+  max-width: 640px;
+  border-radius: 8px;
+}
+
 .cropBox:active {
   cursor: grabbing;
 }
@@ -75,6 +84,10 @@
   pointer-events: none;
 }
 
+.coverMask {
+  border-radius: 8px;
+}
+
 .side {
   display: flex;
   flex-direction: column;
@@ -90,6 +103,12 @@
   border: 2px solid #d9ece9;
   border-radius: 50%;
   background: #eaf5f3;
+}
+
+.coverPreview {
+  width: min(100%, 240px);
+  height: auto;
+  border-radius: 8px;
 }
 
 .previewLabel {

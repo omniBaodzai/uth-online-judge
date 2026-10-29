@@ -9,7 +9,7 @@ import UserAvatar from '../../features/profile/components/UserAvatar'
 const navigationLinks = [
   { label: 'Bài tập', href: '/problems' },
   { label: 'Bảng chấm bài', href: '/submissions' },
-  { label: 'Bảng xếp hạng', href: '#leaderboard' },
+  { label: 'Bảng xếp hạng', href: '/leaderboard' },
   { label: 'Cuộc thi', href: '/contests' },
   { label: 'Tổ chức', href: '/organizations' },
   { label: 'Báo lỗi', href: 'mailto:huynhlebaoes@gmail.com?subject=Bao%20loi%20UTH%20Online%20Judge' },

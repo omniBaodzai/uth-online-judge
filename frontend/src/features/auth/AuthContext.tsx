@@ -8,7 +8,7 @@ import {
 } from 'react'
 import * as authApi from './api'
 import type { AuthUser } from './api'
-import { AuthContext, type ProfileUpdate } from './auth-context'
+import { AuthContext, type CoverCrop, type ProfileUpdate } from './auth-context'
 
 type Credentials = {
   accessToken: string
@@ -173,6 +173,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [accessToken],
   )
 
+  const uploadCover = useCallback(
+    async (file: File, crop: CoverCrop) => {
+      if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
+      const revision = authRevision.current
+      try {
+        const profile = await authApi.uploadCoverWithRefresh(
+          file,
+          crop,
+          accessToken,
+          (token) => {
+            if (revision === authRevision.current) setAccessToken(token)
+          },
+        )
+        if (revision === authRevision.current) setUser(profile)
+        return profile
+      } catch (error) {
+        if (revision === authRevision.current && error instanceof authApi.ApiError && error.status === 401) {
+          setAccessToken(null)
+          setUser(null)
+        }
+        throw error
+      }
+    },
+    [accessToken],
+  )
+
   const request = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
     const revision = authRevision.current
@@ -203,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshProfile,
       updateProfile,
       uploadAvatar,
+      uploadCover,
       request,
     }),
     [
@@ -217,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshProfile,
       updateProfile,
       uploadAvatar,
+      uploadCover,
       request,
     ],
   )

@@ -22,6 +22,7 @@ const adminProblemList: BreadcrumbItem = { label: 'Bài tập', to: '/admin/prob
 
 const newsList: BreadcrumbItem = { label: 'Tin tức', to: '/news' }
 const discussionList: BreadcrumbItem = { label: 'Thảo luận', to: '/discussions' }
+const leaderboardList: BreadcrumbItem = { label: 'Bảng xếp hạng' }
 const adminNewsList: BreadcrumbItem = { label: 'Tin tức', to: '/admin/news' }
 
 function problemDetail(code: string): BreadcrumbItem {
@@ -57,8 +58,11 @@ const routes: RouteDefinition[] = [
   { pattern: '/discussions/new', build: () => [home, discussionList, { label: 'Tạo chủ đề' }] },
   { pattern: '/discussions/:id', build: () => [home, discussionList, { label: 'Chi tiết thảo luận' }] },
   { pattern: '/discussions', build: () => [home, { label: 'Thảo luận' }] },
+  { pattern: '/leaderboard', build: () => [home, leaderboardList] },
   { pattern: '/profile/edit', build: () => [home, { label: 'Hồ sơ', to: '/profile' }, { label: 'Chỉnh sửa hồ sơ' }] },
   { pattern: '/profile', build: () => [home, { label: 'Hồ sơ' }] },
+  { pattern: '/users/id/:id', build: () => [home, { label: 'Hồ sơ công khai' }] },
+  { pattern: '/users/:username', build: () => [home, { label: 'Hồ sơ công khai' }] },
   { pattern: '/contests', build: () => [home, { label: 'Cuộc thi' }] },
   { pattern: '/organizations', build: () => [home, { label: 'Tổ chức' }] },
   { pattern: '/admin/problems/new', build: () => [admin, adminProblemList, { label: 'Tạo bài tập' }] },

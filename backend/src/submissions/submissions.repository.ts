@@ -367,6 +367,7 @@ export class SubmissionsRepository {
            WHERE ($1::text IS NULL OR s.status = $1)
              AND ($2::text IS NULL OR l.name = $2)
              AND ($7::text IS NULL OR p.problem_code = $7)
+             AND ($8::uuid IS NULL OR s.user_id = $8)
              AND ($3::text IS NULL
                   OR p.problem_code ILIKE $3 ESCAPE '\\'
                   OR p.title ILIKE $3 ESCAPE '\\'
@@ -400,6 +401,7 @@ export class SubmissionsRepository {
           offset,
           viewerId,
           problemCode,
+          query.userId ?? null,
         ],
       ),
       this.database.query<{ status: string; count: number }>(
@@ -407,8 +409,9 @@ export class SubmissionsRepository {
          FROM submissions s
          JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
          WHERE ($1::text IS NULL OR p.problem_code = $1)
+           AND ($2::uuid IS NULL OR s.user_id = $2)
          GROUP BY s.status`,
-        [problemCode],
+        [problemCode, query.userId ?? null],
       ),
       this.database.query<{ name: string }>(
         `SELECT DISTINCT l.name
@@ -416,8 +419,9 @@ export class SubmissionsRepository {
          JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
          JOIN programming_languages l ON l.id = s.language_id
          WHERE ($1::text IS NULL OR p.problem_code = $1)
+           AND ($2::uuid IS NULL OR s.user_id = $2)
          ORDER BY l.name`,
-        [problemCode],
+        [problemCode, query.userId ?? null],
       ),
     ]);
 

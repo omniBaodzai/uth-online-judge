@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { monaco } from './monaco-setup'
+import { areMonacoEditorRenderPropsEqual } from './monaco-editor-render'
 import styles from './CodeEditorPanel.module.css'
 
 export type CodeEditor = monaco.editor.IStandaloneCodeEditor
@@ -7,11 +8,12 @@ export type CodeEditor = monaco.editor.IStandaloneCodeEditor
 type MonacoEditorProps = {
   value: string
   language: string
+  revision: number
   onChange: (value: string) => void
   onReady: (editor: CodeEditor | null) => void
 }
 
-function MonacoEditor({ value, language, onChange, onReady }: MonacoEditorProps) {
+function MonacoEditorView({ value, language, revision, onChange, onReady }: MonacoEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<CodeEditor | null>(null)
   const onChangeRef = useRef(onChange)
@@ -56,9 +58,14 @@ function MonacoEditor({ value, language, onChange, onReady }: MonacoEditorProps)
     if (!editor || !model) return
     if (model.getLanguageId() !== language) monaco.editor.setModelLanguage(model, language)
     if (editor.getValue() !== value) editor.setValue(value)
-  }, [value, language])
+  }, [language, revision])
 
   return <div ref={containerRef} className={styles.monaco} />
 }
+
+const MonacoEditor = memo(
+  MonacoEditorView,
+  (previous, next) => areMonacoEditorRenderPropsEqual(previous, next),
+)
 
 export default MonacoEditor

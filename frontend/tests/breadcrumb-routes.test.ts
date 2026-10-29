@@ -85,3 +85,15 @@ test('omits breadcrumbs from shallow and authentication routes', () => {
   assert.deepEqual(getBreadcrumbItems('/forgot-password'), [])
   assert.deepEqual(getBreadcrumbItems('/admin/login'), [])
 })
+
+test('builds profile and profile-edit breadcrumbs separately', () => {
+  assert.deepEqual(getBreadcrumbItems('/profile'), [
+    { label: 'Trang chủ', to: '/' },
+    { label: 'Hồ sơ' },
+  ])
+  assert.deepEqual(getBreadcrumbItems('/profile/edit'), [
+    { label: 'Trang chủ', to: '/' },
+    { label: 'Hồ sơ', to: '/profile' },
+    { label: 'Chỉnh sửa hồ sơ' },
+  ])
+})

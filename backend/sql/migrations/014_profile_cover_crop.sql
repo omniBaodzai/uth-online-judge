@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE public.users
+    ADD COLUMN IF NOT EXISTS cover_crop JSONB;
+
+COMMIT;

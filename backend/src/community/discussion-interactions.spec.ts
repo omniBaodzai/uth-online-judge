@@ -90,9 +90,16 @@ describe('replies', () => {
     expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'ok', 'c1');
   });
 
-  it('rejects replying to a reply', async () => {
-    const { service } = build(lookup({ parentId: 'root' }));
-    await expect(service.addComment('d1', student, 'ok', 'c1')).rejects.toBeInstanceOf(BadRequestException);
+  it('creates a reply to another reply while preserving its parent', async () => {
+    const { service, repository } = build(lookup({ parentId: 'root' }));
+    await service.addComment('d1', student, 'ok', 'c1');
+    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'ok', 'c1');
+  });
+
+  it('allows a comment author to reply to their own comment', async () => {
+    const { service, repository } = build(lookup({ authorId: 'u1' }));
+    await service.addComment('d1', student, 'follow-up', 'c1');
+    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'follow-up', 'c1');
   });
 
   it('rejects a parent from another discussion', async () => {
@@ -117,23 +124,35 @@ describe('replies', () => {
     expect(await validate(plainToInstance(CreateCommentDto, { content: 'a' }))).toHaveLength(0);
   });
 
-  it('nests replies, hides deleted content and computes permissions', async () => {
+  it('nests replies recursively, hides deleted content and computes permissions', async () => {
     const { service, repository, reactions } = build();
     repository.listComments.mockResolvedValue({
       items: [comment('c1'), comment('c2', { isDeleted: true, content: '' })],
       total: 2, page: 1, pageSize: 10,
     });
-    repository.listReplies.mockResolvedValue([comment('r1', { parentId: 'c1', authorId: 'u2' })]);
+    repository.listReplies.mockResolvedValue([
+      comment('r1', { parentId: 'c1', authorId: 'u2' }),
+      comment('r2', { parentId: 'r1', authorId: 'u3' }),
+    ]);
     const page = await service.listComments('d1', admin, { page: 1, pageSize: 10 } as never);
     const [first, deleted] = page.items;
     expect(first.replies.map((r) => r.id)).toEqual(['r1']);
+    expect(first.replies[0].replies.map((r) => r.id)).toEqual(['r2']);
     expect(first.replies[0].canDelete).toBe(true);
     expect(first.reactions.mine).toBe('LIKE');
     expect(deleted.content).toBe('');
     expect(deleted.canEdit).toBe(false);
     expect(deleted.canDelete).toBe(false);
     expect(deleted.reactions).toEqual(emptyReactionSummary());
-    expect(reactions.summaries).toHaveBeenCalledWith('COMMENT', ['c1', 'r1'], 'a1');
+    expect(reactions.summaries).toHaveBeenCalledWith('COMMENT', ['c1', 'r1', 'r2'], 'a1');
+  });
+
+  it('keeps edit and delete permissions on the viewer’s own comment', async () => {
+    const { service, repository } = build();
+    repository.listComments.mockResolvedValue({ items: [comment('c1')], total: 1, page: 1, pageSize: 10 });
+    const page = await service.listComments('d1', student, { page: 1, pageSize: 10 } as never);
+    expect(page.items[0].canEdit).toBe(true);
+    expect(page.items[0].canDelete).toBe(true);
   });
 
   it('treats a deleted comment as missing for edit', async () => {
