@@ -74,6 +74,18 @@
   white-space: normal;
 }
 
+.math :global(.katex),
+.mathDisplay :global(.katex) {
+  font-size: 1em;
+}
+
+.mathDisplay {
+  display: block;
+  overflow-x: auto;
+  padding-block: 0.2em;
+  text-align: center;
+}
+
 .markdown pre {
   overflow-x: auto;
   padding: 14px 16px;

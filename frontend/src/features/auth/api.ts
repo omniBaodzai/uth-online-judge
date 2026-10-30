@@ -55,6 +55,21 @@ export function resolveAvatarUrl(avatarUrl: string | null | undefined): string |
   }
 }
 
+export function resolveIllustrationUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null
+  if (/^\/problems\/illustrations\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(imageUrl)) {
+    return `${apiBaseUrl}${imageUrl}`
+  }
+  try {
+    const url = new URL(imageUrl)
+    return ['http:', 'https:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password
+      ? url.toString()
+      : null
+  } catch {
+    return null
+  }
+}
+
 export async function register(input: {
   username: string
   email: string

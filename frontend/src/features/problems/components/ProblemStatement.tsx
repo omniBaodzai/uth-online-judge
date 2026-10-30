@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ProblemDetail, ProblemExample } from '../detail-data'
+import Markdown from '../../../components/ui/Markdown'
 import { statusLabels, type ProblemStatus } from '../data'
 import styles from '../pages/ProblemDetailPage.module.css'
 
@@ -70,36 +71,41 @@ function ProblemStatement({ problem, className = '' }: ProblemStatementProps) {
         <StatusBadge status={problem.status} />
       </header>
 
-      <section>
-        <h2>Đề bài</h2>
-        {problem.description.map((text, i) => (
-          <p key={i}>{text}</p>
-        ))}
-      </section>
-      {problem.input.length > 0 && (
+      {problem.description.trim() && (
+        <section>
+          <h2>Đề bài</h2>
+          <Markdown className={styles.prose} source={problem.description} math />
+        </section>
+      )}
+      {problem.illustrationUrl && (
+        <figure
+          className={`${styles.illustration} ${styles[`illustration_${problem.illustrationAlignment}`]}`}
+          style={{
+            width: `${problem.illustrationWidth}%`,
+            ...(problem.illustrationAspectRatio === 'auto'
+              ? {}
+              : { aspectRatio: problem.illustrationAspectRatio.replace(':', ' / ') }),
+          }}
+        >
+          <img src={problem.illustrationUrl} alt={`Hình minh họa cho bài ${problem.title}`} loading="lazy" />
+        </figure>
+      )}
+      {problem.input.trim().length > 0 && (
         <section>
           <h2>Đầu vào</h2>
-          {problem.input.map((text, i) => (
-            <p key={i}>{text}</p>
-          ))}
+          <Markdown className={styles.prose} source={problem.input} math />
         </section>
       )}
-      {problem.constraints.length > 0 && (
+      {problem.constraints.trim().length > 0 && (
         <section>
           <h2>Giới hạn</h2>
-          <ul className={styles.constraints}>
-            {problem.constraints.map((text, i) => (
-              <li key={i}><code>{text}</code></li>
-            ))}
-          </ul>
+          <Markdown source={problem.constraints} math />
         </section>
       )}
-      {problem.output.length > 0 && (
+      {problem.output.trim().length > 0 && (
         <section>
           <h2>Đầu ra</h2>
-          {problem.output.map((text, i) => (
-            <p key={i}>{text}</p>
-          ))}
+          <Markdown className={styles.prose} source={problem.output} math />
         </section>
       )}
       {problem.examples.length > 0 && (

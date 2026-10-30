@@ -5,6 +5,8 @@ export type Inline =
   | { type: 'code'; value: string }
   | { type: 'strong'; children: Inline[] }
   | { type: 'em'; children: Inline[] }
+  | { type: 'strike'; children: Inline[] }
+  | { type: 'underline'; children: Inline[] }
   | { type: 'link'; href: string; children: Inline[] }
 
 export type Block =
@@ -27,7 +29,7 @@ export function sanitizeHref(href: string): string | null {
   }
 }
 
-const INLINE_PATTERN = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*|\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/
+const INLINE_PATTERN = /`([^`]+)`|\*\*([^*]+)\*\*|~~([^~]+)~~|\+\+([^+]+)\+\+|\*([^*\s][^*]*)\*|\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/
 
 export function parseInline(source: string, allowLinks = true): Inline[] {
   const nodes: Inline[] = []
@@ -39,11 +41,15 @@ export function parseInline(source: string, allowLinks = true): Inline[] {
       break
     }
     if (match.index > 0) nodes.push({ type: 'text', value: rest.slice(0, match.index) })
-    const [whole, code, strong, em, linkText, linkHref] = match
+    const [whole, code, strong, strike, underline, em, linkText, linkHref] = match
     if (code !== undefined) {
       nodes.push({ type: 'code', value: code })
     } else if (strong !== undefined) {
       nodes.push({ type: 'strong', children: parseInline(strong, allowLinks) })
+    } else if (strike !== undefined) {
+      nodes.push({ type: 'strike', children: parseInline(strike, allowLinks) })
+    } else if (underline !== undefined) {
+      nodes.push({ type: 'underline', children: parseInline(underline, allowLinks) })
     } else if (em !== undefined) {
       nodes.push({ type: 'em', children: parseInline(em, allowLinks) })
     } else {

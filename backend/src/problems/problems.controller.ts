@@ -1,10 +1,11 @@
-import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import { ListProblemsQueryDto } from './dto/list-problems-query.dto.js';
 import { ProblemsService } from './problems.service.js';
+import { ProblemIllustrationService } from './problem-illustration.service.js';
 
 type MaybeAuthenticatedRequest = Request & { user?: { id: string } | null };
 type AuthenticatedRequest = Request & { user: { id: string } };
@@ -12,7 +13,10 @@ type AuthenticatedRequest = Request & { user: { id: string } };
 @ApiTags('Problems')
 @Controller('problems')
 export class ProblemsController {
-  constructor(private readonly problems: ProblemsService) {}
+  constructor(
+    private readonly problems: ProblemsService,
+    private readonly illustrations: ProblemIllustrationService,
+  ) {}
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
@@ -27,6 +31,20 @@ export class ProblemsController {
   @ApiOperation({ summary: 'Danh sách chủ đề dùng để lọc bài tập' })
   tags() {
     return this.problems.listTags();
+  }
+
+  @Get('illustrations/:id')
+  @ApiOperation({ summary: 'Lấy ảnh minh họa công khai của bài tập' })
+  async illustration(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Res() response: Response,
+  ) {
+    const asset = await this.illustrations.find(id);
+    response
+      .set('Content-Type', asset.contentType)
+      .set('Cache-Control', 'public, max-age=31536000, immutable')
+      .set('X-Content-Type-Options', 'nosniff')
+      .send(asset.image);
   }
 
   @Get(':code')

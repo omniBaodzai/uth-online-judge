@@ -46,6 +46,10 @@ export type ProblemDetailResponse = {
   inputDescription: string | null
   outputDescription: string | null
   constraints: string | null
+  illustrationUrl: string | null
+  illustrationWidth: number
+  illustrationAspectRatio: 'auto' | '16:9' | '4:3' | '1:1' | '3:2'
+  illustrationAlignment: 'left' | 'center' | 'right'
   difficulty: 'EASY' | 'MEDIUM' | 'HARD'
   scoringEnabled: boolean
   points: number

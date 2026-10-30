@@ -1,5 +1,6 @@
 import type { ProblemStatus } from './data'
 import type { ProblemDetailResponse } from './api'
+import { resolveIllustrationUrl } from '../auth/api'
 
 export type ProblemExample = {
   input: string
@@ -13,10 +14,14 @@ export type ProblemDetail = {
   status: ProblemStatus
   hasSolution: boolean
   scoringEnabled: boolean
-  description: string[]
-  input: string[]
-  constraints: string[]
-  output: string[]
+  description: string
+  input: string
+  constraints: string
+  output: string
+  illustrationUrl: string | null
+  illustrationWidth: number
+  illustrationAspectRatio: 'auto' | '16:9' | '4:3' | '1:1' | '3:2'
+  illustrationAlignment: 'left' | 'center' | 'right'
   examples: ProblemExample[]
   points: number
   timeLimit: string
@@ -34,22 +39,6 @@ export const reportTypes = [
   'Vấn đề khác',
 ]
 
-function paragraphs(text: string | null): string[] {
-  if (!text) return []
-  return text
-    .split(/\n\s*\n/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-}
-
-function lines(text: string | null): string[] {
-  if (!text) return []
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
-
 export function formatTimeLimit(ms: number): string {
   return ms % 1000 === 0 ? `${ms / 1000} giây` : `${ms} ms`
 }
@@ -61,10 +50,14 @@ export function toProblemDetail(data: ProblemDetailResponse): ProblemDetail {
     status: data.status,
     hasSolution: data.hasSolution,
     scoringEnabled: data.scoringEnabled,
-    description: paragraphs(data.statement),
-    input: paragraphs(data.inputDescription),
-    constraints: lines(data.constraints),
-    output: paragraphs(data.outputDescription),
+    description: data.statement,
+    input: data.inputDescription ?? '',
+    constraints: data.constraints ?? '',
+    output: data.outputDescription ?? '',
+    illustrationUrl: resolveIllustrationUrl(data.illustrationUrl),
+    illustrationWidth: data.illustrationWidth ?? 100,
+    illustrationAspectRatio: data.illustrationAspectRatio ?? 'auto',
+    illustrationAlignment: data.illustrationAlignment ?? 'center',
     examples: data.examples,
     points: data.points,
     timeLimit: formatTimeLimit(data.timeLimitMs),

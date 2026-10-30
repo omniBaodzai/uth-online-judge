@@ -1,55 +1,23 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 import { parseMarkdown, type Inline } from '../../lib/markdown'
 import styles from './Markdown.module.css'
 
-const mathSymbols: Record<string, string> = {
-  alpha: 'α',
-  beta: 'β',
-  cdot: '·',
-  div: '÷',
-  gamma: 'γ',
-  ge: '≥',
-  geq: '≥',
-  in: '∈',
-  infty: '∞',
-  lambda: 'λ',
-  le: '≤',
-  leq: '≤',
-  neq: '≠',
-  notin: '∉',
-  pi: 'π',
-  pm: '±',
-  rightarrow: '→',
-  sqrt: '√',
-  sum: '∑',
-  theta: 'θ',
-  times: '×',
-}
+function MathExpression({ source, display }: { source: string; display: boolean }) {
+  const element = useRef<HTMLSpanElement>(null)
 
-const mathParts = /\\([a-zA-Z]+)|\^\{([^{}]+)\}|\^([+\-=0-9A-Za-z])|_\{([^{}]+)\}|_([+\-=0-9A-Za-z])/g
-
-function renderMath(source: string): ReactNode[] {
-  const nodes: ReactNode[] = []
-  let lastIndex = 0
-
-  for (const match of source.matchAll(mathParts)) {
-    const index = match.index ?? 0
-    if (index > lastIndex) nodes.push(source.slice(lastIndex, index))
-    const command = match[1]
-    const superscript = match[2] ?? match[3]
-    const subscript = match[4] ?? match[5]
-
-    if (command) {
-      nodes.push(mathSymbols[command] ?? `\\${command}`)
-    } else if (superscript) {
-      nodes.push(<sup key={`sup-${index}`}>{superscript}</sup>)
-    } else if (subscript) {
-      nodes.push(<sub key={`sub-${index}`}>{subscript}</sub>)
+  useEffect(() => {
+    if (element.current) {
+      katex.render(source, element.current, {
+        displayMode: display,
+        throwOnError: false,
+        trust: false,
+      })
     }
-    lastIndex = index + match[0].length
-  }
-  if (lastIndex < source.length) nodes.push(source.slice(lastIndex))
-  return nodes
+  }, [display, source])
+
+  return <span ref={element} className={display ? styles.mathDisplay : styles.math} aria-label={source} />
 }
 
 function renderText(value: string): ReactNode {
@@ -59,15 +27,12 @@ function renderText(value: string): ReactNode {
   for (const match of value.matchAll(pattern)) {
     const index = match.index ?? 0
     if (index > lastIndex) result.push(value.slice(lastIndex, index))
-    const formula = match[0]
+    const source = match[0]
       .replace(/^\$\$|^\$|^\\\[|^\\\(/, '')
       .replace(/\$\$$|\$$|\\\]$|\\\)$/, '')
       .trim()
-    result.push(
-      <span className={styles.math} key={`math-${index}`}>
-        {renderMath(formula)}
-      </span>,
-    )
+    const display = source.length > 0 && (/^\$\$|^\\\[/.test(match[0]))
+    result.push(<MathExpression key={`math-${index}`} source={source} display={display} />)
     lastIndex = index + match[0].length
   }
   if (lastIndex < value.length) result.push(value.slice(lastIndex))
@@ -87,6 +52,10 @@ function renderInline(nodes: Inline[], math: boolean): ReactNode[] {
         return <strong key={index}>{renderInline(node.children, math)}</strong>
       case 'em':
         return <em key={index}>{renderInline(node.children, math)}</em>
+      case 'strike':
+        return <del key={index}>{renderInline(node.children, math)}</del>
+      case 'underline':
+        return <u key={index}>{renderInline(node.children, math)}</u>
       case 'link':
         return (
           <a key={index} href={node.href} target="_blank" rel="noopener noreferrer nofollow">

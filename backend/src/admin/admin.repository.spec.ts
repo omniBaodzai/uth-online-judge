@@ -85,7 +85,8 @@ describe('AdminRepository', () => {
     const sqls = client.query.mock.calls.map(([sql]) => String(sql));
     const insert = sqls.find((sql) => sql.includes('INSERT INTO problems'))!;
     const update = sqls.find((sql) => sql.includes('UPDATE problems'))!;
-    expect(insert).toContain('score, scoring_enabled, status, created_by');
+    expect(insert).toContain('score, scoring_enabled, status, illustration_url');
+    expect(insert).toContain('illustration_alignment, created_by');
     expect(insert).toContain('$13::varchar');
     expect(update).toContain('score = $12, scoring_enabled = $13, status = $14::varchar');
     const insertParams = client.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO problems'))![1] as unknown[];
@@ -140,6 +141,43 @@ describe('AdminRepository', () => {
 
     expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining('p.scoring_enabled'), expect.anything());
     expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('persists illustration settings and retains them when older clients omit those fields', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT scoring_enabled, score::text')) {
+          return {
+            rows: [{
+              scoring_enabled: false,
+              score: '100',
+              test_case_revision: 0,
+              illustration_url: '/uploads/problem-illustrations/11111111-1111-4111-8111-111111111111.png',
+              illustration_width: 60,
+              illustration_aspect_ratio: '4:3',
+              illustration_alignment: 'right',
+            }],
+          };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+    const repository = new AdminRepository({ connect: vi.fn().mockResolvedValue(client) } as never);
+    vi.spyOn(repository, 'findProblem').mockResolvedValue({} as never);
+
+    await repository.saveProblem({
+      code: 'uth011', title: 'T', statement: 'S', difficulty: 'easy', tags: [], languages: [],
+      timeLimitSeconds: 1, memoryLimitMb: 256, status: 'draft',
+    } as never, 'user-1', 'p1');
+
+    const update = client.query.mock.calls.find(([sql]) => String(sql).includes('illustration_url = $15'))!;
+    expect(update[1]?.slice(14)).toEqual([
+      '/uploads/problem-illustrations/11111111-1111-4111-8111-111111111111.png',
+      60,
+      '4:3',
+      'right',
+    ]);
   });
 
   it('preserves the dormant maximum when scoring is switched off', async () => {

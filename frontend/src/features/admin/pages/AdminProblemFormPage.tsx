@@ -6,6 +6,8 @@ import { monacoLanguageId } from '../../problems/submit/languages'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import MultiValuePicker from '../components/MultiValuePicker'
 import TestCaseCollectionEditor from '../components/TestCaseCollectionEditor'
+import MarkdownEditorField from '../components/MarkdownEditorField'
+import ProblemIllustrationEditor from '../components/ProblemIllustrationEditor'
 import { validateProblemCode } from '../utils'
 import type {
   AdminCatalog,
@@ -21,6 +23,10 @@ function emptyDraft(): ProblemDraft {
     code: 'uth011',
     title: '',
     summary: '',
+    illustrationUrl: null,
+    illustrationWidth: 100,
+    illustrationAspectRatio: 'auto',
+    illustrationAlignment: 'center',
     statement: '',
     difficulty: undefined,
     tags: [],
@@ -49,6 +55,10 @@ function toDraft(problem: AdminProblem, collection: AdminTestCaseCollection): Pr
   void examples
   return {
     ...draft,
+    illustrationUrl: draft.illustrationUrl ?? null,
+    illustrationWidth: draft.illustrationWidth ?? 100,
+    illustrationAspectRatio: draft.illustrationAspectRatio ?? 'auto',
+    illustrationAlignment: draft.illustrationAlignment ?? 'center',
     testCases: collection.cases.map((testCase) => ({
       id: testCase.id,
       clientId: testCase.id,
@@ -141,6 +151,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
   const [pendingPublish, setPendingPublish] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploadingIllustration, setUploadingIllustration] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [editorRevision, setEditorRevision] = useState(0)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft)
@@ -175,6 +186,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
       code: draft.code.trim(),
       title: draft.title.trim(),
       summary: draft.summary?.trim() || null,
+      illustrationUrl: draft.illustrationUrl?.trim() || null,
       testCases: draft.testCases.map((testCase: AdminTestCaseDraft) => ({ ...testCase })),
       status,
     }
@@ -240,6 +252,10 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
 
   function submit(event: FormEvent<HTMLFormElement>, status: 'draft' | 'published') {
     event.preventDefault()
+    if (uploadingIllustration) {
+      setSaveError('Vui lòng đợi tải ảnh minh họa hoàn tất trước khi lưu.')
+      return
+    }
     setCodeError('')
     if (status === 'published') setPendingPublish(true)
     else void persist('draft')
@@ -277,15 +293,28 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
               />
               {codeError ? <p id="problem-code-error" className={styles.fieldError} role="alert">{codeError}</p> : <p id="problem-code-hint" className={styles.fieldHint}>Chỉ gồm a-z, 0-9 và dấu _ (tối đa 50 ký tự). Ví dụ: uth011, tong_hai_so. Mã bài phải duy nhất.</p>}
             </div>
-            <div className={styles.field}>
-              <label htmlFor="problem-summary">Mô tả ngắn</label>
-              <input id="problem-summary" maxLength={200} value={draft.summary ?? ''} onChange={(event) => update('summary', event.target.value)} />
+            <div className={`${styles.field} ${styles.formFullWidth}`}>
+              <span className={styles.fieldLabel}>Hình ảnh minh họa</span>
+              <ProblemIllustrationEditor
+                settings={{
+                  illustrationUrl: draft.illustrationUrl,
+                  illustrationWidth: draft.illustrationWidth,
+                  illustrationAspectRatio: draft.illustrationAspectRatio,
+                  illustrationAlignment: draft.illustrationAlignment,
+                }}
+                onChange={(settings) => setDraft((current) => ({ ...current, ...settings }))}
+                onUploadingChange={setUploadingIllustration}
+              />
             </div>
-            <div className={styles.field}>
-              <label htmlFor="problem-statement">Đề bài <span className={styles.requiredMark}>*</span></label>
-              <textarea id="problem-statement" required rows={5} value={draft.statement} onChange={(event) => update('statement', event.target.value)} />
-              <p className={styles.fieldHint}>Nhấn Enter để xuống dòng. Dòng trống sẽ tách thành đoạn mới; nội dung được hiển thị theo đúng cách bạn nhập.</p>
-            </div>
+            <MarkdownEditorField
+              id="problem-statement"
+              label="Đề bài"
+              required
+              fullWidth
+              rows={7}
+              value={draft.statement}
+              onChange={(value) => update('statement', value)}
+            />
             <MultiValuePicker
               label="Chủ đề"
               placeholder="Nhập chủ đề, ví dụ: Quy hoạch động"
@@ -327,8 +356,20 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
           <h2>Đặc tả đầu vào / đầu ra</h2>
           <p className={styles.sectionHint}>Thêm mô tả định dạng và quản lý toàn bộ test dùng cho minh họa lẫn chấm điểm.</p>
           <div className={styles.formGrid}>
-            <div className={styles.field}><label htmlFor="input-description">Mô tả đầu vào <span className={styles.requiredMark}>*</span></label><textarea id="input-description" required value={draft.inputDescription} onChange={(event) => update('inputDescription', event.target.value)} /></div>
-            <div className={styles.field}><label htmlFor="output-description">Mô tả đầu ra <span className={styles.requiredMark}>*</span></label><textarea id="output-description" required value={draft.outputDescription} onChange={(event) => update('outputDescription', event.target.value)} /></div>
+            <MarkdownEditorField
+              id="input-description"
+              label="Mô tả đầu vào"
+              required
+              value={draft.inputDescription}
+              onChange={(value) => update('inputDescription', value)}
+            />
+            <MarkdownEditorField
+              id="output-description"
+              label="Mô tả đầu ra"
+              required
+              value={draft.outputDescription}
+              onChange={(value) => update('outputDescription', value)}
+            />
           </div>
           <TestCaseCollectionEditor
             cases={draft.testCases}
@@ -341,7 +382,13 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
           <h2>Ràng buộc và giới hạn chấm</h2>
           <p className={styles.sectionHint}>Mọi bài tập đều sử dụng thang điểm cố định 1 điểm cho mỗi test case. Chỉ cần nhập các giới hạn thời gian và bộ nhớ.</p>
           <div className={styles.formGrid}>
-            <div className={styles.field}><label htmlFor="constraints">Ràng buộc</label><textarea id="constraints" rows={3} value={draft.constraints} onChange={(event) => update('constraints', event.target.value)} /></div>
+            <MarkdownEditorField
+              id="constraints"
+              label="Ràng buộc"
+              rows={4}
+              value={draft.constraints}
+              onChange={(value) => update('constraints', value)}
+            />
             <div className={styles.formGrid}>
               <div className={styles.field}><label htmlFor="time-limit">Giới hạn thời gian (giây) <span className={styles.requiredMark}>*</span></label><input id="time-limit" type="number" min="0.1" max="30" step="0.1" required value={draft.timeLimitSeconds} onChange={(event) => update('timeLimitSeconds', Number(event.target.value))} /></div>
               <div className={styles.field}><label htmlFor="memory-limit">Bộ nhớ (MB) <span className={styles.requiredMark}>*</span></label><input id="memory-limit" type="number" min="16" max="8192" step="16" required value={draft.memoryLimitMb} onChange={(event) => update('memoryLimitMb', Number(event.target.value))} /></div>
@@ -435,9 +482,9 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
         </section>
         {saveError && <p className={styles.formMessage} role="alert">{saveError}</p>}
         <div className={styles.formActions}>
-          <button className={styles.buttonSecondary} type="button" onClick={cancel}>Hủy</button>
-          <button className={styles.buttonSecondary} type="submit" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu bản nháp'}</button>
-          <button className={styles.buttonPrimary} type="button" onClick={() => {
+          <button className={styles.buttonSecondary} type="button" onClick={cancel} disabled={saving || uploadingIllustration}>Hủy</button>
+          <button className={styles.buttonSecondary} type="submit" disabled={saving || uploadingIllustration}>{saving ? 'Đang lưu…' : uploadingIllustration ? 'Đang tải ảnh…' : 'Lưu bản nháp'}</button>
+          <button className={styles.buttonPrimary} type="button" disabled={saving || uploadingIllustration} onClick={() => {
             const form = document.getElementById('admin-problem-form')
             if (form instanceof HTMLFormElement && form.reportValidity()) {
               setCodeError('')

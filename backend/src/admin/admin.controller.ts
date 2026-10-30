@@ -1,7 +1,9 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
+  UploadedFile,
   Get,
   HttpCode,
   HttpStatus,
@@ -12,9 +14,12 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type {} from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AddJudge0LanguageDto } from './dto/admin-language.dto.js';
 import { AdminProblemDto, AdminProblemStatusDto } from './dto/admin-problem.dto.js';
@@ -22,6 +27,7 @@ import { AdminTestCaseCollectionDto } from './dto/admin-test-case.dto.js';
 import { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.js';
 import { AdminRoleGuard } from './admin-role.guard.js';
 import { AdminService } from './admin.service.js';
+import { ProblemIllustrationService, PROBLEM_ILLUSTRATION_MAX_BYTES } from '../problems/problem-illustration.service.js';
 
 type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 
@@ -30,7 +36,10 @@ type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly illustrations: ProblemIllustrationService,
+  ) {}
 
   @Get('dashboard')
   dashboard() {
@@ -65,6 +74,22 @@ export class AdminController {
   @Post('problems')
   createProblem(@Body() input: AdminProblemDto, @Req() request: AdminRequest) {
     return this.admin.saveProblem(input, request.user.id);
+  }
+
+  @Post('problems/illustrations')
+  @ApiConsumes('multipart/form-data')
+  @ApiOkResponse({ description: 'Returns the public URL of the uploaded illustration.' })
+  @UseInterceptors(FileInterceptor('image', {
+    limits: { fileSize: PROBLEM_ILLUSTRATION_MAX_BYTES, files: 1 },
+  }))
+  async uploadProblemIllustration(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() request: AdminRequest,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn ảnh minh họa.');
+    }
+    return { url: await this.illustrations.save(file.buffer, request.user.id) };
   }
 
   @Get('problems/:id')

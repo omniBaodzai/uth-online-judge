@@ -739,6 +739,10 @@
   gap: 18px;
 }
 
+.formFullWidth {
+  grid-column: 1 / -1;
+}
+
 .formStack {
   display: grid;
   gap: 18px;

@@ -90,6 +90,10 @@ type DetailRow = {
   input_description: string | null;
   output_description: string | null;
   constraints_text: string | null;
+  illustration_url: string | null;
+  illustration_width: number;
+  illustration_aspect_ratio: ProblemDetail['illustrationAspectRatio'];
+  illustration_alignment: ProblemDetail['illustrationAlignment'];
   difficulty: Difficulty;
   scoring_enabled: boolean;
   score: string;
@@ -249,7 +253,9 @@ export class ProblemsRepository {
   ): Promise<Omit<ProblemDetail, 'tags' | 'examples' | 'languages'> & { id: string } | null> {
     const result = await this.database.query<DetailRow>(
       `SELECT p.id, p.problem_code, p.title, p.statement, p.input_description, p.output_description,
-              p.constraints_text, p.difficulty, p.scoring_enabled, p.score,
+              p.constraints_text, p.illustration_url, p.illustration_width,
+              p.illustration_aspect_ratio, p.illustration_alignment,
+              p.difficulty, p.scoring_enabled, p.score,
               p.time_limit_ms, p.memory_limit_mb,
               p.published_at,
               COALESCE(u.username, u.full_name) AS author,
@@ -271,6 +277,10 @@ export class ProblemsRepository {
       inputDescription: row.input_description,
       outputDescription: row.output_description,
       constraints: row.constraints_text,
+      illustrationUrl: row.illustration_url,
+      illustrationWidth: row.illustration_width ?? 100,
+      illustrationAspectRatio: row.illustration_aspect_ratio ?? 'auto',
+      illustrationAlignment: row.illustration_alignment ?? 'center',
       difficulty: row.difficulty,
       scoringEnabled: row.scoring_enabled,
       points: Number(row.score),

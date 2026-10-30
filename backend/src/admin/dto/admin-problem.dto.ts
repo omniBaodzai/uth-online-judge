@@ -16,8 +16,34 @@ import {
   Min,
   ValidateNested,
   ValidateIf,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
+  Validate,
 } from 'class-validator';
 import { AdminTestCaseDto } from './admin-test-case.dto.js';
+
+@ValidatorConstraint({ name: 'safeProblemIllustrationUrl', async: false })
+class SafeProblemIllustrationUrl implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (typeof value !== 'string' || value.length > 2048) return false;
+    if (/^\/problems\/illustrations\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      return true;
+    }
+    try {
+      const url = new URL(value);
+      return ['http:', 'https:'].includes(url.protocol) &&
+        Boolean(url.hostname) &&
+        !url.username &&
+        !url.password;
+    } catch {
+      return false;
+    }
+  }
+
+  defaultMessage(): string {
+    return 'Đường dẫn ảnh phải là URL HTTP(S) hợp lệ hoặc ảnh đã tải lên hệ thống.';
+  }
+}
 
 export class AdminProblemEditorialDto {
   @ValidateIf((editorial: AdminProblemEditorialDto) => editorial.id !== undefined)
@@ -62,6 +88,27 @@ export class AdminProblemDto {
   @IsString()
   @MaxLength(200)
   summary?: string | null;
+
+  @ValidateIf((_problem: AdminProblemDto, value: unknown) => value !== undefined && value !== null)
+  @IsString()
+  @MaxLength(2048)
+  @Validate(SafeProblemIllustrationUrl)
+  illustrationUrl?: string | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(25)
+  @Max(100)
+  illustrationWidth?: number;
+
+  @IsOptional()
+  @IsIn(['auto', '16:9', '4:3', '1:1', '3:2'])
+  illustrationAspectRatio?: 'auto' | '16:9' | '4:3' | '1:1' | '3:2';
+
+  @IsOptional()
+  @IsIn(['left', 'center', 'right'])
+  illustrationAlignment?: 'left' | 'center' | 'right';
 
   @IsOptional()
   @IsIn(['draft', 'published', 'archived'])

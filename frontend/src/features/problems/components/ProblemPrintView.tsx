@@ -21,43 +21,45 @@ function ProblemPrintView({ problem }: { problem: ProblemDetail }) {
         </dl>
       </header>
 
-      {problem.description.length > 0 && (
+      {problem.description.trim() && (
         <section className={styles.section}>
           <h2>Đề bài</h2>
-          {problem.description.map((source, index) => (
-            <Markdown key={`description-${index}`} source={source} math />
-          ))}
+          <Markdown source={problem.description} math />
         </section>
       )}
 
-      {problem.input.length > 0 && (
+      {problem.illustrationUrl && (
+        <figure
+          className={`${styles.illustration} ${styles[`illustration_${problem.illustrationAlignment}`]}`}
+          style={{
+            width: `${problem.illustrationWidth}%`,
+            ...(problem.illustrationAspectRatio === 'auto'
+              ? {}
+              : { aspectRatio: problem.illustrationAspectRatio.replace(':', ' / ') }),
+          }}
+        >
+          <img src={problem.illustrationUrl} alt={`Hình minh họa cho bài ${problem.title}`} />
+        </figure>
+      )}
+
+      {problem.input.trim().length > 0 && (
         <section className={styles.section}>
           <h2>Đầu vào</h2>
-          {problem.input.map((source, index) => (
-            <Markdown key={`input-${index}`} source={source} math />
-          ))}
+          <Markdown source={problem.input} math />
         </section>
       )}
 
-      {problem.output.length > 0 && (
+      {problem.output.trim().length > 0 && (
         <section className={styles.section}>
           <h2>Đầu ra</h2>
-          {problem.output.map((source, index) => (
-            <Markdown key={`output-${index}`} source={source} math />
-          ))}
+          <Markdown source={problem.output} math />
         </section>
       )}
 
-      {problem.constraints.length > 0 && (
+      {problem.constraints.trim().length > 0 && (
         <section className={styles.section}>
           <h2>Ràng buộc</h2>
-          <ul className={styles.constraints}>
-            {problem.constraints.map((source, index) => (
-              <li key={`constraint-${index}`}>
-                <Markdown source={source} math />
-              </li>
-            ))}
-          </ul>
+          <Markdown source={problem.constraints} math />
         </section>
       )}
 

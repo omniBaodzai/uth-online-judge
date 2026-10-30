@@ -8,10 +8,17 @@ import { AdminService } from './admin.service.js';
 import { AdminUsersController } from './admin-users.controller.js';
 import { AdminUsersRepository } from './admin-users.repository.js';
 import { AdminUsersService } from './admin-users.service.js';
+import { ProblemsModule } from '../problems/problems.module.js';
 
 @Module({
-  imports: [AuthModule, Judge0Module],
+  imports: [AuthModule, Judge0Module, ProblemsModule],
   controllers: [AdminController, AdminUsersController],
-  providers: [AdminRepository, AdminRoleGuard, AdminService, AdminUsersRepository, AdminUsersService],
+  providers: [
+    AdminRepository,
+    AdminRoleGuard,
+    AdminService,
+    AdminUsersRepository,
+    AdminUsersService,
+  ],
 })
 export class AdminModule {}

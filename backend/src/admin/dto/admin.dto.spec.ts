@@ -166,4 +166,48 @@ describe('Admin DTOs', () => {
     });
     await expect(validate(problem, { whitelist: true, forbidNonWhitelisted: true })).resolves.toHaveLength(0);
   });
+
+  it('accepts safe illustration URLs and layout settings', async () => {
+    const valid = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      illustrationUrl: 'https://images.example.test/problem.png',
+      illustrationWidth: 75,
+      illustrationAspectRatio: '16:9',
+      illustrationAlignment: 'right',
+    });
+
+    await expect(validate(valid, { whitelist: true, forbidNonWhitelisted: true })).resolves.toHaveLength(0);
+
+    const uploaded = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      illustrationUrl: '/problems/illustrations/11111111-1111-4111-8111-111111111111',
+    });
+    await expect(validate(uploaded, { whitelist: true, forbidNonWhitelisted: true })).resolves.toHaveLength(0);
+  });
+
+  it.each([
+    'javascript:alert(1)',
+    'data:image/svg+xml,<svg/>',
+    'https://user:pass@example.com/image.png',
+    '//example.com/image.png',
+  ])('rejects unsafe illustration URL %s', async (illustrationUrl) => {
+    const invalid = plainToInstance(AdminProblemDto, { ...base, code: 'uth011', illustrationUrl });
+    expect((await validate(invalid)).map((error) => error.property)).toContain('illustrationUrl');
+  });
+
+  it('rejects out-of-range or unknown illustration settings', async () => {
+    const invalid = plainToInstance(AdminProblemDto, {
+      ...base,
+      code: 'uth011',
+      illustrationWidth: 101,
+      illustrationAspectRatio: '21:9',
+      illustrationAlignment: 'top',
+    });
+
+    expect((await validate(invalid)).map((error) => error.property)).toEqual(
+      expect.arrayContaining(['illustrationWidth', 'illustrationAspectRatio', 'illustrationAlignment']),
+    );
+  });
 });

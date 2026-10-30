@@ -18,6 +18,10 @@ type ProblemRow = {
   problem_code: string;
   title: string;
   summary: string | null;
+  illustration_url: string | null;
+  illustration_width: number;
+  illustration_aspect_ratio: AdminProblem['illustrationAspectRatio'];
+  illustration_alignment: AdminProblem['illustrationAlignment'];
   statement: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   input_description: string | null;
@@ -52,8 +56,20 @@ type EditorialRow = {
   source_code: string;
 };
 
+type ProblemSettingsRow = {
+  scoring_enabled: boolean;
+  score: string;
+  test_case_revision: number;
+  illustration_url: string | null;
+  illustration_width: number;
+  illustration_aspect_ratio: AdminProblem['illustrationAspectRatio'];
+  illustration_alignment: AdminProblem['illustrationAlignment'];
+};
+
 const PROBLEM_FIELDS = `
-  p.id, p.problem_code, p.title, p.summary, p.statement, p.difficulty,
+  p.id, p.problem_code, p.title, p.summary, p.statement,
+  p.illustration_url, p.illustration_width, p.illustration_aspect_ratio, p.illustration_alignment,
+  p.difficulty,
   p.input_description, p.output_description, p.constraints_text,
   p.time_limit_ms, p.memory_limit_mb, p.scoring_enabled, p.score, p.test_case_revision,
   p.status, p.updated_at,
@@ -147,10 +163,12 @@ export class AdminRepository {
     let savedId = id;
     try {
       await client.query('BEGIN');
-      let current: { scoring_enabled: boolean; score: string; test_case_revision: number } | undefined;
+      let current: ProblemSettingsRow | undefined;
       if (id) {
-        const existing = await client.query<{ scoring_enabled: boolean; score: string; test_case_revision: number }>(
-          'SELECT scoring_enabled, score::text AS score, test_case_revision FROM problems WHERE id = $1 FOR UPDATE',
+        const existing = await client.query<ProblemSettingsRow>(
+          `SELECT scoring_enabled, score::text AS score, test_case_revision,
+                  illustration_url, illustration_width, illustration_aspect_ratio, illustration_alignment
+           FROM problems WHERE id = $1 FOR UPDATE`,
           [id],
         );
         current = existing.rows[0];
@@ -172,14 +190,17 @@ export class AdminRepository {
       )) {
         throw new BadRequestException('Điểm tối đa phải lớn hơn 0 và không vượt quá 999999.99.');
       }
-      const values = problemValues(input, scoringEnabled, score ?? 100);
+      const values = problemValues(input, scoringEnabled, score ?? 100, current);
       if (id) {
         const updated = await client.query<{ id: string }>(
           `UPDATE problems
            SET problem_code = $2, title = $3, summary = $4, statement = $5,
                difficulty = $6, input_description = $7, output_description = $8,
                constraints_text = $9, time_limit_ms = $10, memory_limit_mb = $11,
-               score = $12, scoring_enabled = $13, status = $14::varchar, published_at = CASE
+               score = $12, scoring_enabled = $13, status = $14::varchar,
+               illustration_url = $15, illustration_width = $16,
+               illustration_aspect_ratio = $17, illustration_alignment = $18,
+               published_at = CASE
                  WHEN $14::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
                  ELSE published_at END,
                updated_at = CURRENT_TIMESTAMP
@@ -193,9 +214,11 @@ export class AdminRepository {
           `INSERT INTO problems
              (problem_code, title, summary, statement, difficulty, input_description,
               output_description, constraints_text, time_limit_ms, memory_limit_mb,
-                score, scoring_enabled, status, created_by, published_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::varchar, $14,
-                     CASE WHEN $13::varchar = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END)
+                score, scoring_enabled, status, illustration_url, illustration_width,
+                illustration_aspect_ratio, illustration_alignment, created_by, published_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::varchar,
+                       $14, $15, $16::varchar, $17, $18,
+                       CASE WHEN $13::varchar = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END)
            RETURNING id`,
           [...values, userId],
         );
@@ -595,6 +618,7 @@ function problemValues(
   input: AdminProblemDto,
   scoringEnabled: boolean,
   score: number,
+  current?: ProblemSettingsRow,
 ): Array<string | number | boolean | null> {
   return [
     input.code.trim(),
@@ -610,6 +634,10 @@ function problemValues(
     score,
     scoringEnabled,
     (input.status ?? 'draft').toUpperCase(),
+    input.illustrationUrl === undefined ? current?.illustration_url ?? null : input.illustrationUrl,
+    input.illustrationWidth ?? current?.illustration_width ?? 100,
+    input.illustrationAspectRatio ?? current?.illustration_aspect_ratio ?? 'auto',
+    input.illustrationAlignment ?? current?.illustration_alignment ?? 'center',
   ];
 }
 
@@ -619,6 +647,10 @@ function mapProblem(row: ProblemRow): AdminProblem {
     code: row.problem_code,
     title: row.title,
     summary: row.summary,
+    illustrationUrl: row.illustration_url,
+    illustrationWidth: row.illustration_width ?? 100,
+    illustrationAspectRatio: row.illustration_aspect_ratio ?? 'auto',
+    illustrationAlignment: row.illustration_alignment ?? 'center',
     statement: row.statement,
     difficulty: row.difficulty.toLowerCase() as AdminProblem['difficulty'],
     tags: row.tags ?? [],

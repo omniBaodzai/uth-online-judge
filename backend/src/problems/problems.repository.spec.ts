@@ -141,6 +141,42 @@ describe('ProblemsRepository', () => {
     expect(values).toEqual([null, 'NOPE']);
   });
 
+  it('returns persisted illustration metadata with the published problem details', async () => {
+    database.query.mockResolvedValue({
+      rows: [{
+        id: 'problem-1',
+        problem_code: 'uth011',
+        title: 'Example',
+        statement: '**Text**',
+        input_description: null,
+        output_description: null,
+        constraints_text: null,
+        illustration_url: 'https://images.example.test/example.png',
+        illustration_width: 75,
+        illustration_aspect_ratio: '16:9',
+        illustration_alignment: 'center',
+        difficulty: 'EASY',
+        scoring_enabled: false,
+        score: '1',
+        time_limit_ms: 1000,
+        memory_limit_mb: 256,
+        published_at: null,
+        author: 'Admin',
+        has_solution: false,
+        user_status: 'unsolved',
+      }],
+    });
+
+    await expect(repository.findPublishedByCode('uth011', null)).resolves.toMatchObject({
+      illustrationUrl: 'https://images.example.test/example.png',
+      illustrationWidth: 75,
+      illustrationAspectRatio: '16:9',
+      illustrationAlignment: 'center',
+    });
+    const [sql] = database.query.mock.calls[0];
+    expect(sql).toContain('p.illustration_url');
+  });
+
   it('requires an owned finalized submission and excludes every queued judging status', async () => {
     database.query.mockResolvedValueOnce({ rows: [{ eligible: true }] });
 

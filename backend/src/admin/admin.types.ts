@@ -19,6 +19,10 @@ export type AdminProblem = {
   code: string;
   title: string;
   summary: string | null;
+  illustrationUrl: string | null;
+  illustrationWidth: number;
+  illustrationAspectRatio: 'auto' | '16:9' | '4:3' | '1:1' | '3:2';
+  illustrationAlignment: 'left' | 'center' | 'right';
   statement: string;
   difficulty: AdminDifficulty;
   tags: string[];
