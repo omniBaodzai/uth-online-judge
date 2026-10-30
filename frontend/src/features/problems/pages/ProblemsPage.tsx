@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Pagination from '../../../components/ui/Pagination'
 import { ApiError } from '../../auth/api'
+import SubmissionPagination from '../../submissions/components/SubmissionPagination'
+import { submissionPageSizes } from '../../submissions/data'
 import { fetchProblems, fetchTags, type ProblemListItem, type Tag } from '../api'
 import FilterDropdown from '../components/FilterDropdown'
 import { statusLabels, statusOptions, type ProblemStatus } from '../data'
 import { useProblemsFetcher } from '../useProblemsFetcher'
 import styles from './ProblemsPage.module.css'
 
-const PAGE_SIZE = 20
+const DEFAULT_PAGE_SIZE = submissionPageSizes[0]
 const LATEST_COUNT = 5
 
 const statusFilterOptions = statusOptions.map((value) => ({ value, label: statusLabels[value] }))
@@ -42,6 +43,7 @@ type ListState =
 function ProblemsPage() {
   const { fetcher, ready } = useProblemsFetcher()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -87,7 +89,7 @@ function ProblemsPage() {
     setList({ phase: 'loading' })
     fetchProblems(fetcher, {
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       sort: 'createdAt',
       order: 'desc',
       search,
@@ -95,7 +97,13 @@ function ProblemsPage() {
       status: statusFilter[0] as ProblemStatus | undefined,
     })
       .then((result) => {
-        if (!cancelled) setList({ phase: 'ready', items: result.items, total: result.total })
+        if (cancelled) return
+        const lastPage = Math.max(1, Math.ceil(result.total / pageSize))
+        if (result.items.length === 0 && result.total > 0 && page > lastPage) {
+          setPage(lastPage)
+          return
+        }
+        setList({ phase: 'ready', items: result.items, total: result.total })
       })
       .catch((error: unknown) => {
         if (!cancelled) setList({ phase: 'error', message: errorMessage(error) })
@@ -103,11 +111,24 @@ function ProblemsPage() {
     return () => {
       cancelled = true
     }
-  }, [fetcher, ready, page, search, statusFilter, topicFilter, reloadKey])
+  }, [fetcher, ready, page, pageSize, search, statusFilter, topicFilter, reloadKey])
 
   const topicFilterOptions = tags.map((tag) => ({ value: tag.slug, label: tag.name }))
   const isLoading = list.phase === 'loading'
-  const totalPages = list.phase === 'ready' ? Math.ceil(list.total / PAGE_SIZE) : 0
+  const totalItems = list.phase === 'ready' ? list.total : 0
+  const paginationProps = {
+    currentPage: page,
+    pageSize,
+    totalItems,
+    pageSizes: submissionPageSizes,
+    label: 'bài tập',
+    summaryLabel: 'bài tập',
+    onPageChange: setPage,
+    onPageSizeChange: (size: number) => {
+      setPageSize(size)
+      setPage(1)
+    },
+  }
 
   return (
     <main className={styles.main} id="main-content">
@@ -151,6 +172,9 @@ function ProblemsPage() {
           </form>
 
           <div className={styles.card} aria-busy={isLoading}>
+            <div className={styles.topPagination}>
+              <SubmissionPagination {...paginationProps} showPageSize={false} />
+            </div>
             {list.phase === 'loading' ? (
               <ul className={styles.skeletons} aria-label="Đang tải dữ liệu">
                 {Array.from({ length: 6 }, (_, i) => (
@@ -221,12 +245,7 @@ function ProblemsPage() {
             )}
 
             <div className={styles.footer}>
-              <Pagination
-                label="bài tập"
-                currentPage={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-              />
+              <SubmissionPagination {...paginationProps} />
             </div>
           </div>
 

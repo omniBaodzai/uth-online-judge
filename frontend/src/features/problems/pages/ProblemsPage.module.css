@@ -246,6 +246,11 @@
   padding: 4px 16px 16px;
 }
 
+.topPagination {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
 .empty {
   padding: 56px 20px;
   color: var(--color-muted);

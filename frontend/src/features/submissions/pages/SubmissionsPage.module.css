@@ -24,7 +24,6 @@
   grid-template-areas:
     'header header'
     'filters .'
-    'pager .'
     'table stats';
   align-items: start;
   column-gap: 24px;
@@ -145,8 +144,8 @@
 }
 
 .topPagination {
-  grid-area: pager;
-  margin-bottom: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .card {

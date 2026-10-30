@@ -165,22 +165,21 @@ function SubmissionsPage() {
             </button>
           </form>
 
-          <div className={styles.topPagination}>
-            <SubmissionPagination {...paginationProps} showPageSize={false} />
-          </div>
-
-        <div className={styles.card}>
-          {error && (
-            <div className={styles.error} role="alert">
-              <span>{error}</span>
-              <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Thử lại</button>
+          <div className={styles.card}>
+            <div className={styles.topPagination}>
+              <SubmissionPagination {...paginationProps} showPageSize={false} />
             </div>
-          )}
-          <SubmissionTable items={data?.items ?? []} isLoading={isLoading} hasFilters={hasFilters} hideProblem={Boolean(problemCode)} />
-          <div className={styles.footer}>
-            <SubmissionPagination {...paginationProps} />
+            {error && (
+              <div className={styles.error} role="alert">
+                <span>{error}</span>
+                <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Thử lại</button>
+              </div>
+            )}
+            <SubmissionTable items={data?.items ?? []} isLoading={isLoading} hasFilters={hasFilters} hideProblem={Boolean(problemCode)} />
+            <div className={styles.footer}>
+              <SubmissionPagination {...paginationProps} />
+            </div>
           </div>
-        </div>
 
         <aside className={styles.right}>
           <SubmissionStatsChart

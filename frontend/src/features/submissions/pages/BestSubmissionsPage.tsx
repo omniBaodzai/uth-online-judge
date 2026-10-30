@@ -162,11 +162,10 @@ function BestSubmissionsContent({ code }: { code: string }) {
           </button>
         </form>
 
-        <div className={styles.topPagination}>
-          <SubmissionPagination {...paginationProps} showPageSize={false} />
-        </div>
-
         <div className={styles.card}>
+          <div className={styles.topPagination}>
+            <SubmissionPagination {...paginationProps} showPageSize={false} />
+          </div>
           {error && (
             <div className={styles.error} role="alert">
               <span>{error}</span>

@@ -81,11 +81,10 @@ function LeaderboardPage() {
           </div>
         </form>
 
-        <div className={styles.topPagination}>
-          <SubmissionPagination {...paginationProps} />
-        </div>
-
         <section className={styles.card} aria-label="Bảng xếp hạng coder">
+          <div className={styles.topPagination}>
+            <SubmissionPagination {...paginationProps} />
+          </div>
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
           {loading && !data ? <p className={styles.state} role="status">Đang tải bảng xếp hạng…</p> : null}
           {!loading && !error && data && pageItems.length === 0 ? (

@@ -358,6 +358,11 @@
   border-top: 1px solid #edf1f1;
 }
 
+.paginationTop {
+  padding: 12px;
+  border-bottom: 1px solid #edf1f1;
+}
+
 .sidebar {
   display: grid;
   gap: 12px;

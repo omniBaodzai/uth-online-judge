@@ -300,6 +300,11 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
                 </div>
               ) : data ? (
                 <>
+                  {data.items.length > 0 ? (
+                    <div className={styles.paginationTop}>
+                      <SubmissionPagination {...pagination} showPageSize={false} />
+                    </div>
+                  ) : null}
                   {error && (
                     <p className={styles.refreshError} role="status">
                       {error} <button type="button" onClick={() => setRetryKey((value) => value + 1)}>Thử cập nhật</button>
