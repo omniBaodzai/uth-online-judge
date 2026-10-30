@@ -1,0 +1,12 @@
+﻿services:
+  server:
+    image: mrkushalsm/judge0:latest
+    cgroup: host
+    ports: !override
+      - "127.0.0.1:2359:2358"
+
+  workers:
+    image: mrkushalsm/judge0:latest
+    cgroup: host
+  volumes:
+    - ./isolate_job.rb:/api/app/jobs/isolate_job.rb:ro
