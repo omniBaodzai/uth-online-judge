@@ -32,6 +32,7 @@ import DiscussionListPage from './features/community/pages/DiscussionListPage'
 import DiscussionDetailPage from './features/community/pages/DiscussionDetailPage'
 import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
 import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
+import ContestsPage from './features/contests/pages/ContestsPage'
 import { ToastProvider } from './components/ui/Toast'
 import { AdminProvider } from './features/admin/AdminContext'
 import { RequireAdmin } from './features/admin/components/RequireAdmin'
@@ -85,7 +86,7 @@ function App() {
             path="problems/:code/solution"
             element={<RequireAuth><ProblemSolutionPage /></RequireAuth>}
           />
-          <Route path="contests" element={<PlaceholderPage title="Cuộc thi" />} />
+          <Route path="contests" element={<ContestsPage />} />
           <Route
             path="submissions/:submissionId"
             element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}

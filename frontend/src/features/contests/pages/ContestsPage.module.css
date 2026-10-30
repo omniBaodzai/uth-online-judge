@@ -1,0 +1,329 @@
+.main {
+  flex: 1;
+  padding: clamp(124px, 12vw, 136px) 0 clamp(42px, 6vw, 76px);
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
+    url('../../../assets/uth_background.jpg');
+  background-position: center, center, center top;
+  background-repeat: no-repeat;
+  background-size: auto, cover, cover;
+}
+
+.container {
+  width: min(1240px, calc(100% - 64px));
+  margin-inline: auto;
+}
+
+.pageTitle {
+  margin: 0 0 22px;
+  color: var(--color-ink);
+  font-size: clamp(26px, 3.4vw, 34px);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.sections {
+  display: grid;
+  gap: 24px;
+}
+
+.card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(224, 235, 235, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-card);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 14px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(18px, 2.2vw, 21px);
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.note {
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.count {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid #c5e1df;
+  border-radius: 999px;
+  background: #eff8f7;
+  color: #155b55;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.toolbar {
+  padding: 0 20px 14px;
+}
+
+.search {
+  position: relative;
+  display: flex;
+  width: min(100%, 460px);
+  align-items: center;
+}
+
+.search svg {
+  position: absolute;
+  left: 13px;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-linecap: round;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.search input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px 0 40px;
+  border: 1px solid #d5e2e2;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.search input:hover {
+  border-color: #aac8c9;
+}
+
+.search input:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 134, 137, 0.16);
+}
+
+.paginationTop,
+.paginationBottom {
+  padding: 12px 20px;
+}
+
+.paginationTop {
+  border-top: 1px solid #edf1f1;
+  border-bottom: 1px solid #edf1f1;
+}
+
+.paginationBottom {
+  border-top: 1px solid #edf1f1;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th {
+  padding: 12px 20px;
+  border-bottom: 1px solid #d5e2e2;
+  background: #008689;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.table td {
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table td:first-child {
+  text-align: left;
+}
+
+.table td:last-child {
+  text-align: center;
+}
+
+.table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.table tbody tr:hover {
+  background: #f1f8f7;
+}
+
+.participantColumn,
+.participantCell {
+  width: 180px;
+  text-align: center;
+}
+
+.participantCell {
+  color: var(--color-ink);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.actionColumn,
+.actionCell {
+  width: 170px;
+  text-align: center;
+}
+
+.contestDetails {
+  display: grid;
+  gap: 8px;
+}
+
+.contestTitle {
+  color: #0a02ef;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  transition: color 160ms ease;
+}
+
+.table tbody tr:hover .contestTitle {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.metadata b {
+  color: #526669;
+  font-weight: 650;
+}
+
+.actionButton {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-primary);
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.actionButton:hover {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary-dark);
+}
+
+.actionButton:focus-visible {
+  outline: 3px solid #f4c96b;
+  outline-offset: 2px;
+}
+
+.empty {
+  padding: 44px 20px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.empty strong {
+  color: var(--color-ink);
+  font-size: 15px;
+}
+
+.empty p {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+@media (max-width: 700px) {
+  .container {
+    width: calc(100% - 40px);
+  }
+
+  .sectionHeader {
+    padding: 16px 16px 12px;
+  }
+
+  .toolbar {
+    padding: 0 16px 12px;
+  }
+
+  .paginationTop,
+  .paginationBottom {
+    padding: 12px 16px;
+  }
+
+  .table th,
+  .table td {
+    padding-inline: 16px;
+  }
+
+  .metadata {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+@media (max-width: 420px) {
+  .container {
+    width: calc(100% - 32px);
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .count {
+    align-self: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search input,
+  .table tbody tr,
+  .contestTitle,
+  .actionButton {
+    transition: none;
+  }
+}
