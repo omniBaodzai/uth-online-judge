@@ -58,13 +58,13 @@ export class ListProblemsQueryDto {
   @IsIn(USER_PROBLEM_STATUSES, { message: 'Trạng thái lọc không hợp lệ.' })
   status?: UserProblemStatus;
 
-  @ApiPropertyOptional({ enum: PROBLEM_SORT_FIELDS, default: 'code' })
+  @ApiPropertyOptional({ enum: PROBLEM_SORT_FIELDS, default: 'createdAt' })
   @IsOptional()
   @IsIn(PROBLEM_SORT_FIELDS, { message: 'Trường sắp xếp không hợp lệ.' })
-  sort: ProblemSortField = 'code';
+  sort: ProblemSortField = 'createdAt';
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'asc' })
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
   @IsOptional()
   @IsIn(['asc', 'desc'], { message: 'Thứ tự sắp xếp không hợp lệ.' })
-  order: 'asc' | 'desc' = 'asc';
+  order: 'asc' | 'desc' = 'desc';
 }

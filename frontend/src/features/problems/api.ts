@@ -35,7 +35,7 @@ export type ProblemListParams = {
   search?: string
   tags?: string[]
   status?: ProblemStatus
-  sort?: 'code' | 'title' | 'points' | 'difficulty' | 'publishedAt'
+  sort?: 'code' | 'title' | 'points' | 'difficulty' | 'publishedAt' | 'createdAt'
   order?: 'asc' | 'desc'
 }
 

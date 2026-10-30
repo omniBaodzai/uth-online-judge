@@ -27,6 +27,7 @@ const SORT_SQL: Record<ProblemSortField, string> = {
   points: 'score',
   difficulty: "CASE difficulty WHEN 'EASY' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END",
   publishedAt: 'published_at',
+  createdAt: 'created_at',
 };
 
 // Bài đã chấm xong (loại trừ các trạng thái chưa có kết luận).
@@ -49,7 +50,7 @@ const HAS_SOLUTION_SQL = `
 const LIST_BASE_SQL = `
   WITH base AS (
     SELECT p.id, p.problem_code, p.title, p.difficulty, p.scoring_enabled,
-           p.score, p.published_at,
+           p.score, p.published_at, p.created_at,
            COALESCE(st.ac_users, 0) AS ac_count,
            CASE WHEN COALESCE(st.judged, 0) = 0 THEN 0
                 ELSE ROUND(100.0 * st.accepted / st.judged, 1) END AS acceptance_rate,
@@ -146,7 +147,7 @@ export class ProblemsRepository {
     const result = await this.database.query<ListRow>(
       `${LIST_BASE_SQL}
        SELECT * FROM base ${where}
-       ORDER BY ${SORT_SQL[query.sort]} ${direction} NULLS LAST, problem_code ASC
+       ORDER BY ${SORT_SQL[query.sort]} ${direction} NULLS LAST, id DESC
        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
       pageValues,
     );

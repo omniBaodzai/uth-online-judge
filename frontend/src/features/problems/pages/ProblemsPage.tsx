@@ -73,7 +73,7 @@ function ProblemsPage() {
   useEffect(() => {
     if (!ready) return
     let cancelled = false
-    fetchProblems(fetcher, { pageSize: LATEST_COUNT, sort: 'publishedAt', order: 'desc' })
+    fetchProblems(fetcher, { pageSize: LATEST_COUNT, sort: 'createdAt', order: 'desc' })
       .then((result) => !cancelled && setLatest(result.items))
       .catch(() => undefined)
     return () => {
@@ -88,6 +88,8 @@ function ProblemsPage() {
     fetchProblems(fetcher, {
       page,
       pageSize: PAGE_SIZE,
+      sort: 'createdAt',
+      order: 'desc',
       search,
       tags: topicFilter,
       status: statusFilter[0] as ProblemStatus | undefined,

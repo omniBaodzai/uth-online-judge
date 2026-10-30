@@ -62,7 +62,7 @@ export interface ProblemDetail {
   languages: LanguageSummary[];
 }
 
-export const PROBLEM_SORT_FIELDS = ['code', 'title', 'points', 'difficulty', 'publishedAt'] as const;
+export const PROBLEM_SORT_FIELDS = ['code', 'title', 'points', 'difficulty', 'publishedAt', 'createdAt'] as const;
 export type ProblemSortField = (typeof PROBLEM_SORT_FIELDS)[number];
 export const USER_PROBLEM_STATUSES: readonly UserProblemStatus[] = ['solved', 'wrong', 'unsolved'];
 

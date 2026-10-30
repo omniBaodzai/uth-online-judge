@@ -53,6 +53,7 @@ services:
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POOL_MAX: ${DB_POOL_MAX:-20}
       REDIS_HOST: uth-online-judge-redis
       REDIS_PORT: 6379
       JUDGING_CONCURRENCY: ${JUDGING_CONCURRENCY:-2}

@@ -1,7 +1,7 @@
 import { ProblemsRepository, escapeLike } from './problems.repository.js';
 import type { ProblemListQuery } from './problems.types.js';
 
-const baseQuery: ProblemListQuery = { page: 1, pageSize: 20, sort: 'code', order: 'asc' };
+const baseQuery: ProblemListQuery = { page: 1, pageSize: 20, sort: 'createdAt', order: 'desc' };
 
 describe('ProblemsRepository', () => {
   const database = { query: vi.fn() };
@@ -79,7 +79,22 @@ describe('ProblemsRepository', () => {
       await repository.listPublished({ ...baseQuery, sort: 'difficulty', order: 'desc' }, null);
       const pageSql = database.query.mock.calls[1][0] as string;
       expect(pageSql).toContain("CASE difficulty WHEN 'EASY' THEN 1");
-      expect(pageSql).toMatch(/DESC NULLS LAST, problem_code ASC/);
+      expect(pageSql).toMatch(/DESC NULLS LAST, id DESC/);
+    });
+
+    it('sorts by newest creation time with a stable id tie-breaker before pagination', async () => {
+      await repository.listPublished(
+        { ...baseQuery, page: 2, pageSize: 10, search: 'new', tags: ['math'], status: 'solved' },
+        'user-1',
+      );
+      const [countSql, countValues] = database.query.mock.calls[0];
+      const [pageSql, pageValues] = database.query.mock.calls[1];
+
+      expect(pageSql).toContain('p.created_at');
+      expect(pageSql).toMatch(/ORDER BY created_at DESC NULLS LAST, id DESC\s+LIMIT \$5 OFFSET \$6/);
+      expect(pageValues).toEqual([...countValues, 10, 10]);
+      expect(pageSql.indexOf('ORDER BY created_at DESC')).toBeLessThan(pageSql.indexOf('LIMIT $5'));
+      expect(countSql).toContain('WHERE');
     });
   });
 

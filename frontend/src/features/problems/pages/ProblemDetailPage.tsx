@@ -56,7 +56,6 @@ function ProblemDetailPage() {
 
         <aside className={styles.right} aria-label="Thông tin bài tập">
           <section className={styles.panel} aria-labelledby="actions-title">
-            <h2 id="actions-title" className={styles.sideTitle}>Thao tác</h2>
             <Link className={styles.submit} to={submitPath} data-authenticated={Boolean(user)}>
               
               Gửi bài giải

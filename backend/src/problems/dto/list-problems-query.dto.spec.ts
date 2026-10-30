@@ -12,7 +12,7 @@ describe('ListProblemsQueryDto', () => {
   it('applies defaults', async () => {
     const { dto, errors } = await parse({});
     expect(errors).toHaveLength(0);
-    expect(dto).toMatchObject({ page: 1, pageSize: 20, sort: 'code', order: 'asc' });
+    expect(dto).toMatchObject({ page: 1, pageSize: 20, sort: 'createdAt', order: 'desc' });
   });
 
   it('converts numbers and splits tag lists', async () => {
