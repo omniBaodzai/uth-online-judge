@@ -1,4 +1,6 @@
 .stats {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: min(1240px, calc(100% - 64px));
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -1,0 +1,61 @@
+.particles {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  top: 100%;
+  left: var(--particle-x);
+  color: #d6fff5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(12px, 1.4vw, 26px);
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0;
+  animation: float-up var(--particle-duration) linear var(--particle-delay) infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes float-up {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(var(--particle-rotate-start));
+    opacity: 0;
+  }
+
+  10% {
+    opacity: var(--particle-opacity);
+  }
+
+  52% {
+    transform: translate3d(var(--particle-drift-mid), -55svh, 0)
+      rotate(var(--particle-rotate-mid));
+    opacity: var(--particle-opacity);
+  }
+
+  90% {
+    opacity: var(--particle-opacity);
+  }
+
+  100% {
+    transform: translate3d(var(--particle-drift-end), -110svh, 0)
+      rotate(var(--particle-rotate-end));
+    opacity: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .particle:nth-child(n + 11) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .particle {
+    animation: none;
+    opacity: 0;
+  }
+}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import styles from './HeroBanner.module.css'
+import FloatingCodeParticles from './FloatingCodeParticles'
 import PlatformStats from './PlatformStats'
 import heroBackground from '../../../assets/uth_banner.jpg'
 
@@ -10,6 +11,7 @@ function HeroBanner() {
       style={{ backgroundImage: `url("${heroBackground}")` }}
       aria-labelledby="hero-title"
     >
+      <FloatingCodeParticles />
       <div className={styles.heroContent}>
         <h1 className={styles.title} id="hero-title">
           Viết code hôm nay,

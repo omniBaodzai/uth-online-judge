@@ -40,6 +40,8 @@
 }
 
 .heroContent {
+  position: relative;
+  z-index: 1;
   display: flex;
   width: min(1240px, calc(100% - 64px));
   flex: 1 0 auto;

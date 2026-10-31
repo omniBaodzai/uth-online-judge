@@ -28,21 +28,21 @@ type ContestSectionConfig = {
 
 const sections: ContestSectionConfig[] = [
   {
-    title: 'Các cuộc thi đang diễn ra',
+    title: 'CÁC CUỘC THI ĐANG DIỄN RA',
     status: 'ongoing',
     contests: ongoingContests,
     actionLabel: 'Tham gia',
     participantLabel: 'thành viên đang tham gia',
   },
   {
-    title: 'Các cuộc thi sắp tới',
+    title: 'CÁC CUỘC THI SẮP TỚI',
     status: 'upcoming',
     contests: upcomingContests,
     actionLabel: 'Đăng ký',
     participantLabel: 'thành viên đã đăng ký',
   },
   {
-    title: 'Các cuộc thi đã qua',
+    title: 'CÁC CUỘC THI ĐÃ QUA',
     status: 'past',
     contests: pastContests,
     actionLabel: 'Tham gia ảo',

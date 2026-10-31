@@ -22,6 +22,8 @@ import AdminDashboardPage from './features/admin/pages/AdminDashboardPage'
 import AdminLoginPage from './features/admin/pages/AdminLoginPage'
 import AdminProblemFormPage from './features/admin/pages/AdminProblemFormPage'
 import AdminProblemsPage from './features/admin/pages/AdminProblemsPage'
+import AdminContestsPage from './features/admin/contests/AdminContestsPage'
+import AdminContestFormPage from './features/admin/contests/AdminContestFormPage'
 import AdminTestCasesPage from './features/admin/pages/AdminTestCasesPage'
 import AdminUsersPage from './features/admin/pages/AdminUsersPage'
 import AdminNewsPage from './features/admin/pages/AdminNewsPage'
@@ -54,6 +56,9 @@ function App() {
               <Route path="problems/new" element={<AdminProblemFormPage />} />
               <Route path="problems/:id/edit" element={<AdminProblemFormPage />} />
               <Route path="problems/:id/test-cases" element={<AdminTestCasesPage />} />
+              <Route path="contests" element={<AdminContestsPage />} />
+              <Route path="contests/new" element={<AdminContestFormPage />} />
+              <Route path="contests/:contestId/edit" element={<AdminContestFormPage />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="news" element={<AdminNewsPage />} />
               <Route path="news/new" element={<AdminNewsFormPage />} />

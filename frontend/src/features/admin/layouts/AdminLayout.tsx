@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAdmin } from '../useAdmin'
 import { useAuth } from '../../auth/useAuth'
 import { AdminIcon } from '../components/AdminIcons'
+import { Trophy } from 'lucide-react'
+import { ContestAdminProvider } from '../contests/ContestAdminContext'
 import Breadcrumb from '../../../components/navigation/Breadcrumb'
 import uthLogo from '../../../assets/uth_logo.png'
 import styles from '../admin.module.css'
@@ -38,6 +40,9 @@ function AdminLayout() {
           <NavLink to="/admin/problems" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
             <AdminIcon name="book" /><span>Bài tập</span>
           </NavLink>
+          <NavLink to="/admin/contests" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
+            <Trophy size={18} aria-hidden="true" /><span>Cuộc thi</span>
+          </NavLink>
           <NavLink to="/admin/news" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
             <AdminIcon name="news" /><span>Tin tức</span>
           </NavLink>
@@ -70,7 +75,9 @@ function AdminLayout() {
           </div>
         </header>
         <main id="admin-main" className={styles.content}>
-          <Outlet />
+          <ContestAdminProvider>
+            <Outlet />
+          </ContestAdminProvider>
         </main>
       </div>
       {notice && (

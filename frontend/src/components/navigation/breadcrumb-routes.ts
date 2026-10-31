@@ -21,6 +21,7 @@ const home: BreadcrumbItem = { label: 'Trang chủ', to: '/' }
 const admin: BreadcrumbItem = { label: 'Admin', to: '/admin' }
 const problemList: BreadcrumbItem = { label: 'Bài tập', to: '/problems' }
 const adminProblemList: BreadcrumbItem = { label: 'Bài tập', to: '/admin/problems' }
+const adminContestList: BreadcrumbItem = { label: 'Cuộc thi', to: '/admin/contests' }
 
 const newsList: BreadcrumbItem = { label: 'Tin tức', to: '/news' }
 const discussionList: BreadcrumbItem = { label: 'Thảo luận', to: '/discussions' }
@@ -80,6 +81,9 @@ const routes: RouteDefinition[] = [
   { pattern: '/admin/problems/new', build: () => [admin, adminProblemList, { label: 'Tạo bài tập' }] },
   { pattern: '/admin/problems/:id/edit', build: () => [admin, adminProblemList, { label: 'Chỉnh sửa bài tập' }] },
   { pattern: '/admin/problems/:id/test-cases', build: () => [admin, adminProblemList, { label: 'Quản lý test case' }] },
+  { pattern: '/admin/contests/new', build: () => [admin, adminContestList, { label: 'Tạo cuộc thi' }] },
+  { pattern: '/admin/contests/:contestId/edit', build: () => [admin, adminContestList, { label: 'Chỉnh sửa cuộc thi' }] },
+  { pattern: '/admin/contests', build: () => [admin, { label: 'Cuộc thi' }] },
   { pattern: '/admin/problems', build: () => [admin, { label: 'Bài tập' }] },
   { pattern: '/admin/news/new', build: () => [admin, adminNewsList, { label: 'Tạo tin tức' }] },
   { pattern: '/admin/news/:id/edit', build: () => [admin, adminNewsList, { label: 'Chỉnh sửa tin tức' }] },
