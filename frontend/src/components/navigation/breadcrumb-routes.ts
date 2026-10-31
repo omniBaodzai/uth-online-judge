@@ -1,3 +1,5 @@
+import { getContestById } from '../../features/contests/data.ts'
+
 export type BreadcrumbItem = {
   label: string
   to?: string
@@ -65,7 +67,16 @@ const routes: RouteDefinition[] = [
   { pattern: '/users/id/:id', build: () => [home, { label: 'Hồ sơ công khai' }] },
   { pattern: '/users/:username', build: () => [home, { label: 'Hồ sơ công khai' }] },
   { pattern: '/contests', build: () => [home, { label: 'Cuộc thi' }] },
+  {
+    pattern: '/contests/:contestId',
+    build: ({ contestId }) => [
+      home,
+      { label: 'Cuộc thi', to: '/contests' },
+      { label: getContestById(contestId)?.title ?? 'Chi tiết cuộc thi' },
+    ],
+  },
   { pattern: '/organizations', build: () => [home, { label: 'Tổ chức' }] },
+  { pattern: '/contact', build: () => [home, { label: 'Liên hệ' }] },
   { pattern: '/admin/problems/new', build: () => [admin, adminProblemList, { label: 'Tạo bài tập' }] },
   { pattern: '/admin/problems/:id/edit', build: () => [admin, adminProblemList, { label: 'Chỉnh sửa bài tập' }] },
   { pattern: '/admin/problems/:id/test-cases', build: () => [admin, adminProblemList, { label: 'Quản lý test case' }] },

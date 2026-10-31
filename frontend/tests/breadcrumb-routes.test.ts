@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { getBreadcrumbItems } from '../src/components/navigation/breadcrumb-routes.ts'
+import { getContestById } from '../src/features/contests/data.ts'
 
 test('builds meaningful breadcrumbs for a problem detail route', () => {
   assert.deepEqual(getBreadcrumbItems('/problems/UTH011'), [
@@ -86,6 +87,13 @@ test('omits breadcrumbs from shallow and authentication routes', () => {
   assert.deepEqual(getBreadcrumbItems('/admin/login'), [])
 })
 
+test('builds the contact page breadcrumb', () => {
+  assert.deepEqual(getBreadcrumbItems('/contact'), [
+    { label: 'Trang chủ', to: '/' },
+    { label: 'Liên hệ' },
+  ])
+})
+
 test('builds profile and profile-edit breadcrumbs separately', () => {
   assert.deepEqual(getBreadcrumbItems('/profile'), [
     { label: 'Trang chủ', to: '/' },
@@ -95,5 +103,15 @@ test('builds profile and profile-edit breadcrumbs separately', () => {
     { label: 'Trang chủ', to: '/' },
     { label: 'Hồ sơ', to: '/profile' },
     { label: 'Chỉnh sửa hồ sơ' },
+  ])
+})
+
+test('builds contest detail breadcrumbs from its shared mock data', () => {
+  const contest = getContestById('ongoing-1')
+  assert.ok(contest)
+  assert.deepEqual(getBreadcrumbItems(`/contests/${contest.id}`), [
+    { label: 'Trang chủ', to: '/' },
+    { label: 'Cuộc thi', to: '/contests' },
+    { label: contest.title },
   ])
 })

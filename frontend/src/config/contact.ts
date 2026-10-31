@@ -1,5 +1,9 @@
 // Thông tin liên hệ dùng chung, lấy từ phần chân trang và menu hiện có.
-export const CONTACT_EMAIL = 'huynhlebaoes@gmail.com'
+export const CONTACT_EMAIL = 'uthoj.mywork@gmail.com'
+export const CONTACT_PHONE = '+84 94 8811 592'
+export const CONTACT_PHONE_LINK = '+84948811592'
+export const CONTACT_FANPAGE_URL = 'https://www.facebook.com/people/UTH-Online-Judge/61595822645452/'
+export const CONTACT_SUPPORT_GROUP_URL: string | null = null
 
 export const contactLinks = [
   {

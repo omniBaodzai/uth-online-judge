@@ -5,6 +5,7 @@ import uthLogo from '../../assets/uth_logo.png'
 import { useAuth } from '../../features/auth/useAuth'
 import { resolveAvatarUrl } from '../../features/auth/api'
 import UserAvatar from '../../features/profile/components/UserAvatar'
+import { CONTACT_EMAIL } from '../../config/contact'
 
 const navigationLinks = [
   { label: 'Bài tập', href: '/problems' },
@@ -12,8 +13,7 @@ const navigationLinks = [
   { label: 'Bảng xếp hạng', href: '/leaderboard' },
   { label: 'Cuộc thi', href: '/contests' },
   { label: 'Tổ chức', href: '/organizations' },
-  { label: 'Báo lỗi', href: 'mailto:huynhlebaoes@gmail.com?subject=Bao%20loi%20UTH%20Online%20Judge' },
-  { label: 'Liên hệ', href: '#contact' },
+  { label: 'Liên hệ', href: '/contact' },
 ]
 
 const LOGOUT_TOAST_DURATION_MS = 5000

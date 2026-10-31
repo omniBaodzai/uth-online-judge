@@ -210,14 +210,23 @@
   font-size: 15px;
   font-weight: 700;
   line-height: 1.4;
+  text-decoration: none;
   overflow-wrap: anywhere;
   transition: color 160ms ease;
 }
 
+.contestTitle:hover,
+.contestTitle:focus-visible,
 .table tbody tr:hover .contestTitle {
   color: var(--color-primary-dark);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.contestTitle:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid #f4c96b;
+  outline-offset: 2px;
 }
 
 .metadata {

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useToast } from '../../../components/ui/toast-context'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
 import { submissionPageSizes } from '../../submissions/data'
@@ -125,7 +126,12 @@ function ContestSection({ config }: { config: ContestSectionConfig }) {
                 <tr key={contest.id}>
                   <td>
                     <div className={styles.contestDetails}>
-                      <strong className={styles.contestTitle}>{contest.title}</strong>
+                      <Link
+                        className={styles.contestTitle}
+                        to={`/contests/${encodeURIComponent(contest.id)}`}
+                      >
+                        {contest.title}
+                      </Link>
                       <div className={styles.metadata}>
                         <span><b>Bắt đầu:</b> {formatContestDate(contest.startTime)}</span>
                         <span><b>Kết thúc:</b> {formatContestDate(contest.endTime)}</span>

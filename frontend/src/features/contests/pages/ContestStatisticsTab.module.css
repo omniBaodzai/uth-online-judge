@@ -1,0 +1,305 @@
+.statistics {
+  display: grid;
+  gap: 20px;
+}
+
+.card,
+.emptyState {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(224, 235, 235, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-card);
+}
+
+.cardHeader {
+  display: flex;
+  min-height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e8eeee;
+}
+
+.cardHeader h2,
+.emptyState h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 18px;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.totalBadge {
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border: 1px solid #c5e1df;
+  border-radius: 999px;
+  background: #eff8f7;
+  color: #155b55;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin: 0;
+  padding: 14px 20px 4px;
+  list-style: none;
+}
+
+.legend li {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: #526669;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.legend li strong {
+  margin-left: auto;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+}
+
+.chartScroll {
+  overflow-x: auto;
+  padding: 10px 18px 16px;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: #b7d5d4 transparent;
+  scrollbar-width: thin;
+}
+
+.chartSvg {
+  display: block;
+  width: 100%;
+  min-width: 760px;
+  height: auto;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: #e7eeee;
+  stroke-dasharray: 3 4;
+  stroke-width: 1;
+}
+
+.axisTick,
+.axisLabel,
+.axisTitle,
+.valueLabel {
+  fill: #627477;
+  font-family: inherit;
+}
+
+.axisTick {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.axisLabel {
+  font-size: 12px;
+}
+
+.axisTitle {
+  fill: #526669;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.valueLabel {
+  fill: #32484b;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.barSegment,
+.acceptanceBar,
+.languageBar {
+  transition: opacity 140ms ease;
+}
+
+.barSegment:hover,
+.acceptanceBar:hover,
+.languageBar:hover {
+  opacity: 0.82;
+}
+
+.barTrack {
+  fill: #edf2f2;
+}
+
+.acceptanceBar {
+  fill: #008689;
+}
+
+.languageLayout {
+  display: grid;
+  grid-template-columns: minmax(240px, 360px) minmax(240px, 1fr);
+  align-items: center;
+  gap: 28px;
+  padding: 18px 28px 22px;
+}
+
+.donutWrap {
+  width: min(100%, 300px);
+  justify-self: center;
+}
+
+.donutWrap svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.donutWrap circle {
+  transition: opacity 140ms ease;
+}
+
+.donutWrap circle[tabindex]:hover {
+  opacity: 0.82;
+}
+
+.donutTotal {
+  fill: var(--color-ink);
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+}
+
+.donutLabel {
+  fill: #718184;
+  font-size: 12px;
+}
+
+.languageLayout .legend {
+  display: grid;
+  gap: 13px;
+  padding: 0;
+}
+
+.languageLayout .legend li {
+  width: 100%;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.languageLayout .legend li strong {
+  padding-left: 10px;
+}
+
+.emptyState {
+  display: flex;
+  min-height: 250px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.emptyState h2 {
+  font-size: 20px;
+}
+
+.emptyState p {
+  margin: 7px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.chartSvg g[tabindex]:focus-visible rect,
+.chartSvg g[tabindex]:focus-visible text,
+.donutWrap circle[tabindex]:focus-visible {
+  filter: drop-shadow(0 0 2px #0a02ef);
+}
+
+@media (max-width: 700px) {
+  .statistics {
+    gap: 16px;
+  }
+
+  .cardHeader {
+    min-height: 54px;
+    padding: 12px 16px;
+  }
+
+  .cardHeader h2 {
+    font-size: 16px;
+  }
+
+  .legend {
+    gap: 9px 14px;
+    padding-inline: 16px;
+  }
+
+  .chartScroll {
+    padding-inline: 12px;
+  }
+
+  .languageLayout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 14px 16px 20px;
+  }
+
+  .donutWrap {
+    width: min(100%, 250px);
+  }
+
+  .languageLayout .legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .languageLayout .legend li {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+
+  .languageLayout .legend li strong {
+    width: 100%;
+    padding-left: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .cardHeader {
+    align-items: flex-start;
+  }
+
+  .totalBadge {
+    font-size: 11px;
+  }
+
+  .languageLayout .legend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barSegment,
+  .acceptanceBar,
+  .languageBar,
+  .donutWrap circle {
+    transition: none;
+  }
+}

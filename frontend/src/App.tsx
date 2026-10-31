@@ -33,6 +33,8 @@ import DiscussionDetailPage from './features/community/pages/DiscussionDetailPag
 import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
 import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
 import ContestsPage from './features/contests/pages/ContestsPage'
+import ContestDetailPage from './features/contests/pages/ContestDetailPage'
+import ContactPage from './features/contact/pages/ContactPage'
 import { ToastProvider } from './components/ui/Toast'
 import { AdminProvider } from './features/admin/AdminContext'
 import { RequireAdmin } from './features/admin/components/RequireAdmin'
@@ -87,12 +89,14 @@ function App() {
             element={<RequireAuth><ProblemSolutionPage /></RequireAuth>}
           />
           <Route path="contests" element={<ContestsPage />} />
+          <Route path="contests/:contestId" element={<ContestDetailPage />} />
           <Route
             path="submissions/:submissionId"
             element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}
           />
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
+          <Route path="contact" element={<ContactPage />} />
                     <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="news" element={<NewsListPage />} />
           <Route path="news/:slug" element={<NewsDetailPage />} />

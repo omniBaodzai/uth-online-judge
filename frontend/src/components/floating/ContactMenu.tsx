@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CONTACT_ORGANIZATION, contactLinks } from '../../config/contact'
 import styles from './FloatingActions.module.css'
 
@@ -45,10 +46,10 @@ function ContactMenu() {
               </li>
             ))}
             <li>
-              <a href="#contact" onClick={() => setOpen(false)}>
-                <span>Xem thông tin liên hệ</span>
-                <small>Cuộn tới chân trang</small>
-              </a>
+              <Link to="/contact" onClick={() => setOpen(false)}>
+                <span>Trang liên hệ</span>
+                <small>Thông tin và biểu mẫu hỗ trợ</small>
+              </Link>
             </li>
           </ul>
         </div>

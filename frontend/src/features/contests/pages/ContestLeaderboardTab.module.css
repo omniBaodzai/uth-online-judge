@@ -1,0 +1,72 @@
+.rankCell,
+.valueCell {
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.rankCell {
+  width: 130px;
+}
+
+.rankValue {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.medal {
+  flex: 0 0 auto;
+}
+
+.medal1 {
+  color: #d29b19;
+  fill: #fff0bf;
+}
+
+.medal2 {
+  color: #7a8b91;
+  fill: #eef2f3;
+}
+
+.medal3 {
+  color: #a76d42;
+  fill: #f8e6d7;
+}
+
+.coderCell {
+  min-width: 220px;
+  text-align: left;
+}
+
+.coderCell > * {
+  vertical-align: middle;
+}
+
+.avatar {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  border: 1px solid #c5e1df;
+  border-radius: 50%;
+  background: #eff8f7;
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.username {
+  color: #263d40;
+  font-weight: 650;
+}
+
+.valueCell {
+  width: 150px;
+}

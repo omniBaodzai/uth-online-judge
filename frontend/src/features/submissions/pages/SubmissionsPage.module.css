@@ -30,6 +30,14 @@
   margin-inline: auto;
 }
 
+.embeddedGrid {
+  width: 100%;
+  margin: 0;
+  grid-template-areas:
+    'filters stats'
+    'table stats';
+}
+
 .header {
   grid-area: header;
 }
@@ -199,6 +207,13 @@
       'header'
       'filters'
       'pager'
+      'table'
+      'stats';
+  }
+
+  .embeddedGrid {
+    grid-template-areas:
+      'filters'
       'table'
       'stats';
   }

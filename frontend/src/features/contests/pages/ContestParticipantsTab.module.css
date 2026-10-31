@@ -1,0 +1,136 @@
+.content {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.filters {
+  grid-area: auto;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heading h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 22px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.table {
+  min-width: 700px;
+}
+
+.numberCell,
+.dateCell,
+.statusCell {
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.numberCell {
+  width: 76px;
+  font-weight: 650;
+}
+
+.coderCell {
+  min-width: 220px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.avatar {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  overflow: hidden;
+  border: 1px solid #c5e1df;
+  border-radius: 50%;
+  background: #eff8f7;
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 750;
+  vertical-align: middle;
+}
+
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.username {
+  color: #263d40;
+  font-weight: 650;
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+.username:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.username:focus-visible {
+  border-radius: 3px;
+  outline: 3px solid #f4c96b;
+  outline-offset: 3px;
+}
+
+.dateCell {
+  width: 260px;
+}
+
+.statusCell {
+  width: 180px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.registered {
+  border-color: #c5e1df;
+  background: #eff8f7;
+  color: #155b55;
+}
+
+.participated {
+  border-color: #bde2ce;
+  background: #eaf7ef;
+  color: #14693f;
+}
+
+@media (max-width: 700px) {
+  .heading {
+    align-items: flex-start;
+  }
+
+  .heading h2 {
+    font-size: 19px;
+  }
+}
