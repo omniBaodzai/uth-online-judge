@@ -33,6 +33,10 @@ body {
   margin: 0;
 }
 
+main#main-content {
+  padding: 120px 0 76px;
+}
+
 body,
 button,
 a {
