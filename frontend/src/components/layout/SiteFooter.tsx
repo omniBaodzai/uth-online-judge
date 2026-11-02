@@ -30,7 +30,7 @@ function SiteFooter() {
         <div className={styles.footerColumn}>
           <h2>Thông tin liên hệ</h2>
           <a href={`mailto:${CONTACT_EMAIL}`}>Email: {CONTACT_EMAIL}</a>
-          <span>Đơn vị: UTH Online Judge</span>
+          
           <span>
             Trường Đại học Giao thông Vận tải Thành phố Hồ Chí Minh
           </span>

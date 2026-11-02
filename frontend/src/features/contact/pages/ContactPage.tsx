@@ -64,12 +64,12 @@ const contactMethods: ContactMethod[] = [
     note: CONTACT_FANPAGE_URL ? undefined : 'Liên kết chính thức chưa được cấu hình.',
   },
   {
-    label: 'Nhóm Zalo / Telegram hỗ trợ',
+    label: 'Nhóm Zalo',
     value: 'Tham gia nhóm học tập',
     icon: <Users size={20} strokeWidth={1.8} />,
     href: CONTACT_SUPPORT_GROUP_URL ?? undefined,
     external: true,
-    note: CONTACT_SUPPORT_GROUP_URL ? undefined : 'Liên kết nhóm hỗ trợ chưa được cấu hình.',
+    note: CONTACT_SUPPORT_GROUP_URL ? undefined : '',
   },
 ]
 
@@ -128,12 +128,10 @@ function ContactPage() {
                 <span className={styles.brandMark} aria-hidden="true">UTH</span>
                 <div>
                   <h2 id="contact-about-title">UTH Online Judge</h2>
-                  <p>Fanpage chính thức · Cộng đồng lập trình UTH</p>
+                  <p>Cộng đồng lập trình UTH</p>
                 </div>
               </div>
-              <p className={styles.aboutDescription}>
-                Theo dõi fanpage để cập nhật kỳ thi, bài tập mới và thông báo bảo trì hệ thống.
-              </p>
+              
             </section>
 
             <section className={`${styles.card} ${styles.contactCard}`} aria-labelledby="contact-details-title">
