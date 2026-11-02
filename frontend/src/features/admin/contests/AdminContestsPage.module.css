@@ -36,7 +36,7 @@
   color: #59696b;
 }
 
-.time_unscheduled {
+.time_unpublished {
   border-color: #e3d8f1;
   background: #f7f3fb;
   color: #665184;
@@ -344,6 +344,21 @@
   border-top: 1px solid #edf1f1;
   color: #506366;
   font-size: 12px;
+}
+
+.problemTable td input[type='number'] {
+  width: 110px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #dce7e7;
+  border-radius: 6px;
+  color: #193437;
+  font: inherit;
+}
+
+.problemTable td input[type='number']:focus-visible {
+  outline: 2px solid #008689;
+  outline-offset: 1px;
 }
 
 .problemOrder {

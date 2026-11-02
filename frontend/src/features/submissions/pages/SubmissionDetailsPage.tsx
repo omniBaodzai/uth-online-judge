@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ApiError } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
+import { useBreadcrumbContestProblem } from '../../../components/navigation/useBreadcrumbContestProblem'
 import { useBreadcrumbProblemCode } from '../../../components/navigation/useBreadcrumbProblemCode'
 import type { SubmissionDetails } from '../../problems/submit/submission-service'
 import { getSubmissionDetails } from '../../problems/submit/submission-service'
@@ -54,13 +55,6 @@ function statusLabel(status: string | null): string {
   return status ? (STATUS_LABELS[status] ?? status.replaceAll('_', ' ')) : 'Đang chờ'
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime())
-    ? 'Không xác định'
-    : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
-}
-
 function formatTime(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '—'
   return value < 1000 ? `${value} ms` : `${(value / 1000).toFixed(2)} s`
@@ -72,7 +66,40 @@ function formatMemory(value: number | null): string {
 
 function SubmissionDetailsContent() {
   const { submissionId = '' } = useParams()
+  const location = useLocation()
   const { request } = useAuth()
+  const state = location.state as {
+    contestSubmissionOrigin?: {
+      contestIdentifier?: unknown
+      contestSlug?: unknown
+      contestTitle?: unknown
+      problemCode?: unknown
+      problemTitle?: unknown
+    }
+  } | null
+  const contestOrigin = state?.contestSubmissionOrigin
+  const contestIdentifier = typeof contestOrigin?.contestIdentifier === 'string'
+    ? contestOrigin.contestIdentifier
+    : null
+  const contestSlug = typeof contestOrigin?.contestSlug === 'string'
+    ? contestOrigin.contestSlug
+    : contestIdentifier
+  const contestTitle = typeof contestOrigin?.contestTitle === 'string'
+    ? contestOrigin.contestTitle
+    : null
+  const contestProblemCode = typeof contestOrigin?.problemCode === 'string'
+    ? contestOrigin.problemCode
+    : null
+  const contestProblemTitle = typeof contestOrigin?.problemTitle === 'string'
+    ? contestOrigin.problemTitle
+    : null
+  useBreadcrumbContestProblem(
+    contestIdentifier ?? undefined,
+    contestIdentifier && contestSlug && contestTitle
+      ? { slug: contestSlug, title: contestTitle }
+      : undefined,
+    contestProblemTitle,
+  )
   const [submission, setSubmission] = useState<SubmissionDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [requestError, setRequestError] = useState<ApiError | null>(null)
@@ -238,6 +265,16 @@ function SubmissionDetailsContent() {
             <p className={styles.problemCode}>
               Cho bài <Link to={`/problems/${encodeURIComponent(submission.problemCode)}`}>{submission.problemCode} — {submission.problemTitle}</Link>
             </p>
+            {contestIdentifier && contestProblemCode && (
+              <p className={styles.problemCode}>
+                <Link
+                  className={styles.backLink}
+                  to={`/contests/${encodeURIComponent(contestSlug ?? contestIdentifier)}/problems/${encodeURIComponent(contestProblemCode)}`}
+                >
+                  Quay lại bài tập trong cuộc thi
+                </Link>
+              </p>
+            )}
             {/* <div className={styles.submissionMeta}>
               <span>{formatDate(submission.submittedAt)}</span>
               <span>{submission.language}</span>

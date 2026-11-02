@@ -1,8 +1,8 @@
-import { useContext } from 'react'
-import { ContestAdminContext } from './contest-admin-context-value'
+import { useMemo } from 'react'
+import { useAdmin } from '../useAdmin'
+import { createContestApi } from './contest-api'
 
 export function useContestAdmin() {
-  const context = useContext(ContestAdminContext)
-  if (!context) throw new Error('useContestAdmin must be used inside ContestAdminProvider')
-  return context
+  const { request } = useAdmin()
+  return useMemo(() => createContestApi(request), [request])
 }

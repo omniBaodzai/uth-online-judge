@@ -5,7 +5,6 @@ import uthLogo from '../../assets/uth_logo.png'
 import { useAuth } from '../../features/auth/useAuth'
 import { resolveAvatarUrl } from '../../features/auth/api'
 import UserAvatar from '../../features/profile/components/UserAvatar'
-import { CONTACT_EMAIL } from '../../config/contact'
 
 const navigationLinks = [
   { label: 'Bài tập', href: '/problems' },

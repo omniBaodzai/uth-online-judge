@@ -8,6 +8,12 @@ export type BreadcrumbItem = {
 export type BreadcrumbOptions = {
   problemCode?: string | null
   from?: string | null
+  contestProblem?: {
+    contestIdentifier: string
+    contestSlug: string
+    contestTitle: string
+    problemTitle: string
+  } | null
 }
 
 type RouteDefinition = {
@@ -35,7 +41,42 @@ function problemDetail(code: string): BreadcrumbItem {
   }
 }
 
+function contestProblemCrumbs(
+  contestId: string,
+  code: string,
+  options: BreadcrumbOptions,
+  action?: string,
+): BreadcrumbItem[] {
+  const contest = options.contestProblem?.contestIdentifier === contestId
+    ? options.contestProblem
+    : null
+  const contestSlug = contest?.contestSlug ?? contestId
+  const detailPath = `/contests/${encodeURIComponent(contestSlug)}/problems/${encodeURIComponent(code)}`
+  const items = [
+    home,
+    { label: 'Cuộc thi', to: '/contests' },
+    {
+      label: contest?.contestTitle ?? 'Chi tiết cuộc thi',
+      to: `/contests/${encodeURIComponent(contestSlug)}`,
+    },
+    {
+      label: contest?.problemTitle ?? code,
+      ...(action ? { to: detailPath } : {}),
+    },
+  ]
+  return action ? [...items, { label: action }] : items
+}
+
 const routes: RouteDefinition[] = [
+  {
+    pattern: '/contests/:contestId/problems/:code/submit',
+    build: ({ contestId, code }, options) =>
+      contestProblemCrumbs(contestId, code, options, 'Nộp bài thi'),
+  },
+  {
+    pattern: '/contests/:contestId/problems/:code',
+    build: ({ contestId, code }, options) => contestProblemCrumbs(contestId, code, options),
+  },
   { pattern: '/problems/:code/submit', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Gửi bài giải' }] },
   { pattern: '/problems/:code/submissions/me', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Bài nộp của tôi' }] },
   { pattern: '/problems/:code/submissions/best', build: ({ code }) => [home, problemList, problemDetail(code), { label: 'Bài nộp tốt nhất' }] },
@@ -47,7 +88,24 @@ const routes: RouteDefinition[] = [
   { pattern: '/problems', build: () => [home, { label: 'Bài tập' }] },
   {
     pattern: '/submissions/:submissionId',
-    build: (_params, { problemCode, from }) => {
+    build: (_params, { problemCode, from, contestProblem }) => {
+      if (contestProblem && problemCode) {
+        const contestSlug = encodeURIComponent(contestProblem.contestSlug)
+        const code = encodeURIComponent(problemCode)
+        return [
+          home,
+          { label: 'Cuộc thi', to: '/contests' },
+          {
+            label: contestProblem.contestTitle,
+            to: `/contests/${contestSlug}`,
+          },
+          {
+            label: contestProblem.problemTitle,
+            to: `/contests/${contestSlug}/problems/${code}`,
+          },
+          { label: 'Chi tiết bài nộp' },
+        ]
+      }
       if (!problemCode) return [home, { label: 'Bài nộp', to: '/submissions' }, { label: 'Chi tiết bài nộp' }]
       const code = encodeURIComponent(problemCode)
       const parent: BreadcrumbItem = from === MY_SUBMISSIONS_SOURCE

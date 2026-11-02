@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { REFRESH_COOKIE_NAME } from './auth/auth.controller.js';
 import { AvatarStorageService } from './auth/avatar-storage.service.js';
+import { getAllowedFrontendOrigins } from './cors-origins.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -20,13 +21,8 @@ async function bootstrap() {
       response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     },
   });
-  const allowedOrigins = (process.env.FRONTEND_ORIGINS ?? 'http://localhost:5173')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
   app.enableCors({
-    origin: allowedOrigins,
+    origin: getAllowedFrontendOrigins(process.env.FRONTEND_ORIGINS),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

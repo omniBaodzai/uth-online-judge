@@ -311,6 +311,31 @@ describe('AdminRepository', () => {
     expect(client.query).not.toHaveBeenCalledWith('COMMIT');
   });
 
+  it('prevents changing test cases once an associated contest has started', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT test_case_revision, status')) {
+          return { rows: [{ test_case_revision: 2, status: 'PUBLISHED' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM public.contest_problems')) {
+          return { rows: [{ contest_id: 'contest-1' }], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+    const repository = new AdminRepository({ connect: vi.fn().mockResolvedValue(client) } as never);
+
+    await expect(repository.replaceTestCases('problem-1', 2, []))
+      .rejects.toThrow(/sau khi cuộc thi bắt đầu/i);
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE problem_test_cases SET position'),
+      expect.anything(),
+    );
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
   it('creates and updates editorial items atomically and preserves the submitted IDs', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

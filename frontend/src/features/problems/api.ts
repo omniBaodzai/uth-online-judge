@@ -95,8 +95,8 @@ export function fetchTags(fetcher: Fetcher) {
   return fetcher<Tag[]>('/problems/tags')
 }
 
-export function fetchProblemDetail(fetcher: Fetcher, code: string) {
-  return fetcher<ProblemDetailResponse>(`/problems/${encodeURIComponent(code)}`)
+export function fetchProblemDetail(fetcher: Fetcher, code: string, signal?: AbortSignal) {
+  return fetcher<ProblemDetailResponse>(`/problems/${encodeURIComponent(code)}`, { signal })
 }
 
 export function fetchProblemEditorial(fetcher: Fetcher, code: string) {

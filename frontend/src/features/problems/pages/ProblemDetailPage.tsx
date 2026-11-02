@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
+import { useBreadcrumbContestProblem } from '../../../components/navigation/useBreadcrumbContestProblem'
 import ReportModal from '../components/ReportModal'
 import ProblemStatement from '../components/ProblemStatement'
 import ProblemPrintView from '../components/ProblemPrintView'
 import ProblemStateMessage from '../components/ProblemStateMessage'
+import {
+  ContestProblemBanner,
+  ContestProblemStateMessage,
+} from '../components/ContestProblemContext'
+import { useContestProblemDetail } from '../useContestProblemDetail'
 import { useProblemDetail } from '../useProblemDetail'
 import styles from './ProblemDetailPage.module.css'
 
@@ -17,22 +23,54 @@ function Icon({ children }: { children: React.ReactNode }) {
 }
 
 function ProblemDetailPage() {
-  const { code = '' } = useParams()
+  const { code = '', contestId } = useParams()
   const { user } = useAuth()
   const [reportOpen, setReportOpen] = useState(false)
-  const { state, retry } = useProblemDetail(code)
+  const practiceDetail = useProblemDetail(code, !contestId)
+  const contestDetail = useContestProblemDetail(contestId, code)
+  const contestState = contestDetail.state
+  const contest = contestState.phase !== 'loading' && 'contest' in contestState
+    ? contestState.contest
+    : undefined
+  const contestProblemTitle = contestState.phase === 'ready'
+    ? contestState.problem.title
+    : undefined
+  useBreadcrumbContestProblem(contestId, contest, contestProblemTitle)
 
-  if (state.phase !== 'ready') {
-    return <ProblemStateMessage state={state} code={code} onRetry={retry} />
+  if (contestId && contestState.phase !== 'ready') {
+    return (
+      <ContestProblemStateMessage
+        contestIdentifier={contest?.slug ?? contestId}
+        phase={contestState.phase}
+        message={'message' in contestState ? contestState.message : undefined}
+        onRetry={contestDetail.retry}
+      />
+    )
   }
-  const { problem } = state
+  if (!contestId && practiceDetail.state.phase !== 'ready') {
+    return <ProblemStateMessage state={practiceDetail.state} code={code} onRetry={practiceDetail.retry} />
+  }
+  const problem = contestId && contestState.phase === 'ready'
+    ? contestState.problem
+    : !contestId && practiceDetail.state.phase === 'ready'
+      ? practiceDetail.state.problem
+      : null
+  if (!problem) return null
 
   const base = `/problems/${problem.code}`
   // Chưa đăng nhập: RequireAuth trên route /submit sẽ chuyển sang trang đăng nhập kèm returnTo.
-  const submitPath = `${base}/submit`
+  const submitPath = contestState.phase === 'ready'
+    ? `/contests/${encodeURIComponent(contestState.contest.slug)}/problems/${encodeURIComponent(problem.code)}/submit`
+    : `${base}/submit`
 
   return (
     <main className={styles.main} id="main-content">
+      {contestState.phase === 'ready' && (
+        <ContestProblemBanner
+          contest={contestState.contest}
+          maxScore={contestState.contestProblem.maxScore}
+        />
+      )}
       <div className={styles.grid}>
         <div className={styles.left}>
           <ProblemStatement
@@ -57,10 +95,9 @@ function ProblemDetailPage() {
         <aside className={styles.right} aria-label="Thông tin bài tập">
           <section className={styles.panel} aria-labelledby="actions-title">
             <Link className={styles.submit} to={submitPath} data-authenticated={Boolean(user)}>
-              
-              Gửi bài giải
+              {contestState.phase === 'ready' ? 'Nộp bài thi' : 'Gửi bài giải'}
             </Link>
-            <ul className={styles.actions}>
+            {!contestId && <ul className={styles.actions}>
               <li>
                 <button type="button" onClick={() => window.print()}>
                   <Icon>
@@ -102,7 +139,7 @@ function ProblemDetailPage() {
                   Xem lời giải
                 </Link>
               </li>
-            </ul>
+            </ul>}
           </section>
 
           <section className={styles.panel} aria-labelledby="limits-title">
@@ -111,9 +148,11 @@ function ProblemDetailPage() {
               <div>
                 <dt>
                   <Icon><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" /></Icon>
-                  Điểm
+                  {contestId ? 'Điểm tối đa cuộc thi' : 'Điểm'}
                 </dt>
-                <dd>{problem.scoringEnabled ? `${problem.points} điểm` : 'Không áp dụng'}</dd>
+                <dd>{contestState.phase === 'ready'
+                  ? `${contestState.contestProblem.maxScore} điểm`
+                  : problem.scoringEnabled ? `${problem.points} điểm` : 'Không áp dụng'}</dd>
               </div>
               <div>
                 <dt>

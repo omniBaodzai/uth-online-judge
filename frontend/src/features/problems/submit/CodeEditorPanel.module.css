@@ -148,6 +148,12 @@
   line-height: 1.5;
 }
 
+.successNotice {
+  border-top-color: #b6dfc9;
+  background: #eaf7ef;
+  color: #155c39;
+}
+
 .notice p {
   margin: 0;
 }

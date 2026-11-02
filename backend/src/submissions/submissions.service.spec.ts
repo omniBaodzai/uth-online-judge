@@ -1,4 +1,9 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -17,6 +22,7 @@ describe('SubmissionsService', () => {
     findPublishedProblemId: vi.fn(),
     findAllowedLanguageId: vi.fn(),
     insert: vi.fn(),
+    insertContest: vi.fn(),
     markQueued: vi.fn(),
     findOwned: vi.fn(),
     findProblemSubmissions: vi.fn(),
@@ -40,6 +46,7 @@ describe('SubmissionsService', () => {
       status: 'PENDING',
       submittedAt: 'now',
     });
+
     queue.add.mockResolvedValue({});
 
     await expect(service.create('user-1', input)).resolves.toEqual({
@@ -59,6 +66,34 @@ describe('SubmissionsService', () => {
       languageId: 'l1',
       sourceCode: input.sourceCode,
     });
+  });
+
+  it('sends contest submissions through the same judging queue pipeline', async () => {
+    repository.insertContest.mockResolvedValue({
+      id: 'contest-submission-1',
+      status: 'PENDING',
+      submittedAt: 'now',
+    });
+    queue.add.mockResolvedValue({});
+
+    await expect(service.createForContest('user-1', 'contest-slug', input)).resolves.toEqual({
+      id: 'contest-submission-1',
+      status: 'QUEUED',
+      submittedAt: 'now',
+    });
+    expect(repository.insertContest).toHaveBeenCalledWith({
+      userId: 'user-1',
+      contestIdentifier: 'contest-slug',
+      problemCode: input.problemCode,
+      language: input.language,
+      sourceCode: input.sourceCode,
+    });
+    expect(queue.add).toHaveBeenCalledWith(
+      'judge-submission',
+      { submissionId: 'contest-submission-1' },
+      expect.objectContaining({ jobId: 'contest-submission-1', attempts: 3 }),
+    );
+    expect(repository.markQueued).toHaveBeenCalledWith('contest-submission-1');
   });
 
   it('keeps an ambiguously enqueued submission pending and returns its id', async () => {
@@ -218,10 +253,22 @@ describe('SubmissionsService', () => {
 });
 
 describe('SubmissionsRepository', () => {
-  const database = { query: vi.fn() };
+  const database = { query: vi.fn(), connect: vi.fn() };
   const repository = new SubmissionsRepository(database as never);
 
   beforeEach(() => database.query.mockReset());
+
+  function contestSubmissionClient(
+    results: Array<{ rows: unknown[]; rowCount?: number | null }>,
+  ) {
+    const client = {
+      query: vi.fn().mockResolvedValueOnce({ rows: [], rowCount: null }),
+      release: vi.fn(),
+    };
+    for (const result of results) client.query.mockResolvedValueOnce(result);
+    database.connect.mockResolvedValue(client);
+    return client;
+  }
 
   it('lets the schema default set the status instead of accepting one', async () => {
     const client = {
@@ -298,7 +345,7 @@ describe('SubmissionsRepository', () => {
       'COUNT(*) FROM problem_test_cases',
     );
     expect(client.query.mock.calls[2][0]).toContain('TRUE');
-    expect(client.query.mock.calls[3][0]).toContain('                1,');
+    expect(client.query.mock.calls[3][0]).toMatch(/expected_output,\s+1,/);
     expect(client.query).toHaveBeenCalledWith('COMMIT');
     expect(client.release).toHaveBeenCalledOnce();
   });
@@ -337,8 +384,178 @@ describe('SubmissionsRepository', () => {
     const insertSql = client.query.mock.calls[2][0] as string;
     const snapshotSql = client.query.mock.calls[3][0] as string;
     expect(insertSql).toContain('TRUE');
-    expect(snapshotSql).toContain('                1,');
+    expect(snapshotSql).toMatch(/expected_output,\s+1,/);
     expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('creates a contest submission with the database score snapshot and accepted timestamp atomically', async () => {
+    const submittedAt = new Date('2026-10-31T08:15:00.000Z');
+    const client = contestSubmissionClient([
+      { rows: [{ id: 'contest-1' }], rowCount: 1 },
+      { rows: [{ is_ongoing: true }], rowCount: 1 },
+      { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'problem-1', max_score: '75.50' }], rowCount: 1 },
+      { rows: [{ id: 'language-1' }], rowCount: 1 },
+      { rows: [{ id: 'submission-1', status: 'PENDING', submitted_at: submittedAt }], rowCount: 1 },
+      { rows: [], rowCount: 3 },
+      { rows: [], rowCount: null },
+    ]);
+
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'public-contest',
+      problemCode: 'UTH001',
+      language: 'cpp',
+      sourceCode: 'int main() {}',
+    })).resolves.toEqual({
+      id: 'submission-1',
+      status: 'PENDING',
+      submittedAt: submittedAt.toISOString(),
+    });
+
+    const contestQuery = client.query.mock.calls[1] as [string, unknown[]];
+    expect(contestQuery[0]).toContain("c.publication_status = 'PUBLISHED'");
+    expect(contestQuery[0]).toContain("c.visibility = 'PUBLIC'");
+    expect(contestQuery[0]).toContain('FOR SHARE');
+    expect(contestQuery[1]).toEqual([null, 'public-contest']);
+    expect(client.query.mock.calls[2]?.[0]).toContain('clock_timestamp()');
+    expect(client.query.mock.calls[3]?.[0]).toContain('FOR SHARE');
+    expect(client.query.mock.calls[4]?.[0]).toContain('problem_code_snapshot = $2');
+
+    const insertQuery = client.query.mock.calls[6] as [string, unknown[]];
+    expect(insertQuery[0]).toContain('WITH acceptance_time AS MATERIALIZED');
+    expect(insertQuery[0]).toContain('acceptance_time.submitted_at < c.ends_at');
+    expect(insertQuery[0]).toContain('contest_max_score_snapshot');
+    expect(insertQuery[0]).toContain('cp.max_score');
+    expect(insertQuery[1]).toEqual([
+      'user-1',
+      'contest-1',
+      'problem-1',
+      'language-1',
+      'int main() {}',
+    ]);
+    expect(client.query.mock.calls[7]?.[0]).toContain('submission_test_case_snapshots');
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('does not disclose unpublished or private contests', async () => {
+    const client = contestSubmissionClient([
+      { rows: [], rowCount: 0 },
+    ]);
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'private-contest',
+      problemCode: 'UTH001',
+      language: 'cpp',
+      sourceCode: 'code',
+    })).rejects.toBeInstanceOf(NotFoundException);
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('rejects submissions before start or after end using PostgreSQL time', async () => {
+    const client = contestSubmissionClient([
+      { rows: [{ id: 'contest-1' }], rowCount: 1 },
+      { rows: [{ is_ongoing: false }], rowCount: 1 },
+    ]);
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'contest-1',
+      problemCode: 'UTH001',
+      language: 'cpp',
+      sourceCode: 'code',
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('contest_participants'),
+      expect.anything(),
+    );
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+
+  it('rejects missing and cancelled participants before looking up contest problems', async () => {
+    for (const registrationStatus of [undefined, 'CANCELLED']) {
+      const client = contestSubmissionClient([
+        { rows: [{ id: 'contest-1' }], rowCount: 1 },
+        { rows: [{ is_ongoing: true }], rowCount: 1 },
+        { rows: registrationStatus ? [{ registration_status: registrationStatus }] : [], rowCount: 0 },
+      ]);
+      await expect(repository.insertContest({
+        userId: 'user-1',
+        contestIdentifier: 'contest-1',
+        problemCode: 'UTH001',
+        language: 'cpp',
+        sourceCode: 'code',
+      })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(client.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('contest_problems'),
+        expect.anything(),
+      );
+    }
+  });
+
+  it('rejects a problem not attached to the contest without persisting a submission', async () => {
+    const client = contestSubmissionClient([
+      { rows: [{ id: 'contest-1' }], rowCount: 1 },
+      { rows: [{ is_ongoing: true }], rowCount: 1 },
+      { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [], rowCount: 0 },
+    ]);
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'contest-1',
+      problemCode: 'OTHER',
+      language: 'cpp',
+      sourceCode: 'code',
+    })).rejects.toBeInstanceOf(NotFoundException);
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO public.submissions'),
+      expect.anything(),
+    );
+  });
+
+  it('rejects unsupported contest languages', async () => {
+    const client = contestSubmissionClient([
+      { rows: [{ id: 'contest-1' }], rowCount: 1 },
+      { rows: [{ is_ongoing: true }], rowCount: 1 },
+      { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'problem-1', max_score: '100.00' }], rowCount: 1 },
+      { rows: [], rowCount: 0 },
+    ]);
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'contest-1',
+      problemCode: 'UTH001',
+      language: 'unsupported',
+      sourceCode: 'code',
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO public.submissions'),
+      expect.anything(),
+    );
+  });
+
+  it('guards the final insert against a contest ending after pre-validation but before persistence', async () => {
+    const client = contestSubmissionClient([
+      { rows: [{ id: 'contest-1' }], rowCount: 1 },
+      { rows: [{ is_ongoing: true }], rowCount: 1 },
+      { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'problem-1', max_score: '100.00' }], rowCount: 1 },
+      { rows: [{ id: 'language-1' }], rowCount: 1 },
+      { rows: [], rowCount: 0 },
+    ]);
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'contest-1',
+      problemCode: 'UTH001',
+      language: 'cpp',
+      sourceCode: 'code',
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(client.query.mock.calls[6]?.[0]).toContain('acceptance_time.submitted_at < c.ends_at');
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('submission_test_case_snapshots'),
+      expect.anything(),
+    );
   });
 
   it('scopes reads to the owner and never selects hidden judging data', async () => {

@@ -133,9 +133,29 @@ type RequestFn = <T>(path: string, init?: RequestInit) => Promise<T>
 
 // Gửi bài lên backend để xếp hàng chấm bất đồng bộ.
 export function submitSolution(request: RequestFn, payload: SubmissionPayload): Promise<SubmissionResult> {
+  return postSubmission(request, '/submissions', payload)
+}
+
+export function submitContestSolution(
+  request: RequestFn,
+  contestIdentifier: string,
+  payload: SubmissionPayload,
+): Promise<SubmissionResult> {
+  return postSubmission(
+    request,
+    `/contests/${encodeURIComponent(contestIdentifier)}/submissions`,
+    payload,
+  )
+}
+
+function postSubmission(
+  request: RequestFn,
+  path: string,
+  payload: SubmissionPayload,
+): Promise<SubmissionResult> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 10_000)
-  return request<SubmissionResult>('/submissions', {
+  return request<SubmissionResult>(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

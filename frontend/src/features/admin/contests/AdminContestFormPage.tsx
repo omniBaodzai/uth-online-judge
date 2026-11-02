@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ArrowDown, ArrowUp, BookOpen, Check, Info, Plus, Search, Trash2, Trophy } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { sampleProblems } from '../../problems/data'
+import type { AdminProblem } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { AdminIcon } from '../components/AdminIcons'
 import { useAdmin } from '../useAdmin'
+import { contestErrorMessage } from './contest-errors'
 import { useContestAdmin } from './useContestAdmin'
 import {
   formatForDateTimeLocal,
@@ -12,12 +13,7 @@ import {
   parseDateTimeLocal,
   suggestContestCode,
 } from './contest-utils'
-import type {
-  Contest,
-  ContestFormValues,
-  ContestProblem,
-  ContestPublicationStatus,
-} from './types'
+import type { ContestDetail, ContestFormValues, ContestProblem } from './types'
 import adminStyles from '../admin.module.css'
 import styles from './AdminContestsPage.module.css'
 
@@ -31,15 +27,14 @@ const difficultyLabels = {
 
 function emptyFormValues(): ContestFormValues {
   return {
-    code: '',
+    slug: '',
     title: '',
     description: '',
     rules: '',
-    startTime: '',
-    endTime: '',
-    durationMinutes: 90,
+    startsAt: '',
+    endsAt: '',
     settings: {
-      visibility: 'public',
+      visibility: 'PUBLIC',
       allowRegistration: true,
       showLeaderboard: true,
     },
@@ -47,29 +42,30 @@ function emptyFormValues(): ContestFormValues {
   }
 }
 
-function toFormValues(contest: Contest): ContestFormValues {
+function toFormValues(contest: ContestDetail): ContestFormValues {
   return {
-    id: contest.id,
-    code: contest.code,
+    slug: contest.slug,
     title: contest.title,
-    description: contest.description,
-    rules: contest.rules,
-    startTime: formatForDateTimeLocal(contest.startTime),
-    endTime: formatForDateTimeLocal(contest.endTime),
-    durationMinutes: contest.durationMinutes,
-    settings: { ...contest.settings },
+    description: contest.description ?? '',
+    rules: contest.rules ?? '',
+    startsAt: formatForDateTimeLocal(contest.startsAt),
+    endsAt: formatForDateTimeLocal(contest.endsAt),
+    settings: {
+      visibility: contest.visibility,
+      allowRegistration: contest.allowRegistration,
+      showLeaderboard: contest.showLeaderboard,
+    },
     problems: contest.problems.map((problem) => ({ ...problem })),
-    ...(contest.studentPageId ? { studentPageId: contest.studentPageId } : {}),
   }
 }
 
-function toProblemOption(problem: typeof sampleProblems[number]): ContestProblem {
+function toProblemOption(problem: AdminProblem): ContestProblem {
   return {
     problemId: problem.id,
-    code: problem.code,
-    title: problem.title,
-    difficulty: problem.points <= 100 ? 'easy' : problem.points <= 200 ? 'medium' : 'hard',
-    maxScore: problem.points,
+    problemCode: problem.code,
+    problemTitle: problem.title,
+    difficulty: problem.difficulty ?? null,
+    maxScore: problem.score > 0 ? problem.score : 100,
   }
 }
 
@@ -84,26 +80,59 @@ function ContestProblemPicker({
   onClose: () => void
   onConfirm: (problems: ContestProblem[]) => void
 }) {
+  const { listProblems } = useContestAdmin()
   const [query, setQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(existingProblems.map((problem) => problem.problemId)),
   )
+  const [problemOptions, setProblemOptions] = useState<ContestProblem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
-  const options = useMemo(() => {
-    const mapped = sampleProblems.map(toProblemOption)
-    const existingIds = new Set(existingProblems.map((problem) => problem.problemId))
-    return [...existingProblems, ...mapped.filter((problem) => !existingIds.has(problem.problemId))]
-  }, [existingProblems])
-  const search = normalizeContestSearch(query.trim())
-  const filteredOptions = options.filter((problem) => (
-    normalizeContestSearch(`${problem.code} ${problem.title}`).includes(search)
-  ))
+
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    const timer = window.setTimeout(() => {
+      setLoading(true)
+      setError('')
+      listProblems(query).then((result) => {
+        if (active) {
+          setProblemOptions((current) => {
+            const options = new Map(current.map((problem) => [problem.problemId, problem]))
+            for (const problem of result.items.map(toProblemOption)) {
+              options.set(problem.problemId, problem)
+            }
+            return [...options.values()]
+          })
+        }
+      }).catch((cause: unknown) => {
+        if (active) setError(contestErrorMessage(cause, 'Không thể tải danh sách bài tập.'))
+      }).finally(() => {
+        if (active) setLoading(false)
+      })
+    }, 250)
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [listProblems, open, query])
 
   useEffect(() => {
     if (open) searchRef.current?.focus()
   }, [open])
 
   if (!open) return null
+
+  const optionsById = new Map<string, ContestProblem>()
+  for (const problem of existingProblems) optionsById.set(problem.problemId, problem)
+  for (const problem of problemOptions) {
+    if (!optionsById.has(problem.problemId)) optionsById.set(problem.problemId, problem)
+  }
+  const search = normalizeContestSearch(query.trim())
+  const filteredOptions = [...optionsById.values()].filter((problem) => (
+    normalizeContestSearch(`${problem.problemCode} ${problem.problemTitle}`).includes(search)
+  ))
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === 'Escape') {
@@ -127,7 +156,7 @@ function ContestProblemPicker({
   }
 
   function confirm() {
-    onConfirm(options.filter((problem) => selectedIds.has(problem.problemId)))
+    onConfirm([...optionsById.values()].filter((problem) => selectedIds.has(problem.problemId)))
     onClose()
   }
 
@@ -148,7 +177,7 @@ function ContestProblemPicker({
         <div className={styles.dialogHeading}>
           <div>
             <h2 id="problem-picker-title">Thêm bài tập vào cuộc thi</h2>
-            <p>Chọn một hoặc nhiều bài tập từ danh sách mẫu.</p>
+            <p>Chọn bài tập đã xuất bản từ danh sách trên hệ thống.</p>
           </div>
           <button
             className={adminStyles.iconButton}
@@ -170,8 +199,10 @@ function ContestProblemPicker({
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
-        <div className={styles.pickerList} role="group" aria-label="Chọn bài tập">
-          {filteredOptions.map((problem) => {
+        <div className={styles.pickerList} role="group" aria-label="Chọn bài tập" aria-busy={loading}>
+          {error && <p className={adminStyles.formMessage} role="alert">{error}</p>}
+          {loading && <p className={styles.emptyState} aria-live="polite">Đang tải bài tập…</p>}
+          {!loading && filteredOptions.map((problem) => {
             const alreadyAdded = existingProblems.some((item) => item.problemId === problem.problemId)
             return (
               <label className={styles.pickerItem} key={problem.problemId}>
@@ -189,23 +220,28 @@ function ContestProblemPicker({
                   }}
                 />
                 <span className={styles.pickerProblem}>
-                  <strong>{problem.title}</strong>
-                  <small>{problem.code} · {problem.maxScore} điểm{alreadyAdded ? ' · Đã có trong cuộc thi' : ''}</small>
+                  <strong>{problem.problemTitle}</strong>
+                  <small>
+                    {problem.problemCode} · {problem.maxScore} điểm
+                    {alreadyAdded ? ' · Đã có trong cuộc thi' : ''}
+                  </small>
                 </span>
-                <span className={`${styles.difficulty} ${styles[`difficulty_${problem.difficulty}`]}`}>
-                  {difficultyLabels[problem.difficulty]}
-                </span>
+                {problem.difficulty && (
+                  <span className={`${styles.difficulty} ${styles[`difficulty_${problem.difficulty}`]}`}>
+                    {difficultyLabels[problem.difficulty]}
+                  </span>
+                )}
               </label>
             )
           })}
-          {filteredOptions.length === 0 && (
-            <p className={styles.emptyState}>Không tìm thấy bài tập phù hợp.</p>
+          {!loading && !error && filteredOptions.length === 0 && (
+            <p className={styles.emptyState}>Không tìm thấy bài tập đã xuất bản phù hợp.</p>
           )}
         </div>
         <div className={adminStyles.dialogActions}>
           <span className={adminStyles.fieldHint}>Đã chọn {selectedIds.size} bài</span>
           <button className={adminStyles.buttonSecondary} type="button" onClick={onClose}>Hủy</button>
-          <button className={adminStyles.buttonPrimary} type="button" onClick={confirm}>
+          <button className={adminStyles.buttonPrimary} type="button" onClick={confirm} disabled={Boolean(error)}>
             <Check size={15} aria-hidden="true" /> Xác nhận
           </button>
         </div>
@@ -216,35 +252,104 @@ function ContestProblemPicker({
 
 function AdminContestFormPage() {
   const { contestId } = useParams()
-  const { getContest } = useContestAdmin()
-  const contest = contestId ? getContest(contestId) : undefined
+  const api = useContestAdmin()
+  const [loadedContest, setLoadedContest] = useState<{ id: string; value: ContestDetail } | null>(null)
+  const [loadFailure, setLoadFailure] = useState<{ id: string; message: string } | null>(null)
 
-  if (contestId && !contest) {
+  useEffect(() => {
+    if (!contestId) return
+    let active = true
+    api.get(contestId).then((result) => {
+      if (active) setLoadedContest({ id: contestId, value: result })
+    }).catch((cause: unknown) => {
+      if (active) {
+        setLoadFailure({
+          id: contestId,
+          message: contestErrorMessage(cause, 'Không thể tải thông tin cuộc thi.'),
+        })
+      }
+    })
+    return () => { active = false }
+  }, [api, contestId])
+
+  const contest = contestId && loadedContest?.id === contestId ? loadedContest.value : null
+  const error = contestId && !contest && loadFailure?.id === contestId ? loadFailure.message : ''
+  const loading = Boolean(contestId && !contest && !error)
+
+  if (loading) {
+    return <section className={adminStyles.panel} aria-live="polite">Đang tải thông tin cuộc thi…</section>
+  }
+
+  if (error || (contestId && !contest)) {
     return (
       <section className={adminStyles.panel}>
-        <h1>Không tìm thấy cuộc thi</h1>
-        <p className={adminStyles.pageSubtitle}>Cuộc thi không tồn tại trong dữ liệu mock của phiên này.</p>
+        <h1>{error.includes('Không tìm thấy') ? 'Không tìm thấy cuộc thi' : 'Không thể tải cuộc thi'}</h1>
+        <p className={adminStyles.formMessage} role="alert">{error || 'Cuộc thi không tồn tại.'}</p>
         <Link className={adminStyles.buttonSecondary} to="/admin/contests">Quay lại danh sách</Link>
       </section>
     )
   }
 
-  return <ContestForm key={contest?.id ?? 'new-contest'} contest={contest} />
+  if (contest?.publicationStatus === 'ARCHIVED') {
+    return <ArchivedContest contest={contest} />
+  }
+
+  return <ContestForm key={contest?.id ?? 'new-contest'} contest={contest ?? undefined} />
 }
 
-function ContestForm({ contest }: { contest?: Contest }) {
+function ArchivedContest({ contest }: { contest: ContestDetail }) {
+  const api = useContestAdmin()
+  const { setNotice } = useAdmin()
   const navigate = useNavigate()
-  const { contests, saveContest } = useContestAdmin()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function restore() {
+    setLoading(true)
+    setError('')
+    try {
+      await api.restore(contest.id)
+      setNotice(`Đã khôi phục cuộc thi “${contest.title}”.`)
+      navigate(`/admin/contests/${encodeURIComponent(contest.id)}/edit`, { replace: true })
+    } catch (cause) {
+      setError(contestErrorMessage(cause, 'Không thể khôi phục cuộc thi.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <section className={adminStyles.panel}>
+      <h1>Cuộc thi đã lưu trữ</h1>
+      <p className={adminStyles.pageSubtitle}>Khôi phục cuộc thi trước khi chỉnh sửa “{contest.title}”.</p>
+      {error && <p className={adminStyles.formMessage} role="alert">{error}</p>}
+      <div className={adminStyles.dialogActions}>
+        <Link className={adminStyles.buttonSecondary} to="/admin/contests">Quay lại danh sách</Link>
+        <button className={adminStyles.buttonPrimary} type="button" onClick={() => { void restore() }} disabled={loading}>
+          {loading ? 'Đang khôi phục…' : 'Khôi phục và chỉnh sửa'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function ContestForm({ contest }: { contest?: ContestDetail }) {
+  const api = useContestAdmin()
+  const navigate = useNavigate()
   const { setNotice } = useAdmin()
   const [initialValues] = useState(() => contest ? toFormValues(contest) : emptyFormValues())
   const [draft, setDraft] = useState<ContestFormValues>(initialValues)
-  const [codeEdited, setCodeEdited] = useState(Boolean(contest))
+  const [slugEdited, setSlugEdited] = useState(Boolean(contest))
   const [errors, setErrors] = useState<FormErrors>({})
   const [formError, setFormError] = useState('')
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const slugLocked = Boolean(contest?.publishedAt)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialValues)
-  const totalPoints = draft.problems.reduce((total, problem) => total + problem.maxScore, 0)
+  const totalPoints = draft.problems.reduce((total, problem) => total + Number(problem.maxScore || 0), 0)
+  const problemsChanged = JSON.stringify(draft.problems.map(({ problemId, maxScore }) => ({ problemId, maxScore })))
+    !== JSON.stringify(initialValues.problems.map(({ problemId, maxScore }) => ({ problemId, maxScore })))
 
   useEffect(() => {
     if (!dirty) return
@@ -262,94 +367,136 @@ function ContestForm({ contest }: { contest?: Contest }) {
     setFormError('')
   }
 
-  function updateSettings(key: keyof ContestFormValues['settings'], value: boolean | 'public' | 'private') {
+  function updateSettings(key: keyof ContestFormValues['settings'], value: boolean | 'PUBLIC' | 'PRIVATE') {
     setDraft((current) => ({
       ...current,
       settings: { ...current.settings, [key]: value },
     }))
+    setFormError('')
   }
 
-  function validate(status: ContestPublicationStatus): FormErrors {
+  function validate(publish: boolean): FormErrors {
     const next: FormErrors = {}
-    const code = draft.code.trim()
+    const slug = draft.slug.trim()
     const title = draft.title.trim()
 
     if (!title) next.title = 'Vui lòng nhập tên cuộc thi.'
-    if (!code) next.code = 'Vui lòng nhập mã cuộc thi.'
-    else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(code)) {
-      next.code = 'Mã chỉ gồm chữ thường, số và dấu gạch ngang.'
-    } else if (contests.some((item) => item.code.toLocaleLowerCase() === code.toLocaleLowerCase() && item.id !== contest?.id)) {
-      next.code = 'Mã cuộc thi đã được sử dụng.'
+    else if (title.length > 255) next.title = 'Tên cuộc thi không được vượt quá 255 ký tự.'
+    if (!slug) next.slug = 'Vui lòng nhập mã cuộc thi.'
+    else if (slug.length > 120 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      next.slug = 'Mã chỉ gồm tối đa 120 chữ thường, số và dấu gạch ngang.'
+    }
+    if (!draft.startsAt) next.startsAt = 'Vui lòng chọn thời gian bắt đầu.'
+    if (!draft.endsAt) next.endsAt = 'Vui lòng chọn thời gian kết thúc.'
+
+    const startsAt = draft.startsAt ? Date.parse(`${draft.startsAt}:00+07:00`) : Number.NaN
+    const endsAt = draft.endsAt ? Date.parse(`${draft.endsAt}:00+07:00`) : Number.NaN
+    if (Number.isFinite(startsAt) && Number.isFinite(endsAt) && startsAt >= endsAt) {
+      next.endsAt = 'Thời gian kết thúc phải sau thời gian bắt đầu.'
     }
 
-    if (status === 'published') {
-      if (!draft.startTime) next.startTime = 'Vui lòng chọn thời gian bắt đầu.'
-      if (!draft.endTime) next.endTime = 'Vui lòng chọn thời gian kết thúc.'
-
-      const start = draft.startTime ? Date.parse(`${draft.startTime}:00+07:00`) : Number.NaN
-      const end = draft.endTime ? Date.parse(`${draft.endTime}:00+07:00`) : Number.NaN
-      if (Number.isFinite(start) && Number.isFinite(end) && start >= end) {
-        next.endTime = 'Thời gian kết thúc phải sau thời gian bắt đầu.'
-      }
-
-      if (!Number.isInteger(draft.durationMinutes) || draft.durationMinutes <= 0) {
-        next.durationMinutes = 'Thời gian làm bài phải là số phút lớn hơn 0.'
-      }
-      if (draft.problems.length === 0) {
-        next.problems = 'Thêm ít nhất một bài tập trước khi xuất bản.'
-      }
+    if (draft.description.length > 20_000) next.description = 'Mô tả không được vượt quá 20.000 ký tự.'
+    if (draft.rules.length > 20_000) next.rules = 'Nội quy không được vượt quá 20.000 ký tự.'
+    if (publish && draft.settings.visibility === 'PRIVATE') {
+      next.visibility = 'Chưa thể xuất bản cuộc thi riêng tư vì V1 chưa có cơ chế cấp quyền truy cập.'
     }
-
+    if (publish && draft.problems.length === 0) {
+      next.problems = 'Thêm ít nhất một bài tập trước khi xuất bản.'
+    }
+    if (draft.problems.some((problem) => (
+      !Number.isFinite(Number(problem.maxScore))
+      || Number(problem.maxScore) < 0.01
+      || Number(problem.maxScore) > 99_999_999.99
+      || Math.abs(Number(problem.maxScore) * 100 - Math.round(Number(problem.maxScore) * 100)) > 1e-8
+    ))) {
+      next.problems = 'Điểm tối đa mỗi bài phải từ 0,01 đến 99.999.999,99 và không quá 2 chữ số thập phân.'
+    }
     return next
   }
 
-  function save(status: ContestPublicationStatus) {
-    const nextErrors = validate(status)
+  async function save(publish: boolean) {
+    if (saving) return
+    const nextErrors = validate(publish)
     setErrors(nextErrors)
     setFormError('')
     if (Object.values(nextErrors).some(Boolean)) {
       const firstInvalid = Object.keys(nextErrors).find((key) => nextErrors[key])
-      if (firstInvalid) {
-        const element = document.getElementById(`contest-${firstInvalid}`)
-        element?.focus()
-      }
-      setFormError(status === 'published'
+      if (firstInvalid) document.getElementById(`contest-${firstInvalid}`)?.focus()
+      setFormError(publish
         ? 'Vui lòng kiểm tra các trường bắt buộc và điều kiện xuất bản.'
-        : 'Vui lòng nhập tên và mã cuộc thi hợp lệ.')
+        : 'Vui lòng kiểm tra thông tin cuộc thi.')
       return
     }
 
-    let startTime = ''
-    let endTime = ''
+    let startsAt: string
+    let endsAt: string
     try {
-      if (draft.startTime) startTime = parseDateTimeLocal(draft.startTime)
-      if (draft.endTime) endTime = parseDateTimeLocal(draft.endTime)
+      startsAt = parseDateTimeLocal(draft.startsAt)
+      endsAt = parseDateTimeLocal(draft.endsAt)
     } catch {
       setFormError('Không thể đọc ngày giờ. Vui lòng nhập lại thời gian tổ chức.')
       return
     }
 
-    const values: ContestFormValues = {
-      ...draft,
-      id: contest?.id,
-      code: draft.code.trim(),
+    const input = {
+      slug: draft.slug.trim(),
       title: draft.title.trim(),
-      description: draft.description.trim(),
-      rules: draft.rules.trim(),
-      startTime,
-      endTime,
-      problems: draft.problems.map((problem) => ({ ...problem })),
+      description: draft.description.trim() || null,
+      rules: draft.rules.trim() || null,
+      startsAt,
+      endsAt,
+      visibility: draft.settings.visibility,
+      allowRegistration: draft.settings.allowRegistration,
+      showLeaderboard: draft.settings.showLeaderboard,
     }
-    const saved = saveContest(values, status)
-    setNotice(status === 'published'
-      ? `Đã xuất bản “${saved.title}” trong mock state của phiên này.`
-      : `Đã lưu bản nháp “${saved.title}” trong mock state của phiên này.`)
-    navigate('/admin/contests')
+    const problemInputs = draft.problems.map((problem) => ({
+      problemId: problem.problemId,
+      maxScore: Number(problem.maxScore),
+    }))
+
+    setSaving(true)
+    let createdId: string | null = null
+    let basicDataSaved = false
+    try {
+      const saved = contest
+        ? await api.update(contest.id, input)
+        : await api.create(input)
+      if (!contest) createdId = saved.id
+      basicDataSaved = true
+
+      if ((!contest && problemInputs.length > 0) || (contest && problemsChanged)) {
+        await api.replaceProblems(saved.id, problemInputs)
+      }
+
+      let finalContest = saved
+      if (publish && saved.publicationStatus === 'DRAFT') {
+        finalContest = await api.publish(saved.id)
+      }
+
+      setNotice(publish
+        ? `Đã lưu và xuất bản cuộc thi “${finalContest.title}”.`
+        : `Đã lưu cuộc thi “${finalContest.title}” trên hệ thống.`)
+      navigate('/admin/contests')
+    } catch (cause) {
+      const reason = contestErrorMessage(cause, 'Không thể lưu cuộc thi.')
+      if (createdId) {
+        setNotice(`Đã tạo bản nháp, nhưng chưa hoàn tất lưu bài tập hoặc xuất bản: ${reason}`)
+        navigate(`/admin/contests/${encodeURIComponent(createdId)}/edit`)
+      } else if (basicDataSaved) {
+        setFormError(publish
+          ? `Thông tin đã được lưu, nhưng không thể hoàn tất cập nhật bài tập hoặc xuất bản: ${reason}`
+          : `Thông tin cơ bản đã được lưu, nhưng danh sách bài tập chưa được cập nhật: ${reason}`)
+      } else {
+        setFormError(reason)
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function submitPublished(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    save('published')
+    void save(contest?.publicationStatus !== 'PUBLISHED')
   }
 
   function cancel() {
@@ -391,7 +538,7 @@ function ContestForm({ contest }: { contest?: Contest }) {
           <p className={adminStyles.eyebrow}>QUẢN LÝ NỘI DUNG</p>
           <h1>{contest ? 'Chỉnh sửa cuộc thi' : 'Tạo cuộc thi mới'}</h1>
           <p className={adminStyles.pageSubtitle}>
-            {contest ? `Đang chỉnh sửa ${contest.code}.` : 'Thiết lập thông tin và bài tập cho cuộc thi.'}
+            {contest ? `Đang chỉnh sửa ${contest.slug}.` : 'Thiết lập thông tin và bài tập cho cuộc thi.'}
           </p>
         </div>
         <button className={adminStyles.buttonSecondary} type="button" onClick={cancel}>← Danh sách cuộc thi</button>
@@ -399,12 +546,12 @@ function ContestForm({ contest }: { contest?: Contest }) {
 
       <div className={`${adminStyles.demoNotice} ${styles.formNotice}`} role="note">
         <Info size={17} aria-hidden="true" />
-        <span>Thay đổi chỉ tồn tại trong state của phiên Admin hiện tại; tải lại trang sẽ khôi phục dữ liệu mẫu ban đầu. Chưa kết nối Backend/API.</span>
+        <span>Thay đổi được lưu trên Backend. Cuộc thi dùng chung khung giờ tổ chức; thời lượng làm bài riêng chưa được hỗ trợ.</span>
       </div>
 
       {formError && <p className={adminStyles.formMessage} role="alert">{formError}</p>}
 
-      <form onSubmit={submitPublished} noValidate>
+      <form onSubmit={submit} noValidate>
         <section id="contest-problems" className={`${adminStyles.panel} ${styles.formSection}`}>
           <h2>Thông tin cơ bản</h2>
           <p className={adminStyles.sectionHint}>Tên, mã nhận diện và nội dung giới thiệu cuộc thi.</p>
@@ -414,7 +561,7 @@ function ContestForm({ contest }: { contest?: Contest }) {
               <input
                 id="contest-title"
                 required
-                maxLength={140}
+                maxLength={255}
                 value={draft.title}
                 aria-invalid={Boolean(errors.title)}
                 aria-describedby={errors.title ? 'contest-title-error' : undefined}
@@ -423,51 +570,56 @@ function ContestForm({ contest }: { contest?: Contest }) {
                   setDraft((current) => ({
                     ...current,
                     title,
-                    ...(!codeEdited ? { code: suggestContestCode(title) } : {}),
+                    ...(!slugEdited && !slugLocked ? { slug: suggestContestCode(title) } : {}),
                   }))
-                  setErrors((current) => ({ ...current, title: '', code: '' }))
+                  setErrors((current) => ({ ...current, title: '', slug: '' }))
                   setFormError('')
                 }}
               />
               {errors.title && <p id="contest-title-error" className={styles.inlineError} role="alert">{errors.title}</p>}
             </div>
             <div className={adminStyles.field}>
-              <label htmlFor="contest-code">Mã cuộc thi / slug <span className={adminStyles.requiredMark}>*</span></label>
+              <label htmlFor="contest-slug">Mã cuộc thi / slug <span className={adminStyles.requiredMark}>*</span></label>
               <input
-                id="contest-code"
+                id="contest-slug"
                 required
-                maxLength={100}
-                value={draft.code}
-                aria-invalid={Boolean(errors.code)}
-                aria-describedby={errors.code ? 'contest-code-error' : 'contest-code-hint'}
+                maxLength={120}
+                value={draft.slug}
+                disabled={slugLocked}
+                aria-invalid={Boolean(errors.slug)}
+                aria-describedby={errors.slug ? 'contest-slug-error' : 'contest-slug-hint'}
                 onChange={(event) => {
-                  setCodeEdited(true)
-                  update('code', event.target.value)
+                  setSlugEdited(true)
+                  update('slug', event.target.value)
                 }}
               />
-              {errors.code
-                ? <p id="contest-code-error" className={styles.inlineError} role="alert">{errors.code}</p>
-                : <p id="contest-code-hint" className={adminStyles.fieldHint}>Tự đề xuất từ tên; dùng chữ thường, số và dấu gạch ngang.</p>}
+              {errors.slug
+                ? <p id="contest-slug-error" className={styles.inlineError} role="alert">{errors.slug}</p>
+                : <p id="contest-slug-hint" className={adminStyles.fieldHint}>
+                  {slugLocked ? 'Slug không thể thay đổi sau khi xuất bản.' : 'Tự đề xuất từ tên; dùng chữ thường, số và dấu gạch ngang.'}
+                </p>}
             </div>
             <div className={`${adminStyles.field} ${styles.fieldFull}`}>
               <label htmlFor="contest-description">Mô tả cuộc thi</label>
               <textarea
                 id="contest-description"
                 rows={4}
-                maxLength={2000}
+                maxLength={20_000}
                 value={draft.description}
                 onChange={(event) => update('description', event.target.value)}
               />
+              {errors.description && <p className={styles.inlineError} role="alert">{errors.description}</p>}
             </div>
             <div className={`${adminStyles.field} ${styles.fieldFull}`}>
               <label htmlFor="contest-rules">Nội quy hoặc hướng dẫn tham gia</label>
               <textarea
                 id="contest-rules"
                 rows={4}
-                maxLength={5000}
+                maxLength={20_000}
                 value={draft.rules}
                 onChange={(event) => update('rules', event.target.value)}
               />
+              {errors.rules && <p className={styles.inlineError} role="alert">{errors.rules}</p>}
             </div>
           </div>
         </section>
@@ -477,53 +629,40 @@ function ContestForm({ contest }: { contest?: Contest }) {
           <p className={adminStyles.sectionHint}>Thời gian hiển thị và quy đổi theo múi giờ Việt Nam (UTC+07:00).</p>
           <div className={adminStyles.formGrid}>
             <div className={adminStyles.field}>
-              <label htmlFor="contest-startTime">Thời gian bắt đầu <span className={adminStyles.requiredMark}>*</span></label>
+              <label htmlFor="contest-startsAt">Thời gian bắt đầu <span className={adminStyles.requiredMark}>*</span></label>
               <input
-                id="contest-startTime"
+                id="contest-startsAt"
                 type="datetime-local"
                 required
-                value={draft.startTime}
-                aria-invalid={Boolean(errors.startTime)}
-                aria-describedby={errors.startTime ? 'contest-startTime-error' : undefined}
-                onChange={(event) => update('startTime', event.target.value)}
+                value={draft.startsAt}
+                aria-invalid={Boolean(errors.startsAt)}
+                aria-describedby={errors.startsAt ? 'contest-startsAt-error' : undefined}
+                onChange={(event) => update('startsAt', event.target.value)}
               />
-              {errors.startTime && <p id="contest-startTime-error" className={styles.inlineError} role="alert">{errors.startTime}</p>}
+              {errors.startsAt && <p id="contest-startsAt-error" className={styles.inlineError} role="alert">{errors.startsAt}</p>}
             </div>
             <div className={adminStyles.field}>
-              <label htmlFor="contest-endTime">Thời gian kết thúc <span className={adminStyles.requiredMark}>*</span></label>
+              <label htmlFor="contest-endsAt">Thời gian kết thúc <span className={adminStyles.requiredMark}>*</span></label>
               <input
-                id="contest-endTime"
+                id="contest-endsAt"
                 type="datetime-local"
                 required
-                value={draft.endTime}
-                aria-invalid={Boolean(errors.endTime)}
-                aria-describedby={errors.endTime ? 'contest-endTime-error' : undefined}
-                onChange={(event) => update('endTime', event.target.value)}
+                value={draft.endsAt}
+                aria-invalid={Boolean(errors.endsAt)}
+                aria-describedby={errors.endsAt ? 'contest-endsAt-error' : undefined}
+                onChange={(event) => update('endsAt', event.target.value)}
               />
-              {errors.endTime && <p id="contest-endTime-error" className={styles.inlineError} role="alert">{errors.endTime}</p>}
+              {errors.endsAt && <p id="contest-endsAt-error" className={styles.inlineError} role="alert">{errors.endsAt}</p>}
             </div>
-            <div className={adminStyles.field}>
-              <label htmlFor="contest-durationMinutes">Thời gian làm bài (phút) <span className={adminStyles.requiredMark}>*</span></label>
-              <input
-                id="contest-durationMinutes"
-                type="number"
-                required
-                min="1"
-                step="1"
-                value={draft.durationMinutes}
-                aria-invalid={Boolean(errors.durationMinutes)}
-                aria-describedby={errors.durationMinutes ? 'contest-durationMinutes-error' : undefined}
-                onChange={(event) => update('durationMinutes', Number(event.target.value))}
-              />
-              {errors.durationMinutes && <p id="contest-durationMinutes-error" className={styles.inlineError} role="alert">{errors.durationMinutes}</p>}
-              <p className={adminStyles.fieldHint}>Thời gian làm bài được cấu hình riêng, không mặc định bằng toàn bộ thời lượng sự kiện.</p>
-            </div>
+            <p className={`${adminStyles.fieldHint} ${styles.fieldFull}`}>
+              Tất cả thí sinh sử dụng cùng khung giờ từ lúc bắt đầu đến lúc kết thúc.
+            </p>
           </div>
         </section>
 
         <section className={`${adminStyles.panel} ${styles.formSection}`}>
           <h2>Cấu hình cuộc thi</h2>
-          <p className={adminStyles.sectionHint}>Các tùy chọn dưới đây chỉ lưu trong mock state giao diện.</p>
+          <p className={adminStyles.sectionHint}>Cấu hình được lưu trực tiếp cùng cuộc thi trên hệ thống.</p>
           <div className={styles.settingsGroup}>
             <fieldset className={adminStyles.field}>
               <legend>Chế độ hiển thị</legend>
@@ -532,8 +671,8 @@ function ContestForm({ contest }: { contest?: Contest }) {
                   <input
                     type="radio"
                     name="contest-visibility"
-                    checked={draft.settings.visibility === 'public'}
-                    onChange={() => updateSettings('visibility', 'public')}
+                    checked={draft.settings.visibility === 'PUBLIC'}
+                    onChange={() => updateSettings('visibility', 'PUBLIC')}
                   />
                   Công khai
                 </label>
@@ -541,12 +680,16 @@ function ContestForm({ contest }: { contest?: Contest }) {
                   <input
                     type="radio"
                     name="contest-visibility"
-                    checked={draft.settings.visibility === 'private'}
-                    onChange={() => updateSettings('visibility', 'private')}
+                    checked={draft.settings.visibility === 'PRIVATE'}
+                    onChange={() => updateSettings('visibility', 'PRIVATE')}
                   />
                   Riêng tư
                 </label>
               </div>
+              {errors.visibility && <p className={styles.inlineError} role="alert">{errors.visibility}</p>}
+              {draft.settings.visibility === 'PRIVATE' && (
+                <p className={adminStyles.fieldHint}>Cuộc thi riêng tư có thể lưu nháp nhưng chưa thể xuất bản trong V1.</p>
+              )}
             </fieldset>
             <div className={styles.settingsChoices}>
               <label className={styles.settingsChoice}>
@@ -577,7 +720,7 @@ function ContestForm({ contest }: { contest?: Contest }) {
           <div className={styles.problemListHeading}>
             <div>
               <h2>Bài tập trong cuộc thi</h2>
-              <p className={adminStyles.sectionHint}>Chọn bài từ dữ liệu frontend hiện có; thứ tự được dùng làm thứ tự hiển thị.</p>
+              <p className={adminStyles.sectionHint}>Chọn bài đã xuất bản; thứ tự được dùng làm thứ tự hiển thị.</p>
             </div>
             <button className={adminStyles.buttonSecondary} type="button" onClick={() => setPickerOpen(true)}>
               <Plus size={16} aria-hidden="true" /> Thêm bài tập
@@ -611,16 +754,39 @@ function ContestForm({ contest }: { contest?: Contest }) {
                   {draft.problems.map((problem, index) => (
                     <tr key={problem.problemId}>
                       <td data-label="STT">{index + 1}</td>
-                      <td data-label="Mã bài"><span className={adminStyles.code}>{problem.code}</span></td>
-                      <td data-label="Tên bài">{problem.title}</td>
-                      <td data-label="Độ khó"><span className={`${styles.difficulty} ${styles[`difficulty_${problem.difficulty}`]}`}>{difficultyLabels[problem.difficulty]}</span></td>
-                      <td data-label="Điểm tối đa">{problem.maxScore.toLocaleString('vi-VN')}</td>
+                      <td data-label="Mã bài"><span className={adminStyles.code}>{problem.problemCode}</span></td>
+                      <td data-label="Tên bài">{problem.problemTitle}</td>
+                      <td data-label="Độ khó">
+                        {problem.difficulty
+                          ? <span className={`${styles.difficulty} ${styles[`difficulty_${problem.difficulty}`]}`}>{difficultyLabels[problem.difficulty]}</span>
+                          : '—'}
+                      </td>
+                      <td data-label="Điểm tối đa">
+                        <input
+                          aria-label={`Điểm tối đa của ${problem.problemCode}`}
+                          type="number"
+                          min="0.01"
+                          max="99999999.99"
+                          step="0.01"
+                          value={problem.maxScore}
+                          onChange={(event) => {
+                            const maxScore = event.target.value === '' ? 0 : Number(event.target.value)
+                            setDraft((current) => ({
+                              ...current,
+                              problems: current.problems.map((item) => (
+                                item.problemId === problem.problemId ? { ...item, maxScore } : item
+                              )),
+                            }))
+                            setErrors((current) => ({ ...current, problems: '' }))
+                          }}
+                        />
+                      </td>
                       <td data-label="Thao tác">
                         <div className={styles.problemOrder}>
                           <button
                             className={styles.orderButton}
                             type="button"
-                            aria-label={`Đưa ${problem.code} lên`}
+                            aria-label={`Đưa ${problem.problemCode} lên`}
                             disabled={index === 0}
                             onClick={() => moveProblem(index, -1)}
                           >
@@ -629,7 +795,7 @@ function ContestForm({ contest }: { contest?: Contest }) {
                           <button
                             className={styles.orderButton}
                             type="button"
-                            aria-label={`Đưa ${problem.code} xuống`}
+                            aria-label={`Đưa ${problem.problemCode} xuống`}
                             disabled={index === draft.problems.length - 1}
                             onClick={() => moveProblem(index, 1)}
                           >
@@ -638,7 +804,7 @@ function ContestForm({ contest }: { contest?: Contest }) {
                           <button
                             className={`${styles.orderButton} ${adminStyles.iconButtonDanger}`}
                             type="button"
-                            aria-label={`Xóa ${problem.code} khỏi cuộc thi`}
+                            aria-label={`Xóa ${problem.problemCode} khỏi cuộc thi`}
                             onClick={() => removeProblem(problem.problemId)}
                           >
                             <Trash2 size={15} aria-hidden="true" />
@@ -654,9 +820,15 @@ function ContestForm({ contest }: { contest?: Contest }) {
         </section>
 
         <div className={styles.formActions}>
-          <button className={adminStyles.buttonQuiet} type="button" onClick={cancel}>Hủy</button>
-          <button className={adminStyles.buttonSecondary} type="button" onClick={() => save('draft')}>Lưu bản nháp</button>
-          <button className={adminStyles.buttonPrimary} type="submit">Xuất bản</button>
+          <button className={adminStyles.buttonQuiet} type="button" onClick={cancel} disabled={saving}>Hủy</button>
+          {(contest?.publicationStatus !== 'PUBLISHED') && (
+            <button className={adminStyles.buttonSecondary} type="button" onClick={() => { void save(false) }} disabled={saving}>
+              {saving ? 'Đang lưu…' : 'Lưu bản nháp'}
+            </button>
+          )}
+          <button className={adminStyles.buttonPrimary} type="submit" disabled={saving}>
+            {saving ? 'Đang lưu…' : contest?.publicationStatus === 'PUBLISHED' ? 'Lưu thay đổi' : 'Xuất bản'}
+          </button>
         </div>
       </form>
 

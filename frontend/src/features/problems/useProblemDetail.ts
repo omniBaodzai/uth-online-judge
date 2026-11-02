@@ -10,33 +10,42 @@ export type ProblemDetailState =
   | { phase: 'error'; message: string }
   | { phase: 'ready'; problem: ProblemDetail }
 
-export function useProblemDetail(code: string): { state: ProblemDetailState; retry: () => void } {
+export function useProblemDetail(
+  code: string,
+  enabled = true,
+): { state: ProblemDetailState; retry: () => void } {
   const { fetcher, ready } = useProblemsFetcher()
-  const [state, setState] = useState<ProblemDetailState>({ phase: 'loading' })
+  const [result, setResult] = useState<{ key: string; state: ProblemDetailState }>()
   const [reloadKey, setReloadKey] = useState(0)
+  const key = JSON.stringify([code, reloadKey])
+  const state = result?.key === key ? result.state : { phase: 'loading' as const }
 
   useEffect(() => {
-    if (!ready) return
+    if (!ready || !enabled) return
     let cancelled = false
-    setState({ phase: 'loading' })
     fetchProblemDetail(fetcher, code)
       .then((data) => {
-        if (!cancelled) setState({ phase: 'ready', problem: toProblemDetail(data) })
+        if (!cancelled) setResult({ key, state: { phase: 'ready', problem: toProblemDetail(data) } })
       })
       .catch((error: unknown) => {
         if (cancelled) return
-        if (error instanceof ApiError && error.status === 404) setState({ phase: 'not-found' })
+        if (error instanceof ApiError && error.status === 404) {
+          setResult({ key, state: { phase: 'not-found' } })
+        }
         else {
-          setState({
-            phase: 'error',
-            message: error instanceof ApiError ? error.message : 'Không thể tải bài tập. Vui lòng thử lại.',
+          setResult({
+            key,
+            state: {
+              phase: 'error',
+              message: error instanceof ApiError ? error.message : 'Không thể tải bài tập. Vui lòng thử lại.',
+            },
           })
         }
       })
     return () => {
       cancelled = true
     }
-  }, [fetcher, ready, code, reloadKey])
+  }, [fetcher, ready, enabled, code, key])
 
   return { state, retry: () => setReloadKey((key) => key + 1) }
 }

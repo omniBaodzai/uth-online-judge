@@ -6,9 +6,9 @@ import styles from './Breadcrumb.module.css'
 
 function Breadcrumb() {
   const { pathname, search } = useLocation()
-  const { problemCode } = useContext(BreadcrumbContext)
+  const { problemCode, contestProblem } = useContext(BreadcrumbContext)
   const from = new URLSearchParams(search).get('from')
-  const items = getBreadcrumbItems(pathname, { problemCode, from })
+  const items = getBreadcrumbItems(pathname, { problemCode, from, contestProblem })
   if (items.length === 0) return null
 
   const isAdmin = pathname.startsWith('/admin')

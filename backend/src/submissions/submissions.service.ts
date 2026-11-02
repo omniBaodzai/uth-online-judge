@@ -49,6 +49,29 @@ export class SubmissionsService {
       languageId,
       sourceCode: input.sourceCode,
     });
+    return this.enqueue(created, startedAt);
+  }
+
+  async createForContest(
+    userId: string,
+    contestIdentifier: string,
+    input: { problemCode: string; language: string; sourceCode: string },
+  ): Promise<CreatedSubmission> {
+    const startedAt = performance.now();
+    const created = await this.repository.insertContest({
+      userId,
+      contestIdentifier,
+      problemCode: input.problemCode,
+      language: input.language,
+      sourceCode: input.sourceCode,
+    });
+    return this.enqueue(created, startedAt);
+  }
+
+  private async enqueue(
+    created: CreatedSubmission,
+    startedAt: number,
+  ): Promise<CreatedSubmission> {
     const persistedAt = performance.now();
     let jobAdded = false;
     try {

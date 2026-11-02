@@ -4,7 +4,7 @@ import type { CodeEditor } from './MonacoEditor'
 import { describeLanguage } from './languages'
 import { useAuth } from '../../auth/useAuth'
 import { describeSubmissionFailure } from './submission-failure'
-import { submitSolution } from './submission-service'
+import { submitContestSolution, submitSolution } from './submission-service'
 import styles from './CodeEditorPanel.module.css'
 
 const MonacoEditor = lazy(() => import('./MonacoEditor'))
@@ -19,6 +19,9 @@ type CodeEditorPanelProps = {
   problemCode: string
   userId: string
   languages: AllowedLanguage[]
+  contestIdentifier?: string
+  contestTitle?: string
+  contestProblemTitle?: string
 }
 
 class EditorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -61,7 +64,14 @@ function loadDraft(key: string, allowed: AllowedLanguage[]): Draft | null {
   }
 }
 
-function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProps) {
+function CodeEditorPanel({
+  problemCode,
+  userId,
+  languages,
+  contestIdentifier,
+  contestTitle,
+  contestProblemTitle,
+}: CodeEditorPanelProps) {
   const key = draftKey(userId, problemCode)
   const [initialDraft] = useState(() => loadDraft(key, languages))
   const [language, setLanguage] = useState<string>(initialDraft?.language ?? languages[0]?.slug ?? '')
@@ -72,6 +82,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
   const [uncertainSubmissionId, setUncertainSubmissionId] = useState<string>()
+  const [submissionOutcomeUnknown, setSubmissionOutcomeUnknown] = useState(false)
   const submittingRef = useRef(false)
   const editorRef = useRef<CodeEditor | null>(null)
   const { request } = useAuth()
@@ -110,7 +121,9 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
   }, [fullscreen])
 
   const handleChange = useCallback(
-    (value: string) => setCodes((prev) => (prev[language] === value ? prev : { ...prev, [language]: value })),
+    (value: string) => {
+      setCodes((prev) => (prev[language] === value ? prev : { ...prev, [language]: value }))
+    },
     [language],
   )
 
@@ -121,8 +134,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
   function changeLanguage(next: string) {
     setLanguage(next)
     setConfirmReset(false)
-    setNotice('')
-    setUncertainSubmissionId(undefined)
+    if (!submissionOutcomeUnknown) setNotice('')
   }
 
   function requestReset() {
@@ -134,7 +146,7 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
     setCodes((prev) => ({ ...prev, [language]: current.template }))
     setEditorRevision((revision) => revision + 1)
     setConfirmReset(false)
-    setNotice('')
+    if (!submissionOutcomeUnknown) setNotice('')
   }
 
   function formatCode() {
@@ -148,12 +160,31 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
     setNotice('')
     setUncertainSubmissionId(undefined)
     try {
-      const result = await submitSolution(request, { problemCode, language: selected.slug, sourceCode: code })
-      navigate(`/submissions/${encodeURIComponent(result.id)}`)
+      const payload = { problemCode, language: selected.slug, sourceCode: code }
+      const result = contestIdentifier
+        ? await submitContestSolution(request, contestIdentifier, payload)
+        : await submitSolution(request, payload)
+      if (!result || typeof result.id !== 'string' || !result.id.trim()) {
+        throw new Error('Máy chủ không trả về mã bài nộp hợp lệ.')
+      }
+      navigate(`/submissions/${encodeURIComponent(result.id)}`, {
+        state: contestIdentifier
+          ? {
+              contestSubmissionOrigin: {
+                contestIdentifier,
+                contestSlug: contestIdentifier,
+                contestTitle,
+                problemCode,
+                problemTitle: contestProblemTitle,
+              },
+            }
+          : undefined,
+      })
     } catch (error) {
       const failure = describeSubmissionFailure(error)
       setNotice(failure.message)
       setUncertainSubmissionId(failure.submissionId)
+      setSubmissionOutcomeUnknown(failure.outcomeUnknown)
     } finally {
       submittingRef.current = false
       setSubmitting(false)
@@ -219,12 +250,31 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
         <p className={styles.notice} role="alert">Bài tập này chưa được cấu hình ngôn ngữ nộp bài. Vui lòng liên hệ quản trị viên.</p>
       )}
       {notice && (
-        <div className={styles.notice} role="status">
+        <div className={styles.notice} role={submissionOutcomeUnknown ? 'alert' : 'status'}>
           <p>{notice}</p>
+          {submissionOutcomeUnknown && (
+            <p>Không gửi lại ngay để tránh tạo bài nộp trùng.</p>
+          )}
           {uncertainSubmissionId && (
-            <Link to={`/submissions/${encodeURIComponent(uncertainSubmissionId)}`}>
+            <Link
+              to={`/submissions/${encodeURIComponent(uncertainSubmissionId)}`}
+              state={contestIdentifier
+                ? {
+                    contestSubmissionOrigin: {
+                      contestIdentifier,
+                      contestSlug: contestIdentifier,
+                      contestTitle,
+                      problemCode,
+                      problemTitle: contestProblemTitle,
+                    },
+                  }
+                : undefined}
+            >
               Kiểm tra bài nộp đã lưu
             </Link>
+          )}
+          {submissionOutcomeUnknown && !uncertainSubmissionId && (
+            <Link to="/submissions">Kiểm tra danh sách bài nộp</Link>
           )}
         </div>
       )}
@@ -244,9 +294,15 @@ function CodeEditorPanel({ problemCode, userId, languages }: CodeEditorPanelProp
               type="button"
               className={styles.primary}
               onClick={handleSubmit}
-              disabled={submitting || !selected || !code.trim()}
+              disabled={submitting || submissionOutcomeUnknown || !selected || !code.trim()}
             >
-              {submitting ? 'Đang gửi…' : 'Gửi bài giải'}
+              {submitting
+                ? 'Đang gửi…'
+                : submissionOutcomeUnknown
+                  ? 'Cần kiểm tra trạng thái'
+                  : contestIdentifier
+                    ? 'Nộp bài thi'
+                    : 'Gửi bài giải'}
             </button>
           </div>
         )}

@@ -1,56 +1,73 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Archive, ExternalLink, Eye, Info, RotateCcw } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { Archive, Eye, Info, RotateCcw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
 import { submissionPageSizes } from '../../submissions/data'
 import { AdminIcon } from '../components/AdminIcons'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useAdmin } from '../useAdmin'
+import { contestErrorMessage } from './contest-errors'
 import { useContestAdmin } from './useContestAdmin'
 import {
   formatContestDateSafe,
-  getContestTimeStatus,
-  normalizeContestSearch,
   publicationLabels,
   timeStatusLabels,
-  type ContestTimeStatus,
 } from './contest-utils'
-import type { Contest, ContestPublicationStatus } from './types'
+import type {
+  ContestDetail,
+  ContestListItem,
+  ContestOverview,
+  ContestPublicationStatus,
+  ContestTimeStatus,
+} from './types'
 import adminStyles from '../admin.module.css'
 import styles from './AdminContestsPage.module.css'
 
-type PendingStatusChange = {
-  contest: Contest
-  status: ContestPublicationStatus
-}
-
+type PendingArchive = ContestListItem
+type TimeFilter = Exclude<ContestTimeStatus, 'UNPUBLISHED'> | 'all'
 const PAGE_SIZES = submissionPageSizes
 const DEFAULT_PAGE_SIZE = 10
 
-function Metric({ label, value, tone }: { label: string; value: number; tone: string }) {
+function Metric({ label, value, tone, loading }: {
+  label: string
+  value: number | undefined
+  tone: string
+  loading: boolean
+}) {
   return (
     <article className={adminStyles.metricCard}>
       <span className={`${adminStyles.metricMark} ${adminStyles[tone]}`} />
       <p>{label}</p>
-      <strong>{value.toLocaleString('vi-VN')}</strong>
+      <strong>{loading || value === undefined ? '—' : value.toLocaleString('vi-VN')}</strong>
       <small>Từ dữ liệu cuộc thi</small>
     </article>
   )
 }
 
 function ContestDetailsDialog({
-  contest,
+  id,
   preview,
   onClose,
 }: {
-  contest: Contest
+  id: string
   preview: boolean
   onClose: () => void
 }) {
+  const { get } = useContestAdmin()
+  const [contest, setContest] = useState<ContestDetail | null>(null)
+  const [error, setError] = useState('')
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
+    let active = true
+    get(id).then((value) => {
+      if (active) setContest(value)
+    }).catch((cause: unknown) => {
+      if (active) setError(contestErrorMessage(cause, 'Không thể tải chi tiết cuộc thi.'))
+    })
     closeButtonRef.current?.focus()
-  }, [])
+    return () => { active = false }
+  }, [get, id])
 
   function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === 'Escape') {
@@ -89,7 +106,7 @@ function ContestDetailsDialog({
         <div className={styles.dialogHeading}>
           <div>
             <h2 id="contest-detail-title">{preview ? 'Xem trước cuộc thi' : 'Chi tiết cuộc thi'}</h2>
-            <p>{contest.code}</p>
+            <p>{contest?.slug ?? 'Đang tải…'}</p>
           </div>
           <button
             ref={closeButtonRef}
@@ -101,23 +118,33 @@ function ContestDetailsDialog({
             <AdminIcon name="close" size={16} />
           </button>
         </div>
-        <h3>{contest.title}</h3>
-        <p className={styles.detailDescription}>{contest.description || 'Chưa có mô tả cuộc thi.'}</p>
-        {contest.rules && <p className={styles.detailDescription}>{contest.rules}</p>}
-        <dl className={styles.detailGrid}>
-          <div><dt>Bắt đầu</dt><dd>{formatContestDateSafe(contest.startTime)}</dd></div>
-          <div><dt>Kết thúc</dt><dd>{formatContestDateSafe(contest.endTime)}</dd></div>
-          <div><dt>Thời gian làm bài</dt><dd>{contest.durationMinutes || 'Chưa thiết lập'} phút</dd></div>
-          <div><dt>Hình thức</dt><dd>{contest.settings.visibility === 'public' ? 'Công khai' : 'Riêng tư'}</dd></div>
-        </dl>
-        <strong>Bài tập ({contest.problems.length})</strong>
-        {contest.problems.length > 0 ? (
-          <ol className={styles.dialogProblemList}>
-            {contest.problems.map((problem) => (
-              <li key={problem.problemId}>{problem.code} — {problem.title} ({problem.maxScore} điểm)</li>
-            ))}
-          </ol>
-        ) : <p className={styles.detailDescription}>Chưa có bài tập được chọn.</p>}
+        {error ? (
+          <p className={adminStyles.formMessage} role="alert">{error}</p>
+        ) : !contest ? (
+          <p className={styles.emptyState} aria-live="polite">Đang tải chi tiết cuộc thi…</p>
+        ) : (
+          <>
+            <h3>{contest.title}</h3>
+            <p className={styles.detailDescription}>{contest.description || 'Chưa có mô tả cuộc thi.'}</p>
+            {contest.rules && <p className={styles.detailDescription}>{contest.rules}</p>}
+            <dl className={styles.detailGrid}>
+              <div><dt>Bắt đầu</dt><dd>{formatContestDateSafe(contest.startsAt)}</dd></div>
+              <div><dt>Kết thúc</dt><dd>{formatContestDateSafe(contest.endsAt)}</dd></div>
+              <div><dt>Thành viên</dt><dd>{contest.participantCount.toLocaleString('vi-VN')}</dd></div>
+              <div><dt>Hình thức</dt><dd>{contest.visibility === 'PUBLIC' ? 'Công khai' : 'Riêng tư'}</dd></div>
+            </dl>
+            <strong>Bài tập ({contest.problems.length})</strong>
+            {contest.problems.length > 0 ? (
+              <ol className={styles.dialogProblemList}>
+                {contest.problems.map((problem) => (
+                  <li key={problem.problemId}>
+                    {problem.problemCode} — {problem.problemTitle} ({problem.maxScore} điểm)
+                  </li>
+                ))}
+              </ol>
+            ) : <p className={styles.detailDescription}>Chưa có bài tập được chọn.</p>}
+          </>
+        )}
         <div className={adminStyles.dialogActions}>
           <button className={adminStyles.buttonSecondary} type="button" onClick={onClose}>Đóng</button>
         </div>
@@ -127,34 +154,96 @@ function ContestDetailsDialog({
 }
 
 function AdminContestsPage() {
-  const { contests, updatePublicationStatus } = useContestAdmin()
+  const api = useContestAdmin()
+  const { setNotice } = useAdmin()
+  const [pageData, setPageData] = useState<{ items: ContestListItem[]; total: number } | null>(null)
+  const [overview, setOverview] = useState<ContestOverview | null>(null)
   const [query, setQuery] = useState('')
   const [publication, setPublication] = useState<ContestPublicationStatus | 'all'>('all')
-  const [timeFilter, setTimeFilter] = useState<ContestTimeStatus | 'all'>('all')
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
-  const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(null)
-  const [details, setDetails] = useState<{ contest: Contest; preview: boolean } | null>(null)
-  const [now] = useState(() => Date.now())
+  const [pendingArchive, setPendingArchive] = useState<PendingArchive | null>(null)
+  const [details, setDetails] = useState<{ id: string; preview: boolean } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [overviewLoading, setOverviewLoading] = useState(true)
+  const [savingId, setSavingId] = useState('')
+  const [error, setError] = useState('')
 
-  const timeStatuses = useMemo(
-    () => new Map(contests.map((contest) => [contest.id, getContestTimeStatus(contest, now)])),
-    [contests, now],
-  )
-  const filteredContests = useMemo(() => {
-    const search = normalizeContestSearch(query.trim())
-    return contests.filter((contest) => {
-      const matchesSearch = !search || normalizeContestSearch(`${contest.code} ${contest.title}`).includes(search)
-      const matchesPublication = publication === 'all' || contest.publicationStatus === publication
-      const matchesTime = timeFilter === 'all' || timeStatuses.get(contest.id) === timeFilter
-      return matchesSearch && matchesPublication && matchesTime
+  const loadList = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const result = await api.list({
+        page,
+        pageSize,
+        ...(query.trim() ? { search: query.trim() } : {}),
+        ...(publication !== 'all' ? { publicationStatus: publication } : {}),
+        ...(timeFilter !== 'all' ? { timeStatus: timeFilter } : {}),
+      })
+      setPageData({ items: result.items, total: result.total })
+      if (result.page !== page) setPage(result.page)
+    } catch (cause) {
+      setPageData(null)
+      setError(contestErrorMessage(cause, 'Không thể tải danh sách cuộc thi.'))
+    } finally {
+      setLoading(false)
+    }
+  }, [api, page, pageSize, publication, query, timeFilter])
+
+  const loadOverview = useCallback(async () => {
+    setOverviewLoading(true)
+    try {
+      setOverview(await api.overview())
+    } catch (cause) {
+      setError((current) => current || contestErrorMessage(cause, 'Không thể tải thống kê cuộc thi.'))
+    } finally {
+      setOverviewLoading(false)
+    }
+  }, [api])
+
+  useEffect(() => {
+    let active = true
+    api.list({
+      page,
+      pageSize,
+      ...(query.trim() ? { search: query.trim() } : {}),
+      ...(publication !== 'all' ? { publicationStatus: publication } : {}),
+      ...(timeFilter !== 'all' ? { timeStatus: timeFilter } : {}),
+    }).then((result) => {
+      if (!active) return
+      setPageData({ items: result.items, total: result.total })
+      if (result.page !== page) setPage(result.page)
+    }).catch((cause: unknown) => {
+      if (active) {
+        setPageData(null)
+        setError(contestErrorMessage(cause, 'Không thể tải danh sách cuộc thi.'))
+      }
+    }).finally(() => {
+      if (active) setLoading(false)
     })
-  }, [contests, publication, query, timeFilter, timeStatuses])
-  const totalPages = Math.max(1, Math.ceil(filteredContests.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
-  const visibleContests = filteredContests.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    return () => { active = false }
+  }, [api, page, pageSize, publication, query, timeFilter])
+
+  useEffect(() => {
+    let active = true
+    api.overview().then((result) => {
+      if (active) setOverview(result)
+    }).catch((cause: unknown) => {
+      if (active) setError((current) => current || contestErrorMessage(cause, 'Không thể tải thống kê cuộc thi.'))
+    }).finally(() => {
+      if (active) setOverviewLoading(false)
+    })
+    return () => { active = false }
+  }, [api])
+
+  const contests = pageData?.items ?? []
+  const total = pageData?.total ?? 0
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)))
 
   function resetFilters() {
+    setLoading(true)
+    setError('')
     setQuery('')
     setPublication('all')
     setTimeFilter('all')
@@ -164,28 +253,52 @@ function AdminContestsPage() {
   const paginationProps = {
     currentPage,
     pageSize,
-    totalItems: filteredContests.length,
+    totalItems: total,
     pageSizes: PAGE_SIZES,
     label: 'cuộc thi',
     summaryLabel: 'cuộc thi',
-    onPageChange: setPage,
+    onPageChange: (nextPage: number) => {
+      setLoading(true)
+      setError('')
+      setPage(nextPage)
+    },
     onPageSizeChange: (size: number) => {
+      setLoading(true)
+      setError('')
       setPageSize(size)
       setPage(1)
     },
   }
 
-  const stats = {
-    total: contests.length,
-    ongoing: contests.filter((contest) => timeStatuses.get(contest.id) === 'ongoing').length,
-    upcoming: contests.filter((contest) => timeStatuses.get(contest.id) === 'upcoming').length,
-    ended: contests.filter((contest) => timeStatuses.get(contest.id) === 'ended').length,
+  async function archiveContest() {
+    if (!pendingArchive || savingId) return
+    const contest = pendingArchive
+    setSavingId(contest.id)
+    setError('')
+    try {
+      await api.archive(contest.id)
+      setNotice(`Đã lưu trữ cuộc thi “${contest.title}”.`)
+      setPendingArchive(null)
+      await Promise.all([loadList(), loadOverview()])
+    } catch (cause) {
+      setError(contestErrorMessage(cause, 'Không thể lưu trữ cuộc thi.'))
+    } finally {
+      setSavingId('')
+    }
   }
 
-  function confirmStatusChange() {
-    if (!pendingStatusChange) return
-    updatePublicationStatus(pendingStatusChange.contest.id, pendingStatusChange.status)
-    setPendingStatusChange(null)
+  async function restoreContest(contest: ContestListItem) {
+    setSavingId(contest.id)
+    setError('')
+    try {
+      await api.restore(contest.id)
+      setNotice(`Đã khôi phục cuộc thi “${contest.title}”.`)
+      await Promise.all([loadList(), loadOverview()])
+    } catch (cause) {
+      setError(contestErrorMessage(cause, 'Không thể khôi phục cuộc thi.'))
+    } finally {
+      setSavingId('')
+    }
   }
 
   return (
@@ -203,17 +316,17 @@ function AdminContestsPage() {
 
       <div className={`${adminStyles.demoNotice} ${styles.demoNotice}`} role="note">
         <Info size={17} aria-hidden="true" />
-        <span>Dữ liệu đang lưu trong state của phiên Admin này; tải lại trang sẽ khôi phục dữ liệu mẫu ban đầu. Chưa kết nối Backend/API.</span>
+        <span>Dữ liệu cuộc thi và thay đổi được đồng bộ với Backend.</span>
       </div>
 
       <div className={`${adminStyles.metricGrid} ${styles.statsGrid}`}>
-        <Metric label="Tổng cuộc thi" value={stats.total} tone="teal" />
-        <Metric label="Đang diễn ra" value={stats.ongoing} tone="green" />
-        <Metric label="Sắp diễn ra" value={stats.upcoming} tone="amber" />
-        <Metric label="Đã kết thúc" value={stats.ended} tone="slate" />
+        <Metric label="Tổng cuộc thi" value={overview?.total} tone="teal" loading={overviewLoading} />
+        <Metric label="Đang diễn ra" value={overview?.ongoing} tone="green" loading={overviewLoading} />
+        <Metric label="Sắp diễn ra" value={overview?.upcoming} tone="amber" loading={overviewLoading} />
+        <Metric label="Đã kết thúc" value={overview?.ended} tone="slate" loading={overviewLoading} />
       </div>
 
-      <section className={adminStyles.panel} aria-label="Danh sách cuộc thi">
+      <section className={adminStyles.panel} aria-label="Danh sách cuộc thi" aria-busy={loading}>
         <div className={adminStyles.toolbar}>
           <label className={adminStyles.searchField}>
             <AdminIcon name="search" size={18} />
@@ -223,6 +336,8 @@ function AdminContestsPage() {
               placeholder="Tìm theo tên hoặc mã cuộc thi…"
               value={query}
               onChange={(event) => {
+                setLoading(true)
+                setError('')
                 setQuery(event.target.value)
                 setPage(1)
               }}
@@ -232,44 +347,61 @@ function AdminContestsPage() {
             aria-label="Lọc theo trạng thái xuất bản"
             value={publication}
             onChange={(event) => {
+              setLoading(true)
+              setError('')
               setPublication(event.target.value as ContestPublicationStatus | 'all')
               setPage(1)
             }}
           >
             <option value="all">Tất cả trạng thái xuất bản</option>
-            <option value="draft">Bản nháp</option>
-            <option value="published">Đã xuất bản</option>
-            <option value="archived">Đã lưu trữ</option>
+            <option value="DRAFT">Bản nháp</option>
+            <option value="PUBLISHED">Đã xuất bản</option>
+            <option value="ARCHIVED">Đã lưu trữ</option>
           </select>
           <select
             aria-label="Lọc theo thời gian tổ chức"
             value={timeFilter}
             onChange={(event) => {
-              setTimeFilter(event.target.value as ContestTimeStatus | 'all')
+              setLoading(true)
+              setError('')
+              setTimeFilter(event.target.value as TimeFilter)
               setPage(1)
             }}
           >
             <option value="all">Tất cả thời gian</option>
-            <option value="upcoming">Sắp diễn ra</option>
-            <option value="ongoing">Đang diễn ra</option>
-            <option value="ended">Đã kết thúc</option>
-            <option value="unscheduled">Chưa thiết lập</option>
+            <option value="UPCOMING">Sắp diễn ra</option>
+            <option value="ONGOING">Đang diễn ra</option>
+            <option value="ENDED">Đã kết thúc</option>
           </select>
           <button className={adminStyles.buttonQuiet} type="button" onClick={resetFilters}>Đặt lại</button>
         </div>
 
+        {error && (
+          <p className={adminStyles.formMessage} role="alert">
+            {error}{' '}
+            <button className={adminStyles.textLink} type="button" onClick={() => { void Promise.all([loadList(), loadOverview()]) }}>
+              Thử lại
+            </button>
+          </p>
+        )}
         <p className={styles.resultsHint} aria-live="polite">
-          {filteredContests.length} cuộc thi phù hợp
+          {loading
+            ? 'Đang tải danh sách cuộc thi…'
+            : pageData ? `${total} cuộc thi phù hợp` : 'Không có dữ liệu để hiển thị'}
         </p>
         <div className={styles.paginationTop}>
           <SubmissionPagination {...paginationProps} showPageSize={false} />
         </div>
 
-        {filteredContests.length === 0 ? (
+        {loading ? (
+          <div className={styles.emptyState} aria-live="polite">Đang tải dữ liệu…</div>
+        ) : contests.length === 0 ? (
           <div className={styles.emptyState}>
-            <strong>Không tìm thấy cuộc thi phù hợp</strong>
-            <p>Hãy thử từ khóa khác hoặc đặt lại bộ lọc.</p>
-            <button className={adminStyles.buttonSecondary} type="button" onClick={resetFilters}>Đặt lại bộ lọc</button>
+            <strong>{error ? 'Không thể tải danh sách cuộc thi' : 'Không tìm thấy cuộc thi phù hợp'}</strong>
+            <p>{error ? 'Kiểm tra kết nối hoặc thử tải lại danh sách.' : 'Hãy thử từ khóa khác hoặc đặt lại bộ lọc.'}</p>
+            <button className={adminStyles.buttonSecondary} type="button" onClick={error ? () => { void loadList() } : resetFilters}>
+              {error ? 'Thử lại' : 'Đặt lại bộ lọc'}
+            </button>
           </div>
         ) : (
           <div className={`${adminStyles.tableWrap} ${styles.tableWrap}`} role="region" aria-label="Bảng quản lý cuộc thi" tabIndex={0}>
@@ -285,87 +417,79 @@ function AdminContestsPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleContests.map((contest) => {
-                  const timeStatus = timeStatuses.get(contest.id) ?? 'unscheduled'
-                  return (
-                    <tr key={contest.id}>
-                      <td data-label="Tên cuộc thi">
-                        <button className={styles.contestName} type="button" onClick={() => setDetails({ contest, preview: false })}>
-                          {contest.title}
+                {contests.map((contest) => (
+                  <tr key={contest.id}>
+                    <td data-label="Tên cuộc thi">
+                      <button className={styles.contestName} type="button" onClick={() => setDetails({ id: contest.id, preview: false })}>
+                        {contest.title}
+                      </button>
+                    </td>
+                    <td className={styles.dateCell} data-label="Bắt đầu">{formatContestDateSafe(contest.startsAt)}</td>
+                    <td className={styles.dateCell} data-label="Kết thúc">{formatContestDateSafe(contest.endsAt)}</td>
+                    <td className={styles.participantCell} data-label="Thành viên">{contest.participantCount.toLocaleString('vi-VN')}</td>
+                    <td data-label="Trạng thái">
+                      <div className={styles.statusStack}>
+                        <span className={styles.statusLabel}>Quản lý</span>
+                        <span className={`${adminStyles.badge} ${adminStyles[`status_${contest.publicationStatus.toLowerCase()}`]}`}>
+                          {publicationLabels[contest.publicationStatus]}
+                        </span>
+                        <span className={styles.statusLabel}>Thời gian</span>
+                        <span className={`${adminStyles.badge} ${styles[`time_${contest.timeStatus.toLowerCase()}`]}`}>
+                          {timeStatusLabels[contest.timeStatus]}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={styles.actionsCell} data-label="Thao tác">
+                      <div className={`${adminStyles.rowActions} ${styles.rowActions}`}>
+                        <button
+                          className={adminStyles.iconButton}
+                          type="button"
+                          onClick={() => setDetails({ id: contest.id, preview: false })}
+                        >
+                          <Eye size={14} aria-hidden="true" /> Chi tiết
                         </button>
-                      </td>
-                      <td className={styles.dateCell} data-label="Bắt đầu">{formatContestDateSafe(contest.startTime)}</td>
-                      <td className={styles.dateCell} data-label="Kết thúc">{formatContestDateSafe(contest.endTime)}</td>
-                      <td className={styles.participantCell} data-label="Thành viên">{contest.participantCount.toLocaleString('vi-VN')}</td>
-                      <td data-label="Trạng thái">
-                        <div className={styles.statusStack}>
-                          <span className={styles.statusLabel}>Quản lý</span>
-                          <span className={`${adminStyles.badge} ${adminStyles[`status_${contest.publicationStatus}`]}`}>
-                            {publicationLabels[contest.publicationStatus]}
-                          </span>
-                          <span className={styles.statusLabel}>Thời gian</span>
-                          <span className={`${adminStyles.badge} ${styles[`time_${timeStatus}`]}`}>
-                            {timeStatusLabels[timeStatus]}
-                          </span>
-                        </div>
-                      </td>
-                      <td className={styles.actionsCell} data-label="Thao tác">
-                        <div className={`${adminStyles.rowActions} ${styles.rowActions}`}>
-                          <button
-                            className={adminStyles.iconButton}
-                            type="button"
-                            onClick={() => setDetails({ contest, preview: false })}
-                          >
-                            <Eye size={14} aria-hidden="true" /> Chi tiết
-                          </button>
+                        {contest.publicationStatus !== 'ARCHIVED' && (
                           <Link
                             className={adminStyles.iconButton}
-                            aria-label={`Chỉnh sửa ${contest.code}`}
+                            aria-label={`Chỉnh sửa ${contest.slug}`}
                             to={`/admin/contests/${encodeURIComponent(contest.id)}/edit`}
                           >
                             <AdminIcon name="edit" size={14} /> Sửa
                           </Link>
-                          {contest.publicationStatus === 'published' && (
-                            contest.studentPageId ? (
-                              <Link
-                                className={`${adminStyles.iconButton} ${styles.studentLink}`}
-                                to={`/contests/${encodeURIComponent(contest.studentPageId)}`}
-                              >
-                                <ExternalLink size={14} aria-hidden="true" /> Trang học viên
-                              </Link>
-                            ) : (
-                              <button
-                                className={`${adminStyles.iconButton} ${styles.studentLink}`}
-                                type="button"
-                                onClick={() => setDetails({ contest, preview: true })}
-                              >
-                                <Eye size={14} aria-hidden="true" /> Xem trước
-                              </button>
-                            )
-                          )}
-                          {contest.publicationStatus === 'published' && (
+                        )}
+                        {contest.publicationStatus === 'PUBLISHED' && (
+                          <>
+                            <button
+                              className={`${adminStyles.iconButton} ${styles.studentLink}`}
+                              type="button"
+                              onClick={() => setDetails({ id: contest.id, preview: true })}
+                            >
+                              <Eye size={14} aria-hidden="true" /> Xem trước
+                            </button>
                             <button
                               className={`${adminStyles.iconButton} ${styles.archivedAction}`}
                               type="button"
-                              onClick={() => setPendingStatusChange({ contest, status: 'archived' })}
+                              disabled={savingId === contest.id}
+                              onClick={() => setPendingArchive(contest)}
                             >
                               <Archive size={14} aria-hidden="true" /> Lưu trữ
                             </button>
-                          )}
-                          {contest.publicationStatus === 'archived' && (
-                            <button
-                              className={adminStyles.iconButton}
-                              type="button"
-                              onClick={() => updatePublicationStatus(contest.id, 'published')}
-                            >
-                              <RotateCcw size={14} aria-hidden="true" /> Khôi phục
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
+                          </>
+                        )}
+                        {contest.publicationStatus === 'ARCHIVED' && (
+                          <button
+                            className={adminStyles.iconButton}
+                            type="button"
+                            disabled={savingId === contest.id}
+                            onClick={() => { void restoreContest(contest) }}
+                          >
+                            <RotateCcw size={14} aria-hidden="true" /> Khôi phục
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -376,19 +500,21 @@ function AdminContestsPage() {
         </div>
       </section>
 
-      {pendingStatusChange && (
+      {pendingArchive && (
         <ConfirmDialog
           title="Lưu trữ cuộc thi?"
-          description={`Cuộc thi “${pendingStatusChange.contest.title}” sẽ chuyển sang trạng thái đã lưu trữ trong mock state.`}
+          description={`Cuộc thi “${pendingArchive.title}” sẽ chuyển sang trạng thái đã lưu trữ.`}
           confirmLabel="Lưu trữ"
           danger
-          onConfirm={confirmStatusChange}
-          onCancel={() => setPendingStatusChange(null)}
+          busy={savingId === pendingArchive.id}
+          onConfirm={() => { void archiveContest() }}
+          onCancel={() => { if (!savingId) setPendingArchive(null) }}
         />
       )}
       {details && (
         <ContestDetailsDialog
-          contest={details.contest}
+          key={details.id}
+          id={details.id}
           preview={details.preview}
           onClose={() => setDetails(null)}
         />

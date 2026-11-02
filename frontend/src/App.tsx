@@ -81,6 +81,14 @@ function App() {
             path="problems/:code/submit"
             element={<RequireAuth><SubmitSolutionPage /></RequireAuth>}
           />
+          <Route
+            path="contests/:contestId/problems/:code"
+            element={<RequireAuth><ProblemDetailPage /></RequireAuth>}
+          />
+          <Route
+            path="contests/:contestId/problems/:code/submit"
+            element={<RequireAuth><SubmitSolutionPage /></RequireAuth>}
+          />
           <Route path="problems/:code/pdf" element={<PlaceholderPage title="Đề bài dạng PDF" />} />
           <Route path="problems/:code/submissions" element={<SubmissionsPage />} />
           <Route path="problems/:code/best-submissions" element={<BestSubmissionsPage />} />

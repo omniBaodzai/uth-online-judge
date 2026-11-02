@@ -1,4 +1,11 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
 import { testCaseFingerprint } from '../scoring/test-case-fingerprint.js';
@@ -231,24 +238,7 @@ export class SubmissionsRepository {
           'Bài tập không còn được phép nhận bài nộp.',
         );
 
-      const snapshots = await client.query(
-        `INSERT INTO submission_test_case_snapshots
-           (submission_id, source_test_case_id, test_name, input_data, expected_output,
-            points, position, time_limit_ms, memory_limit_kb)
-         SELECT $1, tc.id, tc.test_name, tc.input_data, tc.expected_output,
-                1,
-                tc.position, p.time_limit_ms, p.memory_limit_mb * 1024
-         FROM problem_test_cases tc
-         JOIN problems p ON p.id = tc.problem_id
-         WHERE tc.problem_id = $2 AND tc.is_active = TRUE
-         ORDER BY tc.position`,
-        [row.id, input.problemId],
-      );
-      if (snapshots.rowCount === 0) {
-        throw new BadRequestException(
-          'Bài tập chưa có test case đang hoạt động.',
-        );
-      }
+      await this.insertTestCaseSnapshots(client, row.id, input.problemId);
 
       await client.query('COMMIT');
       return {
@@ -261,6 +251,160 @@ export class SubmissionsRepository {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  async insertContest(input: {
+    userId: string;
+    contestIdentifier: string;
+    problemCode: string;
+    language: string;
+    sourceCode: string;
+  }): Promise<CreatedSubmission> {
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      const contestResult = await client.query<{ id: string }>(
+        `SELECT c.id
+         FROM public.contests c
+         WHERE (c.id = $1::uuid OR c.slug = $2)
+           AND c.publication_status = 'PUBLISHED'
+           AND c.visibility = 'PUBLIC'
+         ORDER BY (c.id = $1::uuid) DESC
+         LIMIT 1
+         FOR SHARE`,
+        [isUuid(input.contestIdentifier) ? input.contestIdentifier : null, input.contestIdentifier],
+      );
+      const contest = contestResult.rows[0];
+      if (!contest) throw new NotFoundException('Không tìm thấy cuộc thi.');
+
+      const timeResult = await client.query<{ is_ongoing: boolean }>(
+        `SELECT c.starts_at <= clock.now AND c.ends_at > clock.now AS is_ongoing
+         FROM public.contests c
+         CROSS JOIN (SELECT clock_timestamp() AS now) clock
+         WHERE c.id = $1`,
+        [contest.id],
+      );
+      if (timeResult.rows[0]?.is_ongoing !== true) {
+        throw new ConflictException('Cuộc thi chưa bắt đầu hoặc đã kết thúc.');
+      }
+
+      const participantResult = await client.query<{ registration_status: string }>(
+        `SELECT registration_status
+         FROM public.contest_participants
+         WHERE contest_id = $1 AND user_id = $2
+         FOR SHARE`,
+        [contest.id, input.userId],
+      );
+      if (participantResult.rows[0]?.registration_status !== 'REGISTERED') {
+        throw new ForbiddenException('Bạn chưa đăng ký tham gia cuộc thi này.');
+      }
+
+      const problemResult = await client.query<{
+        problem_id: string;
+        max_score: string;
+      }>(
+        `SELECT cp.problem_id, cp.max_score::text AS max_score
+         FROM public.contest_problems cp
+         JOIN public.problems p ON p.id = cp.problem_id
+         WHERE cp.contest_id = $1
+           AND cp.problem_code_snapshot = $2
+           AND p.status = 'PUBLISHED'
+         FOR SHARE OF cp, p`,
+        [contest.id, input.problemCode],
+      );
+      const problem = problemResult.rows[0];
+      if (!problem) throw new NotFoundException('Không tìm thấy bài tập trong cuộc thi.');
+
+      const languageResult = await client.query<{ id: string }>(
+        `SELECT l.id
+         FROM public.programming_languages l
+         JOIN public.problem_languages pl ON pl.language_id = l.id
+         WHERE pl.problem_id = $1
+           AND l.slug = $2
+           AND l.is_enabled = TRUE`,
+        [problem.problem_id, input.language],
+      );
+      const language = languageResult.rows[0];
+      if (!language) {
+        throw new BadRequestException('Ngôn ngữ không được hỗ trợ cho bài tập này.');
+      }
+
+      const submissionResult = await client.query<{
+        id: string;
+        status: string;
+        submitted_at: Date;
+      }>(
+        `WITH acceptance_time AS MATERIALIZED (
+           SELECT clock_timestamp() AS submitted_at
+         )
+         INSERT INTO public.submissions
+           (user_id, problem_id, language_id, source_code, max_score, scoring_enabled,
+            contest_id, contest_max_score_snapshot, submitted_at)
+         SELECT $1, p.id, $4, $5,
+                (SELECT COUNT(*) FROM public.problem_test_cases tc
+                 WHERE tc.problem_id = p.id AND tc.is_active = TRUE),
+                TRUE, c.id, cp.max_score, acceptance_time.submitted_at
+         FROM public.contests c
+         JOIN public.contest_participants participant
+           ON participant.contest_id = c.id
+          AND participant.user_id = $1
+          AND participant.registration_status = 'REGISTERED'
+         JOIN public.problems p ON p.id = $3 AND p.status = 'PUBLISHED'
+         JOIN public.contest_problems cp
+           ON cp.contest_id = c.id AND cp.problem_id = p.id
+         JOIN public.problem_languages pl ON pl.problem_id = p.id AND pl.language_id = $4
+         JOIN public.programming_languages l
+           ON l.id = pl.language_id AND l.is_enabled = TRUE
+         CROSS JOIN acceptance_time
+         WHERE c.id = $2
+           AND c.publication_status = 'PUBLISHED'
+           AND c.visibility = 'PUBLIC'
+           AND c.starts_at <= acceptance_time.submitted_at
+           AND acceptance_time.submitted_at < c.ends_at
+         RETURNING id, status, submitted_at`,
+        [input.userId, contest.id, problem.problem_id, language.id, input.sourceCode],
+      );
+      const submission = submissionResult.rows[0];
+      if (!submission) {
+        throw new ConflictException('Cuộc thi đã kết thúc trước khi nhận bài nộp.');
+      }
+
+      await this.insertTestCaseSnapshots(client, submission.id, problem.problem_id);
+      await client.query('COMMIT');
+      return {
+        id: submission.id,
+        status: submission.status,
+        submittedAt: submission.submitted_at.toISOString(),
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async insertTestCaseSnapshots(
+    client: Pick<PoolClient, 'query'>,
+    submissionId: string,
+    problemId: string,
+  ): Promise<void> {
+    const snapshots = await client.query(
+      `INSERT INTO submission_test_case_snapshots
+         (submission_id, source_test_case_id, test_name, input_data, expected_output,
+          points, position, time_limit_ms, memory_limit_kb)
+       SELECT $1, tc.id, tc.test_name, tc.input_data, tc.expected_output,
+              1,
+              tc.position, p.time_limit_ms, p.memory_limit_mb * 1024
+       FROM problem_test_cases tc
+       JOIN problems p ON p.id = tc.problem_id
+       WHERE tc.problem_id = $2 AND tc.is_active = TRUE
+       ORDER BY tc.position`,
+      [submissionId, problemId],
+    );
+    if (snapshots.rowCount === 0) {
+      throw new BadRequestException('Bài tập chưa có test case đang hoạt động.');
     }
   }
 
@@ -786,4 +930,10 @@ async function lockPublishedProblem(
   if (!published.rowCount) {
     throw new BadRequestException('Bài tập không còn được phép nhận bài nộp.');
   }
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }

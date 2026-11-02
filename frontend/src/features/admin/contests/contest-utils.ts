@@ -1,28 +1,17 @@
 import { formatContestDate } from '../../contests/data'
-import type { Contest, ContestPublicationStatus } from './types'
-
-export type ContestTimeStatus = 'upcoming' | 'ongoing' | 'ended' | 'unscheduled'
+import type { ContestPublicationStatus, ContestTimeStatus } from './types'
 
 export const publicationLabels: Record<ContestPublicationStatus, string> = {
-  draft: 'Bản nháp',
-  published: 'Đã xuất bản',
-  archived: 'Đã lưu trữ',
+  DRAFT: 'Bản nháp',
+  PUBLISHED: 'Đã xuất bản',
+  ARCHIVED: 'Đã lưu trữ',
 }
 
 export const timeStatusLabels: Record<ContestTimeStatus, string> = {
-  upcoming: 'Sắp diễn ra',
-  ongoing: 'Đang diễn ra',
-  ended: 'Đã kết thúc',
-  unscheduled: 'Chưa thiết lập',
-}
-
-export function getContestTimeStatus(contest: Pick<Contest, 'startTime' | 'endTime'>, now: number): ContestTimeStatus {
-  const start = new Date(contest.startTime).getTime()
-  const end = new Date(contest.endTime).getTime()
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return 'unscheduled'
-  if (now < start) return 'upcoming'
-  if (now >= end) return 'ended'
-  return 'ongoing'
+  UPCOMING: 'Sắp diễn ra',
+  ONGOING: 'Đang diễn ra',
+  ENDED: 'Đã kết thúc',
+  UNPUBLISHED: 'Chưa áp dụng',
 }
 
 export function normalizeContestSearch(value: string): string {
@@ -33,7 +22,7 @@ export function normalizeContestSearch(value: string): string {
     .toLocaleLowerCase('vi')
 }
 
-export function formatContestDateSafe(value: string): string {
+export function formatContestDateSafe(value: string | null | undefined): string {
   if (!value || !Number.isFinite(new Date(value).getTime())) return 'Chưa thiết lập'
   return formatContestDate(value)
 }

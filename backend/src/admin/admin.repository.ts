@@ -173,6 +173,7 @@ export class AdminRepository {
         );
         current = existing.rows[0];
         if (!current) throw new NotFoundException('Không tìm thấy bài tập.');
+        await this.assertNotLockedByStartedContest(client, id);
       }
       if (input.testCases !== undefined) {
         const expectedRevision = input.testCasesRevision;
@@ -262,6 +263,7 @@ export class AdminRepository {
         [id],
       );
       if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+      await this.assertNotLockedByStartedContest(client, id);
       if (status === 'published') await this.assertHasTestCases(client, id);
       const result = await client.query(
         `UPDATE problems
@@ -403,6 +405,7 @@ export class AdminRepository {
       );
       const current = problem.rows[0];
       if (!current) throw new NotFoundException('Không tìm thấy bài tập.');
+      await this.assertNotLockedByStartedContest(client, problemId);
       if (current.test_case_revision !== expectedRevision) {
         throw new ConflictException('Danh sách test case đã được thay đổi ở nơi khác. Hãy tải lại trước khi lưu.');
       }
@@ -507,6 +510,24 @@ export class AdminRepository {
     );
     if (Number(result.rows[0]?.total ?? 0) === 0) {
       throw new BadRequestException('Thêm ít nhất một test case hợp lệ trước khi xuất bản bài tập.');
+    }
+  }
+
+  private async assertNotLockedByStartedContest(
+    client: PoolClient,
+    problemId: string,
+  ): Promise<void> {
+    const result = await client.query<{ contest_id: string }>(
+      `SELECT c.id AS contest_id
+       FROM public.contest_problems cp
+       JOIN public.contests c ON c.id = cp.contest_id
+       WHERE cp.problem_id = $1
+         AND c.starts_at <= clock_timestamp()
+       LIMIT 1`,
+      [problemId],
+    );
+    if (result.rows[0]) {
+      throw new ConflictException('Không thể thay đổi bài tập hoặc test case sau khi cuộc thi bắt đầu.');
     }
   }
 

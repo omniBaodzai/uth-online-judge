@@ -4,7 +4,6 @@ import { useAdmin } from '../useAdmin'
 import { useAuth } from '../../auth/useAuth'
 import { AdminIcon } from '../components/AdminIcons'
 import { Trophy } from 'lucide-react'
-import { ContestAdminProvider } from '../contests/ContestAdminContext'
 import Breadcrumb from '../../../components/navigation/Breadcrumb'
 import uthLogo from '../../../assets/uth_logo.png'
 import styles from '../admin.module.css'
@@ -75,9 +74,7 @@ function AdminLayout() {
           </div>
         </header>
         <main id="admin-main" className={styles.content}>
-          <ContestAdminProvider>
-            <Outlet />
-          </ContestAdminProvider>
+          <Outlet />
         </main>
       </div>
       {notice && (

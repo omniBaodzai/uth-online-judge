@@ -8,5 +8,6 @@ import { SubmissionsService } from './submissions.service.js';
   imports: [JudgingModule],
   controllers: [SubmissionsController],
   providers: [SubmissionsService, SubmissionsRepository],
+  exports: [SubmissionsService],
 })
 export class SubmissionsModule {}
