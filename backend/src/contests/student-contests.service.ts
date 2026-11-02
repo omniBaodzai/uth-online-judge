@@ -6,8 +6,15 @@ import {
 import { StudentContestsRepository } from './student-contests.repository.js';
 import type {
   StudentContestDetail,
+  StudentContestLeaderboardPage,
+  StudentContestLeaderboardQuery,
   StudentContestListQuery,
+  StudentContestParticipantsPage,
+  StudentContestParticipantsQuery,
   StudentContestPage,
+  StudentContestStatistics,
+  StudentContestSubmissionsPage,
+  StudentContestSubmissionsQuery,
 } from './student-contests.types.js';
 
 @Injectable()
@@ -20,6 +27,38 @@ export class StudentContestsService {
 
   get(identifier: string, userId: string | null): Promise<StudentContestDetail> {
     return this.withDatabaseErrors(() => this.repository.findPublic(identifier, userId));
+  }
+
+  statistics(identifier: string): Promise<StudentContestStatistics> {
+    return this.withDatabaseErrors(() => this.repository.findPublicStatistics(identifier));
+  }
+
+  leaderboard(
+    identifier: string,
+    query: StudentContestLeaderboardQuery,
+  ): Promise<StudentContestLeaderboardPage> {
+    return this.withDatabaseErrors(() =>
+      this.repository.findPublicLeaderboard(identifier, query),
+    );
+  }
+
+  participants(
+    identifier: string,
+    query: StudentContestParticipantsQuery,
+  ): Promise<StudentContestParticipantsPage> {
+    return this.withDatabaseErrors(() =>
+      this.repository.findPublicParticipants(identifier, query),
+    );
+  }
+
+  submissions(
+    identifier: string,
+    query: StudentContestSubmissionsQuery,
+    viewerId: string | null,
+  ): Promise<StudentContestSubmissionsPage> {
+    return this.withDatabaseErrors(() =>
+      this.repository.findPublicSubmissions(identifier, query, viewerId),
+    );
   }
 
   register(contestId: string, userId: string) {

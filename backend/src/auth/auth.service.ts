@@ -104,6 +104,51 @@ export class AuthService {
     }
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    currentRefreshToken?: string,
+  ): Promise<void> {
+    if (
+      Buffer.byteLength(currentPassword, 'utf8') > 72 ||
+      Buffer.byteLength(newPassword, 'utf8') > 72
+    ) {
+      throw new BadRequestException('Mật khẩu không được vượt quá giới hạn 72 byte.');
+    }
+
+    const credential = await this.users.findPasswordCredential(userId);
+    if (!credential || !credential.is_active) {
+      throw new UnauthorizedException('Tài khoản không còn hoạt động.');
+    }
+    if (!credential.password_hash) {
+      throw new BadRequestException(
+        'Tài khoản chưa thiết lập mật khẩu. Vui lòng sử dụng quy trình đặt lại mật khẩu.',
+      );
+    }
+    if (!await bcrypt.compare(currentPassword, credential.password_hash)) {
+      throw new BadRequestException('Mật khẩu hiện tại không chính xác.');
+    }
+    if (await bcrypt.compare(newPassword, credential.password_hash)) {
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại.');
+    }
+
+    const nextPasswordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
+    const updated = await this.users.updatePassword(
+      userId,
+      credential.password_hash,
+      nextPasswordHash,
+    );
+    if (!updated) {
+      throw new ConflictException('Thông tin mật khẩu đã thay đổi. Vui lòng thử lại.');
+    }
+
+    await this.sessions.revokeAllExcept(
+      userId,
+      currentRefreshToken ? hashRefreshToken(currentRefreshToken) : undefined,
+    );
+  }
+
   async getProfile(userId: string): Promise<PublicUser> {
     const user = await this.users.findById(userId);
     if (!user || !user.is_active) {

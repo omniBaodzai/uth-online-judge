@@ -1,16 +1,20 @@
 import type { ReactNode } from 'react'
+import { useEffect, useState } from 'react'
+import { ApiError } from '../../auth/api'
 import {
-  contestLanguages,
   contestVerdicts,
   formatPercent,
   formatSubmissionCount,
-  getMockContestStatistics,
   type ContestStatistics,
   type ContestVerdict,
   type LanguageContestStats,
   type ProblemContestStats,
 } from '../statistics'
-import type { Contest } from '../data'
+import {
+  getStudentContestStatistics,
+  type StudentContestRequester,
+  type StudentContestStatistics,
+} from '../student-contests.api'
 import styles from './ContestStatisticsTab.module.css'
 
 const verdictDetails: Record<ContestVerdict, { label: string; color: string }> = {
@@ -76,6 +80,55 @@ function ProblemLabels({ stats, y }: { stats: ProblemContestStats; y: number }) 
       {label}
     </text>
   )
+}
+
+function toChartVerdict(status: string): ContestVerdict {
+  if (status === 'ACCEPTED') return 'AC'
+  if (status === 'WRONG_ANSWER') return 'WA'
+  if (status === 'COMPILATION_ERROR') return 'CE'
+  if (status === 'TIME_LIMIT_EXCEEDED') return 'TLE'
+  return 'ERR'
+}
+
+function mapStatusCounts(statusCounts: StudentContestStatistics['statusCounts']) {
+  const counts: Record<ContestVerdict, number> = { AC: 0, WA: 0, CE: 0, TLE: 0, ERR: 0 }
+  for (const { status, count } of statusCounts) {
+    counts[toChartVerdict(status)] += count
+  }
+  return counts
+}
+
+function toChartStatistics(data: StudentContestStatistics): ContestStatistics {
+  const problems = data.problemStatistics.map((problem) => {
+    const counts = mapStatusCounts(problem.statusCounts)
+    const total = problem.totalSubmissions
+    return {
+      problem: { id: problem.problemId, title: problem.problemTitle },
+      counts,
+      total,
+      accepted: problem.acceptedSubmissions,
+      acceptanceRate: total > 0 ? (problem.acceptedSubmissions / total) * 100 : 0,
+    }
+  })
+  const languages = data.languageStatistics.map((language) => {
+    const counts = mapStatusCounts(language.statusCounts)
+    const total = language.totalSubmissions
+    return {
+      language: language.languageName,
+      counts,
+      total,
+      accepted: language.acceptedSubmissions,
+      acceptanceRate: total > 0 ? (language.acceptedSubmissions / total) * 100 : 0,
+    }
+  })
+
+  return {
+    submissions: [],
+    problems,
+    languages,
+    verdictTotals: mapStatusCounts(data.statusCounts),
+    totalSubmissions: data.totalSubmissions,
+  }
 }
 
 function SubmissionStatusChart({ statistics }: { statistics: ContestStatistics }) {
@@ -238,7 +291,7 @@ function LanguageDistributionChart({ statistics }: { statistics: ContestStatisti
                   cy="110"
                   r={radius}
                   fill="none"
-                  stroke={languageColors[index]}
+                  stroke={languageColors[index % languageColors.length]}
                   strokeWidth="28"
                   strokeDasharray={`${dashLength} ${circumference - dashLength}`}
                   strokeDashoffset={dashOffset}
@@ -260,7 +313,7 @@ function LanguageDistributionChart({ statistics }: { statistics: ContestStatisti
         </div>
         <ChartLegend items={statistics.languages.map((languageStats, index) => ({
           label: languageStats.language,
-          color: languageColors[index],
+          color: languageColors[index % languageColors.length],
           value: `${formatSubmissionCount(languageStats.total)} · ${formatPercent(total > 0 ? (languageStats.total / total) * 100 : 0)}`,
         }))} />
       </div>
@@ -269,7 +322,7 @@ function LanguageDistributionChart({ statistics }: { statistics: ContestStatisti
 }
 
 function LanguageAcceptanceChart({ statistics }: { statistics: ContestStatistics }) {
-  const chartHeight = CHART_PADDING_TOP + contestLanguages.length * 52 + CHART_PADDING_BOTTOM
+  const chartHeight = CHART_PADDING_TOP + statistics.languages.length * 52 + CHART_PADDING_BOTTOM
   const plotWidth = CHART_WIDTH - LABEL_WIDTH - RIGHT_PADDING
   const ticks = [0, 25, 50, 75, 100]
 
@@ -313,7 +366,7 @@ function LanguageAcceptanceChart({ statistics }: { statistics: ContestStatistics
                   width={width}
                   height={20}
                   rx={10}
-                  fill={languageColors[index]}
+                  fill={languageColors[index % languageColors.length]}
                   className={styles.languageBar}
                 />
                 <text x={LABEL_WIDTH + plotWidth + 10} y={y + rowHeight / 2 + 4} className={styles.valueLabel}>
@@ -331,9 +384,69 @@ function LanguageAcceptanceChart({ statistics }: { statistics: ContestStatistics
   )
 }
 
-function ContestStatisticsTab({ contest }: { contest: Contest }) {
-  const statistics = getMockContestStatistics(contest)
+type LoadState =
+  | { phase: 'loading' }
+  | { phase: 'error'; message: string }
+  | { phase: 'ready'; statistics: StudentContestStatistics }
 
+function ContestStatisticsTab({
+  identifier,
+  requester,
+}: {
+  identifier: string
+  requester: StudentContestRequester
+}) {
+  const [retryKey, setRetryKey] = useState(0)
+  const [result, setResult] = useState<{ key: string; state: LoadState }>()
+  const key = `${identifier}:${retryKey}`
+  const state = result?.key === key ? result.state : { phase: 'loading' as const }
+
+  useEffect(() => {
+    const controller = new AbortController()
+    let active = true
+    void getStudentContestStatistics(requester, identifier, controller.signal)
+      .then((statistics) => {
+        if (active) setResult({ key, state: { phase: 'ready', statistics } })
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setResult({
+          key,
+          state: {
+            phase: 'error',
+            message: error instanceof ApiError
+              ? error.message
+              : 'Không thể tải thống kê cuộc thi. Vui lòng thử lại.',
+          },
+        })
+      })
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [identifier, key, requester])
+
+  if (state.phase === 'loading') {
+    return (
+      <section className={styles.emptyState} role="status" aria-live="polite">
+        <h2>Đang tải thống kê…</h2>
+      </section>
+    )
+  }
+
+  if (state.phase === 'error') {
+    return (
+      <section className={styles.emptyState} role="alert">
+        <h2>Không thể tải thống kê</h2>
+        <p>{state.message}</p>
+        <button type="button" className={styles.retryButton} onClick={() => setRetryKey((value) => value + 1)}>
+          Thử lại
+        </button>
+      </section>
+    )
+  }
+
+  const statistics = toChartStatistics(state.statistics)
   if (statistics.totalSubmissions === 0) {
     return (
       <section className={styles.emptyState} aria-label="Thống kê cuộc thi">

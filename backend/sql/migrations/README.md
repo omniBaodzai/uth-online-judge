@@ -9,5 +9,6 @@ Apply numbered migrations in ascending order using the database's normal migrati
 - `014_profile_cover_crop.sql` adds nullable crop metadata for uploaded profile cover images; existing profile images remain unchanged.
 - `015_profile_organization.sql` adds an optional school or organization name to user profiles.
 - `016_problem_editorial_solutions.sql` allows multiple titled, language-specific source-code solutions per problem while preserving existing editorial content.
+- `019_contact_messages_and_notifications.sql` adds contact requests, two-way replies, private notifications, and PostgreSQL-backed public submission rate limits.
 
 The backend must be deployed with the corresponding application code after these migrations are applied. Cumulative progress counts only accepted results from completely finalized submissions and only when the test case remains active with matching input and expected-output content.

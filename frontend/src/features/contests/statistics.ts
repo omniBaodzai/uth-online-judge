@@ -13,7 +13,7 @@ export type ContestSubmission = {
 }
 
 export type ProblemContestStats = {
-  problem: ContestProblem
+  problem: Pick<ContestProblem, 'id' | 'title'>
   counts: Record<ContestVerdict, number>
   total: number
   accepted: number
@@ -21,7 +21,7 @@ export type ProblemContestStats = {
 }
 
 export type LanguageContestStats = {
-  language: (typeof contestLanguages)[number]
+  language: string
   counts: Record<ContestVerdict, number>
   total: number
   accepted: number

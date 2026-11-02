@@ -168,6 +168,7 @@ export class LeaderboardRepository {
       LEFT JOIN solve_stats solved ON solved.user_id = u.id
       LEFT JOIN cumulative_progress progress ON progress.user_id = u.id
       LEFT JOIN performance_stats performance ON performance.user_id = u.id
+      WHERE u.is_active = TRUE
     `);
 
     return result.rows.map((row) => ({

@@ -15,7 +15,8 @@ describe('LeaderboardRepository', () => {
     expect(sql).toMatch(/snapshot\.time_limit_ms/);
     expect(sql).toMatch(/language\.judge0_language_id/);
     expect(sql).not.toMatch(/contest_standings|contest_submissions/i);
-    expect(sql).not.toMatch(/WHERE u\.is_active|u\.role/);
+    expect(sql).toMatch(/WHERE u\.is_active = TRUE/);
+    expect(sql).not.toMatch(/u\.role/);
   });
 
   it('maps database aggregates without leaking internal performance fields', async () => {

@@ -4,6 +4,7 @@ import { LoginDto } from './login.dto.js';
 import { ProfileUpdateDto } from './profile-update.dto.js';
 import { RegisterDto } from './register.dto.js';
 import { CoverCropMetadataDto, CoverUploadDto } from './cover-upload.dto.js';
+import { ChangePasswordDto } from './change-password.dto.js';
 
 describe('authentication DTO validation', () => {
   it('accepts a valid email, username, and password', () => {
@@ -31,6 +32,21 @@ describe('authentication DTO validation', () => {
       const dto = plainToInstance(LoginDto, { identifier, password: 'password' });
       expect(validateSync(dto)).toHaveLength(0);
     }
+  });
+
+  it('requires a current password and a new password following registration policy', () => {
+    const valid = plainToInstance(ChangePasswordDto, {
+      currentPassword: 'current-password',
+      newPassword: 'new-password',
+    });
+    expect(validateSync(valid, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
+
+    const invalid = plainToInstance(ChangePasswordDto, {
+      currentPassword: '',
+      newPassword: 'short',
+    });
+    expect(validateSync(invalid, { whitelist: true, forbidNonWhitelisted: true }).length)
+      .toBeGreaterThanOrEqual(2);
   });
 
   it('validates profile update fields', () => {

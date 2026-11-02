@@ -31,7 +31,17 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js'
 import { CreateSubmissionDto } from '../submissions/dto/create-submission.dto.js';
 import { SubmissionsService } from '../submissions/submissions.service.js';
 import { ContestRegistrationResponseDto, StudentContestDetailResponseDto, StudentContestPageResponseDto } from './dto/student-contests-response.dto.js';
-import { ListStudentContestsQueryDto } from './dto/student-contests.dto.js';
+import { StudentContestLeaderboardPageResponseDto } from './dto/student-contest-leaderboard-response.dto.js';
+import { StudentContestStatisticsResponseDto } from './dto/student-contest-statistics-response.dto.js';
+import {
+  StudentContestParticipantsPageResponseDto,
+  StudentContestParticipantsQueryDto,
+} from './dto/student-contest-participants.dto.js';
+import {
+  StudentContestSubmissionsPageResponseDto,
+  StudentContestSubmissionsQueryDto,
+} from './dto/student-contest-submissions.dto.js';
+import { ListStudentContestsQueryDto, StudentContestLeaderboardQueryDto } from './dto/student-contests.dto.js';
 import { StudentContestsService } from './student-contests.service.js';
 
 type OptionalUserRequest = Request & { user?: { id: string } | null };
@@ -75,6 +85,72 @@ export class StudentContestsController {
     @Req() request: OptionalUserRequest,
   ) {
     return this.contests.get(identifier, request.user?.id ?? null);
+  }
+
+  @Get(':identifier/statistics')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Thống kê cuộc thi công khai theo UUID hoặc slug',
+    description: 'Trả về số liệu tổng hợp từ submissions, contest_problems và đăng ký đang hoạt động.',
+  })
+  @ApiNotFoundResponse({ description: 'Cuộc thi không tồn tại hoặc không công khai.' })
+  @ApiOkResponse({ type: StudentContestStatisticsResponseDto })
+  statistics(@Param('identifier') identifier: string) {
+    return this.contests.statistics(identifier);
+  }
+
+  @Get(':identifier/leaderboard')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Bảng xếp hạng cuộc thi công khai theo UUID hoặc slug',
+    description: 'Xếp hạng trên toàn cuộc thi trước khi tìm kiếm và phân trang; chỉ trả dữ liệu khi leaderboard được bật.',
+  })
+  @ApiQuery({ type: StudentContestLeaderboardQueryDto })
+  @ApiBadRequestResponse({ description: 'Tham số tìm kiếm hoặc phân trang không hợp lệ.' })
+  @ApiNotFoundResponse({ description: 'Cuộc thi không tồn tại, không công khai hoặc leaderboard bị ẩn.' })
+  @ApiOkResponse({ type: StudentContestLeaderboardPageResponseDto })
+  leaderboard(
+    @Param('identifier') identifier: string,
+    @Query() query: StudentContestLeaderboardQueryDto,
+  ) {
+    return this.contests.leaderboard(identifier, query);
+  }
+
+  @Get(':identifier/participants')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Danh sách thành viên cuộc thi công khai theo UUID hoặc slug',
+    description:
+      'Chỉ gồm đăng ký đang hoạt động. Trạng thái participated cần ít nhất một submission trong thời gian diễn ra cuộc thi.',
+  })
+  @ApiQuery({ type: StudentContestParticipantsQueryDto })
+  @ApiBadRequestResponse({ description: 'Bộ lọc hoặc phân trang không hợp lệ.' })
+  @ApiNotFoundResponse({ description: 'Cuộc thi không tồn tại hoặc không công khai.' })
+  @ApiOkResponse({ type: StudentContestParticipantsPageResponseDto })
+  participants(
+    @Param('identifier') identifier: string,
+    @Query() query: StudentContestParticipantsQueryDto,
+  ) {
+    return this.contests.participants(identifier, query);
+  }
+
+  @Get(':identifier/submissions')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Danh sách metadata bài nộp của cuộc thi công khai',
+    description:
+      'Chỉ trả metadata bài nộp, không trả mã nguồn hoặc kết quả test. Truy cập theo chính sách PUBLIC/PUBLISHED của cuộc thi.',
+  })
+  @ApiQuery({ type: StudentContestSubmissionsQueryDto })
+  @ApiBadRequestResponse({ description: 'Bộ lọc hoặc phân trang không hợp lệ.' })
+  @ApiNotFoundResponse({ description: 'Cuộc thi không tồn tại hoặc không công khai.' })
+  @ApiOkResponse({ type: StudentContestSubmissionsPageResponseDto })
+  listSubmissions(
+    @Param('identifier') identifier: string,
+    @Query() query: StudentContestSubmissionsQueryDto,
+    @Req() request: OptionalUserRequest,
+  ) {
+    return this.contests.submissions(identifier, query, request.user?.id ?? null);
   }
 
   @Post(':identifier/registration')

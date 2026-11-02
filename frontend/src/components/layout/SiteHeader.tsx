@@ -1,10 +1,14 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
+import { KeyRound, LogOut, UserRound, UserRoundPen } from 'lucide-react'
 import styles from './SiteHeader.module.css'
 import uthLogo from '../../assets/uth_logo.png'
 import { useAuth } from '../../features/auth/useAuth'
 import { resolveAvatarUrl } from '../../features/auth/api'
 import UserAvatar from '../../features/profile/components/UserAvatar'
+import NotificationBell from './notifications/NotificationBell'
+import ChangePasswordDialog from './ChangePasswordDialog'
+import { useToast } from '../ui/toast-context'
 
 const navigationLinks = [
   { label: 'Bài tập', href: '/problems' },
@@ -24,8 +28,10 @@ function SiteHeader() {
   const [logoutSuccess, setLogoutSuccess] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement>(null)
   const accountButtonRef = useRef<HTMLButtonElement>(null)
+  const { showToast } = useToast()
   const { user, isLoading: isRestoringSession, logout } = useAuth()
 
   async function handleLogout() {
@@ -41,6 +47,17 @@ function SiteHeader() {
     } finally {
       setIsLoggingOut(false)
     }
+  }
+
+  function closeChangePasswordDialog() {
+    setChangePasswordOpen(false)
+    window.requestAnimationFrame(() => accountButtonRef.current?.focus())
+  }
+
+  function handlePasswordChanged() {
+    setChangePasswordOpen(false)
+    showToast('Đổi mật khẩu thành công.')
+    window.requestAnimationFrame(() => accountButtonRef.current?.focus())
   }
 
   useEffect(() => {
@@ -127,51 +144,67 @@ function SiteHeader() {
             </div>
           ) : user ? (
             <>
-              <div className={styles.accountMenu} ref={accountMenuRef}>
-                <button
-                  className={styles.accountButton}
-                  type="button"
-                  ref={accountButtonRef}
-                  aria-expanded={accountMenuOpen}
-                  aria-controls="account-menu"
-                  onClick={() => setAccountMenuOpen((open) => !open)}
-                >
-                  <UserAvatar
-                    source={resolveAvatarUrl(user.avatar_url)}
-                    username={user.username ?? user.email}
-                  />
-                  <span className={styles.userGreeting}>Xin chào, {user.username ?? user.email}</span>
-                  <span className={styles.accountChevron} aria-hidden="true">⌄</span>
-                </button>
-                {accountMenuOpen && (
-                  <div className={styles.accountDropdown} id="account-menu">
-                    <Link
-                      to="/profile"
-                      onClick={() => {
-                        setAccountMenuOpen(false)
-                        setMenuOpen(false)
-                      }}
-                    >
-                      Thông tin cá nhân
-                    </Link>
-                    <Link
-                      to="/profile/edit"
-                      onClick={() => {
-                        setAccountMenuOpen(false)
-                        setMenuOpen(false)
-                      }}
-                    >
-                      Chỉnh sửa hồ sơ
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void handleLogout()}
-                      disabled={isLoggingOut}
-                    >
-                      {isLoggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}
-                    </button>
-                  </div>
-                )}
+              <div className={styles.accountControls}>
+                <NotificationBell key={user.id} userId={user.id} />
+                <div className={styles.accountMenu} ref={accountMenuRef}>
+                  <button
+                    className={styles.accountButton}
+                    type="button"
+                    ref={accountButtonRef}
+                    aria-expanded={accountMenuOpen}
+                    aria-controls="account-menu"
+                    onClick={() => setAccountMenuOpen((open) => !open)}
+                  >
+                    <UserAvatar
+                      source={resolveAvatarUrl(user.avatar_url)}
+                      username={user.username ?? user.email}
+                    />
+                    <span className={styles.userGreeting}>Xin chào, {user.username ?? user.email}</span>
+                    <span className={styles.accountChevron} aria-hidden="true">⌄</span>
+                  </button>
+                  {accountMenuOpen && (
+                    <div className={styles.accountDropdown} id="account-menu">
+                      <Link
+                        to="/profile"
+                        onClick={() => {
+                          setAccountMenuOpen(false)
+                          setMenuOpen(false)
+                        }}
+                      >
+                        <UserRound size={18} aria-hidden="true" />
+                        Thông tin cá nhân
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAccountMenuOpen(false)
+                          setChangePasswordOpen(true)
+                        }}
+                      >
+                        <KeyRound size={18} aria-hidden="true" />
+                        Đổi mật khẩu
+                      </button>
+                      <Link
+                        to="/profile/edit"
+                        onClick={() => {
+                          setAccountMenuOpen(false)
+                          setMenuOpen(false)
+                        }}
+                      >
+                        <UserRoundPen size={18} aria-hidden="true" />
+                        Chỉnh sửa hồ sơ
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void handleLogout()}
+                        disabled={isLoggingOut}
+                      >
+                        <LogOut size={18} aria-hidden="true" />
+                        {isLoggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           ) : (
@@ -208,6 +241,13 @@ function SiteHeader() {
             ×
           </button>
         </div>
+      )}
+
+      {changePasswordOpen && (
+        <ChangePasswordDialog
+          onClose={closeChangePasswordDialog}
+          onSuccess={handlePasswordChanged}
+        />
       )}
 
       <button

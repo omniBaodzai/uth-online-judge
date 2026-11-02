@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { getAllowedFrontendOrigins } from './cors-origins.js';
+import { ALLOWED_CORS_HEADERS, getAllowedFrontendOrigins } from './cors-origins.js';
+
+describe('CORS allowed headers', () => {
+  it('allows the idempotency header used by contact reply requests', () => {
+    expect(ALLOWED_CORS_HEADERS).toContain('Idempotency-Key');
+    expect(ALLOWED_CORS_HEADERS).toContain('Authorization');
+    expect(ALLOWED_CORS_HEADERS).toContain('Content-Type');
+  });
+});
 
 describe('getAllowedFrontendOrigins', () => {
   it('always allows the local frontend origin and configured exact origins', () => {

@@ -11,9 +11,10 @@ import { Judge0Module } from './judge0/judge0.module.js';
 import { CommunityModule } from './community/community.module.js';
 import { LeaderboardModule } from './leaderboard/leaderboard.module.js';
 import { ContestsModule } from './contests/contests.module.js';
+import { ContactModule } from './contact/contact.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, DemoQueueModule, ProblemsModule, SubmissionsModule, AdminModule, Judge0Module, CommunityModule, LeaderboardModule, ContestsModule],
+  imports: [DatabaseModule, AuthModule, DemoQueueModule, ProblemsModule, SubmissionsModule, AdminModule, Judge0Module, CommunityModule, LeaderboardModule, ContestsModule, ContactModule],
   controllers: [AppController],
   providers: [AppService],
 })

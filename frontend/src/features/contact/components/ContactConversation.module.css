@@ -1,0 +1,137 @@
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+}
+
+.adminItem {
+  justify-content: flex-start;
+}
+
+.userItem {
+  justify-content: flex-end;
+}
+
+.message {
+  width: min(100%, 760px);
+  min-width: 0;
+  padding: 15px 17px 12px;
+  border: 1px solid #dfe9e8;
+  border-radius: 14px;
+  background: #fff;
+  color: #233638;
+  box-shadow: 0 4px 14px rgba(27, 62, 64, .045);
+}
+
+.adminItem .message {
+  border-color: #cfe7e5;
+  background: #f0f8f7;
+}
+
+.userItem .message {
+  border-color: #e2e8ec;
+  background: #f8fafb;
+}
+
+.messageHeader,
+.sender {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.messageHeader {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sender {
+  gap: 8px;
+  color: #126d70;
+  font-size: 13px;
+}
+
+.userItem .sender {
+  color: #41565a;
+}
+
+.sender strong {
+  overflow-wrap: anywhere;
+}
+
+.senderType {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid #c9e3e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #176e70;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.userItem .senderType {
+  border-color: #dce5e8;
+  color: #4a6064;
+}
+
+.message p {
+  margin: 0;
+  color: #34494c;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message time {
+  display: block;
+  margin-top: 10px;
+  color: #637679;
+  font-size: 12px;
+  text-align: right;
+}
+
+.emptyState {
+  margin: 0;
+  padding: 22px 18px;
+  border: 1px dashed #cbdcdb;
+  border-radius: 12px;
+  background: #f8fbfb;
+  color: #52696c;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.storageNotice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #e6c77e;
+  border-radius: 10px;
+  background: #fff8e9;
+  color: #654b15;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .message {
+    padding: 13px 14px 11px;
+  }
+
+  .message p {
+    font-size: 16px;
+  }
+}

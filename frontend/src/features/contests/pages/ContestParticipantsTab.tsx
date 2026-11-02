@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ApiError } from '../../auth/api'
 import FilterDropdown from '../../problems/components/FilterDropdown'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
 import { submissionPageSizes } from '../../submissions/data'
 import submissionsStyles from '../../submissions/pages/SubmissionsPage.module.css'
-import type { Contest } from '../data'
 import {
-  createMockContestParticipants,
-  filterContestParticipants,
-  formatParticipantRegistrationDate,
-  type ContestParticipantStatus,
-} from '../participants'
+  getStudentContestParticipants,
+  type StudentContestParticipantsPage,
+  type StudentContestRequester,
+  type StudentContestParticipantStatus,
+} from '../student-contests.api'
+import { formatParticipantRegistrationDate } from '../participants'
 import tableStyles from './ContestDataTable.module.css'
 import styles from './ContestParticipantsTab.module.css'
 
@@ -20,31 +21,111 @@ const statusOptions = [
   { value: 'participated', label: 'Đã tham gia' },
 ]
 
-function ContestParticipantsTab({ contest }: { contest: Contest }) {
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<ContestParticipantStatus | 'all'>('all')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(submissionPageSizes[0])
-  const participants = useMemo(() => createMockContestParticipants(contest), [contest])
-  const filteredParticipants = useMemo(
-    () => filterContestParticipants(participants, query, status),
-    [participants, query, status],
-  )
-  const totalPages = Math.max(1, Math.ceil(filteredParticipants.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
-  const pageParticipants = filteredParticipants.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+const SEARCH_DEBOUNCE_MS = 300
 
-  const paginationProps = {
-    currentPage,
+type ContestParticipantsTabProps = {
+  contestIdentifier: string
+  participantCount: number
+  requester: StudentContestRequester
+  onParticipantCountChange: (count: number) => void
+}
+
+function ContestParticipantsTab({
+  contestIdentifier,
+  participantCount,
+  requester,
+  onParticipantCountChange,
+}: ContestParticipantsTabProps) {
+  const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [status, setStatus] = useState<StudentContestParticipantStatus | 'all'>('all')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState<10 | 20 | 50>(10)
+  const [loaded, setLoaded] = useState<{
+    key: string
+    value: StudentContestParticipantsPage
+  } | null>(null)
+  const [settled, setSettled] = useState<{ key: string; error: string } | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
+  const queryPending = query.trim() !== debouncedQuery
+  const requestKey = JSON.stringify([
+    contestIdentifier,
+    participantCount,
+    page,
     pageSize,
-    totalItems: filteredParticipants.length,
+    debouncedQuery,
+    status,
+    retryKey,
+  ])
+  const data = loaded?.key === requestKey ? loaded.value : null
+  const error = settled?.key === requestKey ? settled.error : ''
+  const isLoading = queryPending || settled?.key !== requestKey
+  const total = data?.total ?? 0
+  const totalParticipants = data?.participantCount ?? participantCount
+
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedQuery(query.trim()),
+      SEARCH_DEBOUNCE_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  useEffect(() => {
+    if (queryPending) return
+    const controller = new AbortController()
+    getStudentContestParticipants(
+      requester,
+      contestIdentifier,
+      { page, pageSize, search: debouncedQuery, status },
+      controller.signal,
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return
+        if (result.items.length === 0 && result.total > 0 && page > 1) {
+          setPage(Math.ceil(result.total / pageSize))
+          return
+        }
+        setLoaded({ key: requestKey, value: result })
+        setSettled({ key: requestKey, error: '' })
+        onParticipantCountChange(result.participantCount)
+      })
+      .catch((requestError: unknown) => {
+        if (controller.signal.aborted) return
+        setSettled({
+          key: requestKey,
+          error: requestError instanceof ApiError
+            ? requestError.message
+            : 'Không thể tải danh sách thành viên. Vui lòng thử lại.',
+        })
+      })
+    return () => controller.abort()
+  }, [
+    contestIdentifier,
+    debouncedQuery,
+    onParticipantCountChange,
+    page,
+    pageSize,
+    queryPending,
+    requestKey,
+    requester,
+    status,
+  ])
+
+  const hasFilters = Boolean(query.trim()) || status !== 'all'
+  const paginationProps = {
+    currentPage: page,
+    pageSize,
+    totalItems: total,
     pageSizes: submissionPageSizes,
     label: 'thành viên cuộc thi',
     summaryLabel: 'thành viên',
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
-      setPageSize(size)
-      setPage(1)
+      if (size === 10 || size === 20 || size === 50) {
+        setPageSize(size)
+        setPage(1)
+      }
     },
   }
 
@@ -53,7 +134,7 @@ function ContestParticipantsTab({ contest }: { contest: Contest }) {
       <header className={styles.heading}>
         <h2 id="contest-participants-title">Danh sách thành viên</h2>
         <span className={tableStyles.participantCount}>
-          {participants.length.toLocaleString('vi-VN')} thành viên
+          {totalParticipants.toLocaleString('vi-VN')} thành viên
         </span>
       </header>
 
@@ -107,14 +188,25 @@ function ContestParticipantsTab({ contest }: { contest: Contest }) {
         <div className={tableStyles.paginationTop}>
           <SubmissionPagination {...paginationProps} showPageSize={false} />
         </div>
-        {pageParticipants.length === 0 ? (
+        {error ? (
+          <div className={tableStyles.empty} role="alert">
+            <strong>{error}</strong>
+            <button type="button" onClick={() => setRetryKey((key) => key + 1)}>
+              Thử lại
+            </button>
+          </div>
+        ) : isLoading ? (
+          <div className={tableStyles.empty} role="status" aria-live="polite">
+            <strong>Đang tải danh sách thành viên…</strong>
+          </div>
+        ) : data?.items.length === 0 ? (
           <div className={tableStyles.empty}>
             <strong>
-              {participants.length === 0
+              {totalParticipants === 0
                 ? 'Chưa có thành viên tham gia cuộc thi'
                 : 'Không tìm thấy thành viên phù hợp'}
             </strong>
-            {participants.length > 0 && <p>Hãy thử username hoặc trạng thái khác.</p>}
+            {totalParticipants > 0 && hasFilters && <p>Hãy thử username hoặc trạng thái khác.</p>}
           </div>
         ) : (
           <div className={tableStyles.tableWrap} role="region" aria-label="Danh sách thành viên cuộc thi" tabIndex={0}>
@@ -128,9 +220,9 @@ function ContestParticipantsTab({ contest }: { contest: Contest }) {
                 </tr>
               </thead>
               <tbody>
-                {pageParticipants.map((participant, index) => (
-                  <tr key={participant.id}>
-                    <td className={styles.numberCell}>{(currentPage - 1) * pageSize + index + 1}</td>
+                {data?.items.map((participant, index) => (
+                  <tr key={participant.userId}>
+                    <td className={styles.numberCell}>{(page - 1) * pageSize + index + 1}</td>
                     <td className={styles.coderCell}>
                       <span className={styles.avatar} aria-hidden="true">
                         {participant.username.slice(0, 1).toLocaleUpperCase('vi')}

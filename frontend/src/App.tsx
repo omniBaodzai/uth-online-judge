@@ -28,6 +28,9 @@ import AdminTestCasesPage from './features/admin/pages/AdminTestCasesPage'
 import AdminUsersPage from './features/admin/pages/AdminUsersPage'
 import AdminNewsPage from './features/admin/pages/AdminNewsPage'
 import AdminNewsFormPage from './features/admin/pages/AdminNewsFormPage'
+import AdminContactMessageDetailPage from './features/admin/contact-messages/AdminContactMessageDetailPage'
+import AdminContactMessagesPage from './features/admin/contact-messages/AdminContactMessagesPage'
+import UserContactMessageDetailsPage from './features/contact/pages/UserContactMessageDetailsPage'
 import NewsListPage from './features/community/pages/NewsListPage'
 import NewsDetailPage from './features/community/pages/NewsDetailPage'
 import DiscussionListPage from './features/community/pages/DiscussionListPage'
@@ -60,6 +63,8 @@ function App() {
               <Route path="contests/new" element={<AdminContestFormPage />} />
               <Route path="contests/:contestId/edit" element={<AdminContestFormPage />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="contact-messages/:messageId" element={<AdminContactMessageDetailPage />} />
+              <Route path="contact-messages" element={<AdminContactMessagesPage />} />
               <Route path="news" element={<AdminNewsPage />} />
               <Route path="news/new" element={<AdminNewsFormPage />} />
               <Route path="news/:id/edit" element={<AdminNewsFormPage />} />
@@ -110,6 +115,10 @@ function App() {
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
           <Route path="contact" element={<ContactPage />} />
+          <Route
+            path="my/contact-messages/:messageId"
+            element={<RequireAuth><UserContactMessageDetailsPage /></RequireAuth>}
+          />
                     <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="news" element={<NewsListPage />} />
           <Route path="news/:slug" element={<NewsDetailPage />} />

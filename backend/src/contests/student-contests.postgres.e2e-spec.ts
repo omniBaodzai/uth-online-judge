@@ -438,6 +438,23 @@ describe.skipIf(!enabled)('Student Contests with PostgreSQL 17', () => {
       /test_case_revision|test_case|answer|source_code/i,
     );
 
+    const leaderboardBeforeSubmission = await request(app.getHttpServer())
+      .get(`/contests/${contest.slug}/leaderboard`)
+      .expect(200);
+    expect(leaderboardBeforeSubmission.body).toMatchObject({
+      total: 1,
+      page: 1,
+      pageSize: 10,
+      items: [{
+        rank: 1,
+        userId: studentId,
+        totalScore: 0,
+        acceptedProblems: 0,
+        totalProblems: 1,
+        elapsedSeconds: null,
+      }],
+    });
+
     const submitted = await request(app.getHttpServer())
       .post(`/contests/${contest.id}/submissions`)
       .set('Authorization', `Bearer ${token}`)
@@ -465,6 +482,15 @@ describe.skipIf(!enabled)('Student Contests with PostgreSQL 17', () => {
       contest_id: contest.id,
       contest_max_score_snapshot: '100.00',
       status: 'QUEUED',
+    });
+    const leaderboardWhileQueued = await request(app.getHttpServer())
+      .get(`/contests/${contest.id}/leaderboard`)
+      .expect(200);
+    expect(leaderboardWhileQueued.body.items[0]).toMatchObject({
+      rank: 1,
+      totalScore: 0,
+      acceptedProblems: 0,
+      elapsedSeconds: null,
     });
 
     await request(app.getHttpServer())

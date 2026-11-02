@@ -147,6 +147,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [accessToken],
   )
 
+  const changePassword = useCallback(
+    async (input: { currentPassword: string; newPassword: string }) => {
+      if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
+      const revision = authRevision.current
+      try {
+        await authApi.changePasswordWithRefresh(
+          input,
+          accessToken,
+          (token) => {
+            if (revision === authRevision.current) setAccessToken(token)
+          },
+        )
+      } catch (error) {
+        if (revision === authRevision.current && error instanceof authApi.ApiError && error.status === 401) {
+          setAccessToken(null)
+          setUser(null)
+        }
+        throw error
+      }
+    },
+    [accessToken],
+  )
+
   const uploadAvatar = useCallback(
     async (file: File, fullName: string | null) => {
       if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
@@ -228,6 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshProfile,
       updateProfile,
+      changePassword,
       uploadAvatar,
       uploadCover,
       request,
@@ -243,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshProfile,
       updateProfile,
+      changePassword,
       uploadAvatar,
       uploadCover,
       request,

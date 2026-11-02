@@ -9,6 +9,10 @@ describe('StudentContestsController', () => {
     const prototype = StudentContestsController.prototype;
     const list = Object.getOwnPropertyDescriptor(prototype, 'list')!.value;
     const get = Object.getOwnPropertyDescriptor(prototype, 'get')!.value;
+    const statistics = Object.getOwnPropertyDescriptor(prototype, 'statistics')!.value;
+    const leaderboard = Object.getOwnPropertyDescriptor(prototype, 'leaderboard')!.value;
+    const participants = Object.getOwnPropertyDescriptor(prototype, 'participants')!.value;
+    const listSubmissions = Object.getOwnPropertyDescriptor(prototype, 'listSubmissions')!.value;
     const register = Object.getOwnPropertyDescriptor(prototype, 'register')!.value;
     const cancel = Object.getOwnPropertyDescriptor(prototype, 'cancel')!.value;
     const submit = Object.getOwnPropertyDescriptor(prototype, 'submit')!.value;
@@ -16,6 +20,18 @@ describe('StudentContestsController', () => {
       OptionalJwtAuthGuard,
     ]);
     expect(Reflect.getMetadata(GUARDS_METADATA, get)).toEqual([
+      OptionalJwtAuthGuard,
+    ]);
+    expect(Reflect.getMetadata(GUARDS_METADATA, statistics)).toEqual([
+      OptionalJwtAuthGuard,
+    ]);
+    expect(Reflect.getMetadata(GUARDS_METADATA, leaderboard)).toEqual([
+      OptionalJwtAuthGuard,
+    ]);
+    expect(Reflect.getMetadata(GUARDS_METADATA, participants)).toEqual([
+      OptionalJwtAuthGuard,
+    ]);
+    expect(Reflect.getMetadata(GUARDS_METADATA, listSubmissions)).toEqual([
       OptionalJwtAuthGuard,
     ]);
     expect(Reflect.getMetadata(GUARDS_METADATA, register)).toEqual([
@@ -29,6 +45,14 @@ describe('StudentContestsController', () => {
     ]);
     expect(Reflect.getMetadata(PATH_METADATA, list)).toBe('/');
     expect(Reflect.getMetadata(METHOD_METADATA, list)).toBe(0);
+    expect(Reflect.getMetadata(PATH_METADATA, statistics)).toBe(':identifier/statistics');
+    expect(Reflect.getMetadata(METHOD_METADATA, statistics)).toBe(0);
+    expect(Reflect.getMetadata(PATH_METADATA, leaderboard)).toBe(':identifier/leaderboard');
+    expect(Reflect.getMetadata(METHOD_METADATA, leaderboard)).toBe(0);
+    expect(Reflect.getMetadata(PATH_METADATA, participants)).toBe(':identifier/participants');
+    expect(Reflect.getMetadata(METHOD_METADATA, participants)).toBe(0);
+    expect(Reflect.getMetadata(PATH_METADATA, listSubmissions)).toBe(':identifier/submissions');
+    expect(Reflect.getMetadata(METHOD_METADATA, listSubmissions)).toBe(0);
     expect(Reflect.getMetadata(PATH_METADATA, register)).toBe(':identifier/registration');
     expect(Reflect.getMetadata(METHOD_METADATA, register)).toBe(1);
     expect(Reflect.getMetadata(METHOD_METADATA, cancel)).toBe(3);
@@ -49,6 +73,10 @@ describe('StudentContestsController', () => {
   it('always derives the participant identity from the authenticated request', async () => {
     const contests = {
       get: vi.fn().mockResolvedValue({ id: 'contest-id' }),
+      statistics: vi.fn().mockResolvedValue({ totalSubmissions: 0 }),
+      leaderboard: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+      participants: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+      submissions: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       register: vi.fn().mockResolvedValue({ contestId: 'contest-id' }),
       cancel: vi.fn().mockResolvedValue({ contestId: 'contest-id' }),
     };
@@ -56,6 +84,25 @@ describe('StudentContestsController', () => {
     const controller = new StudentContestsController(contests as never, submissions as never);
 
     await controller.get('contest-slug', { user: { id: 'student-id' } } as never);
+    await controller.statistics('contest-slug');
+    await controller.leaderboard('contest-slug', {
+      page: 2,
+      pageSize: 20,
+      search: 'coder',
+    });
+    await controller.participants('contest-slug', {
+      page: 2,
+      pageSize: 20,
+      search: 'coder',
+      status: 'participated',
+    });
+    await controller.listSubmissions('contest-slug', {
+      page: 1,
+      pageSize: 10,
+      search: 'title',
+      status: 'ACCEPTED',
+      language: 'C++',
+    }, { user: { id: 'student-id' } } as never);
     await controller.register('contest-slug', {
       user: { id: 'student-id' },
     } as never);
@@ -67,6 +114,29 @@ describe('StudentContestsController', () => {
     }, { user: { id: 'student-id' } } as never);
 
     expect(contests.get).toHaveBeenCalledWith('contest-slug', 'student-id');
+    expect(contests.statistics).toHaveBeenCalledWith('contest-slug');
+    expect(contests.leaderboard).toHaveBeenCalledWith('contest-slug', {
+      page: 2,
+      pageSize: 20,
+      search: 'coder',
+    });
+    expect(contests.participants).toHaveBeenCalledWith('contest-slug', {
+      page: 2,
+      pageSize: 20,
+      search: 'coder',
+      status: 'participated',
+    });
+    expect(contests.submissions).toHaveBeenCalledWith(
+      'contest-slug',
+      {
+        page: 1,
+        pageSize: 10,
+        search: 'title',
+        status: 'ACCEPTED',
+        language: 'C++',
+      },
+      'student-id',
+    );
     expect(contests.register).toHaveBeenCalledWith('contest-slug', 'student-id');
     expect(contests.cancel).toHaveBeenCalledWith('contest-id', 'student-id');
     expect(submissions.createForContest).toHaveBeenCalledWith('student-id', 'contest-slug', {

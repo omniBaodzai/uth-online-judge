@@ -47,6 +47,105 @@ export type StudentContestRegistration = {
   registeredAt: string
 }
 
+export type StudentContestParticipantStatus = 'registered' | 'participated'
+
+export type StudentContestParticipant = {
+  userId: string
+  username: string
+  avatarUrl: string | null
+  registeredAt: string
+  status: StudentContestParticipantStatus
+}
+
+export type StudentContestParticipantsPage = {
+  items: StudentContestParticipant[]
+  total: number
+  participantCount: number
+  page: number
+  pageSize: 10 | 20 | 50
+}
+
+export type StudentContestSubmissionStatusCount = {
+  status: string
+  count: number
+}
+
+export type StudentContestStatistics = {
+  totalParticipants: number
+  totalProblems: number
+  totalSubmissions: number
+  acceptedSubmissions: number
+  wrongAnswerSubmissions: number
+  timeLimitSubmissions: number
+  runtimeErrorSubmissions: number
+  pendingSubmissions: number
+  otherSubmissions: number
+  activeSubmitters: number
+  solvedParticipants: number
+  statusCounts: StudentContestSubmissionStatusCount[]
+  problemStatistics: Array<{
+    problemId: string
+    problemCode: string
+    problemTitle: string
+    totalSubmissions: number
+    acceptedSubmissions: number
+    statusCounts: StudentContestSubmissionStatusCount[]
+  }>
+  languageStatistics: Array<{
+    languageId: string
+    languageName: string
+    totalSubmissions: number
+    acceptedSubmissions: number
+    statusCounts: StudentContestSubmissionStatusCount[]
+  }>
+}
+
+export type StudentContestLeaderboardEntry = {
+  rank: number
+  userId: string
+  username: string | null
+  avatarUrl: string | null
+  totalScore: number
+  acceptedProblems: number
+  totalProblems: number
+  elapsedSeconds: number | null
+}
+
+export type StudentContestLeaderboardPage = {
+  items: StudentContestLeaderboardEntry[]
+  total: number
+  totalParticipants: number
+  page: number
+  pageSize: 10 | 20 | 50
+}
+
+export type StudentContestSubmissionItem = {
+  id: string
+  status: string
+  submittedAt: string
+  username: string | null
+  problemCode: string
+  problemTitle: string
+  language: string
+  executionTimeMs: number | null
+  memoryUsedKb: number | null
+  canViewDetails: boolean
+}
+
+export type StudentContestSubmissionsPage = {
+  items: StudentContestSubmissionItem[]
+  total: number
+  page: number
+  pageSize: 10 | 20 | 50
+  statistics: {
+    total: number
+    accepted: number
+    acceptanceRate: number
+    verdictCounts: Record<string, number>
+  }
+  filters: { languages: string[] }
+}
+
 export type StudentContestRequester = <T>(
   path: string,
   init?: RequestInit,
@@ -85,6 +184,85 @@ export function getStudentContest(
 ): Promise<StudentContestDetail> {
   return requester<StudentContestDetail>(
     `/contests/${encodeURIComponent(identifier)}`,
+    { signal },
+  )
+}
+
+export function getStudentContestStatistics(
+  requester: StudentContestRequester,
+  identifier: string,
+  signal?: AbortSignal,
+): Promise<StudentContestStatistics> {
+  return requester<StudentContestStatistics>(
+    `/contests/${encodeURIComponent(identifier)}/statistics`,
+    { signal },
+  )
+}
+
+export function getStudentContestLeaderboard(
+  requester: StudentContestRequester,
+  identifier: string,
+  query: { page: number; pageSize: 10 | 20 | 50; search: string },
+  signal?: AbortSignal,
+): Promise<StudentContestLeaderboardPage> {
+  const searchParams = new URLSearchParams({
+    page: String(query.page),
+    pageSize: String(query.pageSize),
+  })
+  if (query.search.trim()) searchParams.set('search', query.search.trim())
+
+  return requester<StudentContestLeaderboardPage>(
+    `/contests/${encodeURIComponent(identifier)}/leaderboard?${searchParams}`,
+    { signal },
+  )
+}
+
+export function getStudentContestParticipants(
+  requester: StudentContestRequester,
+  identifier: string,
+  query: {
+    page: number
+    pageSize: 10 | 20 | 50
+    search: string
+    status: 'all' | StudentContestParticipantStatus
+  },
+  signal?: AbortSignal,
+): Promise<StudentContestParticipantsPage> {
+  const searchParams = new URLSearchParams({
+    page: String(query.page),
+    pageSize: String(query.pageSize),
+    status: query.status,
+  })
+  if (query.search.trim()) searchParams.set('search', query.search.trim())
+
+  return requester<StudentContestParticipantsPage>(
+    `/contests/${encodeURIComponent(identifier)}/participants?${searchParams}`,
+    { signal },
+  )
+}
+
+export function getStudentContestSubmissions(
+  requester: StudentContestRequester,
+  identifier: string,
+  query: {
+    page: number
+    pageSize: 10 | 20 | 50
+    search: string
+    status?: string
+    language?: string
+  },
+  signal?: AbortSignal,
+): Promise<StudentContestSubmissionsPage> {
+  const searchParams = new URLSearchParams({
+    page: String(query.page),
+    pageSize: String(query.pageSize),
+  })
+  if (query.search.trim()) searchParams.set('search', query.search.trim())
+  if (query.status) searchParams.set('status', query.status)
+  if (query.language) searchParams.set('language', query.language)
+
+  return requester<StudentContestSubmissionsPage>(
+    `/contests/${encodeURIComponent(identifier)}/submissions?${searchParams}`,
     { signal },
   )
 }

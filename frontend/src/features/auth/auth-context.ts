@@ -31,6 +31,7 @@ export type AuthContextValue = {
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>
   updateProfile: (input: ProfileUpdate) => Promise<AuthUser>
+  changePassword: (input: { currentPassword: string; newPassword: string }) => Promise<void>
   uploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
   uploadCover: (file: File, crop: CoverCrop) => Promise<AuthUser>
   request: <T>(path: string, init?: RequestInit) => Promise<T>

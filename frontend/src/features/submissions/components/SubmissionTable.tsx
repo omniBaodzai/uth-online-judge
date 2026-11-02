@@ -10,6 +10,7 @@ type SubmissionTableProps = {
   showRank?: boolean
   emptyTitle?: string
   emptyDescription?: string
+  contestIdentifier?: string
   // Trang theo từng bài tập đã nêu tên bài ở tiêu đề nên không lặp lại cột này.
   hideProblem?: boolean
 }
@@ -25,6 +26,7 @@ function SubmissionTable({
   showRank = false,
   emptyTitle,
   emptyDescription,
+  contestIdentifier,
 }: SubmissionTableProps) {
   if (isLoading) {
     return (
@@ -99,7 +101,12 @@ function SubmissionTable({
                 <td className={styles.coder}>{item.username ?? 'Ẩn danh'}</td>
                 {!hideProblem && (
                   <td>
-                    <Link className={styles.problem} to={`/problems/${encodeURIComponent(item.problemCode)}`}>
+                    <Link
+                      className={styles.problem}
+                      to={contestIdentifier
+                        ? `/contests/${encodeURIComponent(contestIdentifier)}/problems/${encodeURIComponent(item.problemCode)}`
+                        : `/problems/${encodeURIComponent(item.problemCode)}`}
+                    >
                       {item.problemTitle}
                     </Link>
                     <span className={styles.code}>{item.problemCode}</span>

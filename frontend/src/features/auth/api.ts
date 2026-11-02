@@ -131,6 +131,17 @@ export async function updateProfileWithRefresh(
   })
 }
 
+export async function changePasswordWithRefresh(
+  input: { currentPassword: string; newPassword: string },
+  accessToken: string,
+  onRefresh: (nextAccessToken: string) => void,
+): Promise<void> {
+  await requestProtected<void>('/auth/me/change-password', accessToken, onRefresh, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
 export async function uploadCoverWithRefresh(
   file: File,
   crop: {
@@ -211,7 +222,10 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       headers,
     })
   } catch {
-    throw new ApiError('Không thể kết nối máy chủ. Vui lòng thử lại.', 0)
+    throw new ApiError(
+      'Không thể hoàn tất yêu cầu đến máy chủ. Hãy kiểm tra kết nối mạng hoặc cấu hình CORS của máy chủ.',
+      0,
+    )
   }
 
   if (!response.ok) {

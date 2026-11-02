@@ -226,6 +226,27 @@
   font-size: 14px;
 }
 
+.retryButton {
+  margin-top: 16px;
+  padding: 9px 16px;
+  border: 1px solid #008689;
+  border-radius: 8px;
+  background: #008689;
+  color: #fff;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  background: #006f72;
+}
+
+.retryButton:focus-visible {
+  outline: 3px solid rgba(0, 134, 137, 0.3);
+  outline-offset: 2px;
+}
+
 .chartSvg g[tabindex]:focus-visible rect,
 .chartSvg g[tabindex]:focus-visible text,
 .donutWrap circle[tabindex]:focus-visible {

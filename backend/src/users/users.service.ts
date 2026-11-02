@@ -31,6 +31,11 @@ export type CoverCropMetadata = {
 
 export type PublicUser = Omit<UserRecord, 'password_hash'>;
 
+export type PasswordCredential = {
+  password_hash: string | null;
+  is_active: boolean;
+};
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -63,6 +68,37 @@ export class UsersService {
     );
 
     return result.rows[0] ?? null;
+  }
+
+  async findPasswordCredential(id: string): Promise<PasswordCredential | null> {
+    const result = await this.database.query<PasswordCredential>(
+      `SELECT password_hash, is_active
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [id],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  async updatePassword(
+    id: string,
+    currentPasswordHash: string,
+    nextPasswordHash: string,
+  ): Promise<boolean> {
+    const result = await this.database.query(
+      `UPDATE users
+       SET password_hash = $3,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+         AND password_hash = $2
+         AND is_active = TRUE
+       RETURNING id`,
+      [id, currentPasswordHash, nextPasswordHash],
+    );
+
+    return result.rowCount === 1;
   }
 
   async create(input: {

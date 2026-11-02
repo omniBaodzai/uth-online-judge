@@ -1,5 +1,7 @@
 const DEFAULT_FRONTEND_ORIGIN = 'http://localhost:5173';
 
+export const ALLOWED_CORS_HEADERS = ['Content-Type', 'Authorization', 'Idempotency-Key'];
+
 export function getAllowedFrontendOrigins(configuredOrigins: string | undefined): string[] {
   const configured = configuredOrigins?.trim()
     ? configuredOrigins.split(',').map((origin) => origin.trim())

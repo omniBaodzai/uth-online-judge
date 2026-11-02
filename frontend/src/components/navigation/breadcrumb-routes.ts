@@ -136,6 +136,7 @@ const routes: RouteDefinition[] = [
   },
   { pattern: '/organizations', build: () => [home, { label: 'Tổ chức' }] },
   { pattern: '/contact', build: () => [home, { label: 'Liên hệ' }] },
+  { pattern: '/my/contact-messages/:messageId', build: () => [home, { label: 'Liên hệ', to: '/contact' }, { label: 'Chi tiết yêu cầu' }] },
   { pattern: '/admin/problems/new', build: () => [admin, adminProblemList, { label: 'Tạo bài tập' }] },
   { pattern: '/admin/problems/:id/edit', build: () => [admin, adminProblemList, { label: 'Chỉnh sửa bài tập' }] },
   { pattern: '/admin/problems/:id/test-cases', build: () => [admin, adminProblemList, { label: 'Quản lý test case' }] },
@@ -145,8 +146,10 @@ const routes: RouteDefinition[] = [
   { pattern: '/admin/problems', build: () => [admin, { label: 'Bài tập' }] },
   { pattern: '/admin/news/new', build: () => [admin, adminNewsList, { label: 'Tạo tin tức' }] },
   { pattern: '/admin/news/:id/edit', build: () => [admin, adminNewsList, { label: 'Chỉnh sửa tin tức' }] },
+  { pattern: '/admin/contact-messages/:messageId', build: () => [admin, { label: 'Quản lý liên hệ', to: '/admin/contact-messages' }, { label: 'Chi tiết yêu cầu' }] },
   { pattern: '/admin/news', build: () => [admin, { label: 'Tin tức' }] },
   { pattern: '/admin/users', build: () => [admin, { label: 'Người dùng' }] },
+  { pattern: '/admin/contact-messages', build: () => [admin, { label: 'Quản lý liên hệ' }] },
   { pattern: '/admin', build: () => [admin, { label: 'Tổng quan' }] },
 ]
 

@@ -30,6 +30,34 @@ export class AuthSessionRepository {
 
     try {
       await client.query('BEGIN');
+      const eligible = await client.query<RefreshSession>(
+        `SELECT token.user_id
+         FROM refresh_tokens token
+         WHERE token.token_hash = $1
+           AND token.revoked_at IS NULL
+           AND token.expires_at > CURRENT_TIMESTAMP`,
+        [currentTokenHash],
+      );
+      const session = eligible.rows[0];
+
+      if (!session) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      const activeAccount = await client.query<{ id: string }>(
+        `SELECT id
+         FROM users
+         WHERE id = $1
+           AND is_active = TRUE
+         FOR UPDATE`,
+        [session.user_id],
+      );
+      if (!activeAccount.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
       const revoked = await client.query<RefreshSession>(
         `UPDATE refresh_tokens
          SET revoked_at = CURRENT_TIMESTAMP
@@ -39,9 +67,7 @@ export class AuthSessionRepository {
          RETURNING user_id`,
         [currentTokenHash],
       );
-      const session = revoked.rows[0];
-
-      if (!session) {
+      if (!revoked.rows[0]) {
         await client.query('ROLLBACK');
         return null;
       }
@@ -49,10 +75,10 @@ export class AuthSessionRepository {
       await client.query(
         `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
          VALUES ($1, $2, $3)`,
-        [session.user_id, nextTokenHash, expiresAt],
+        [revoked.rows[0].user_id, nextTokenHash, expiresAt],
       );
       await client.query('COMMIT');
-      return session.user_id;
+      return revoked.rows[0].user_id;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -68,6 +94,17 @@ export class AuthSessionRepository {
        WHERE token_hash = $1
          AND revoked_at IS NULL`,
       [tokenHash],
+    );
+  }
+
+  async revokeAllExcept(userId: string, currentTokenHash?: string): Promise<void> {
+    await this.database.query(
+      `UPDATE refresh_tokens
+       SET revoked_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1
+         AND revoked_at IS NULL
+         AND ($2::text IS NULL OR token_hash <> $2)`,
+      [userId, currentTokenHash ?? null],
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
-import { AuthController } from './auth.controller.js';
+import { AuthController, REFRESH_COOKIE_NAME } from './auth.controller.js';
 import { PublicProfileController } from '../users/public-profile.controller.js';
 
 function guardsOf(prototype: object, methodName: string): unknown[] {
@@ -19,6 +19,30 @@ describe('cover upload authorization', () => {
     expect(guards).toContain(JwtAuthGuard);
     await controller.uploadCover(request, { buffer: Buffer.from('cover') } as never, { crop } as never);
     expect(auth.uploadCover).toHaveBeenCalledWith('owner', Buffer.from('cover'), crop);
+  });
+
+  describe('change password authorization', () => {
+    it('requires authentication and scopes the operation to the JWT user', async () => {
+      const auth = { changePassword: vi.fn().mockResolvedValue(undefined) };
+      const controller = new AuthController(auth as never);
+      const request = {
+        user: { id: 'owner', role: 'STUDENT' },
+        headers: { cookie: `${REFRESH_COOKIE_NAME}=refresh-token; other=value` },
+      } as never;
+      const guards = guardsOf(AuthController.prototype, 'changePassword');
+
+      expect(guards).toContain(JwtAuthGuard);
+      await controller.changePassword(
+        request,
+        { currentPassword: 'current-password', newPassword: 'new-password' } as never,
+      );
+      expect(auth.changePassword).toHaveBeenCalledWith(
+        'owner',
+        'current-password',
+        'new-password',
+        'refresh-token',
+      );
+    });
   });
 
   it('requires authentication and scopes profile updates to the JWT subject', async () => {

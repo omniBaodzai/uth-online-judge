@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiCookieAuth,
+  ApiBadRequestResponse,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -32,6 +33,7 @@ import { CoverUploadDto } from './dto/cover-upload.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { ProfileUpdateDto } from './dto/profile-update.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 export const REFRESH_COOKIE_NAME = 'uth_refresh_token';
@@ -119,6 +121,25 @@ export class AuthController {
     @Body() input: ProfileUpdateDto,
   ) {
     return this.auth.updateProfile(request.user.id, input);
+  }
+
+  @Post('me/change-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiCookieAuth(REFRESH_COOKIE_NAME)
+  @ApiOperation({ summary: 'Đổi mật khẩu của người dùng hiện tại' })
+  @ApiBadRequestResponse({ description: 'Thông tin mật khẩu không hợp lệ hoặc mật khẩu hiện tại không đúng' })
+  async changePassword(
+    @Req() request: AuthenticatedRequest,
+    @Body() input: ChangePasswordDto,
+  ): Promise<void> {
+    await this.auth.changePassword(
+      request.user.id,
+      input.currentPassword,
+      input.newPassword,
+      readRefreshCookie(request),
+    );
   }
 
   @Post('me/avatar')

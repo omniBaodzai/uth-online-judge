@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 
 function configuredAddress(): { host: string; port: number } {
@@ -20,20 +21,56 @@ export function validateRedisAddress(): void {
 }
 
 const address = configuredAddress();
-const retryStrategy = (attempt: number) => Math.min(attempt * 250, 1_000);
+export const redisRetryStrategy = (attempt: number) => Math.min(250 * 2 ** (attempt - 1), 5_000);
+
+function logConnectionLifecycle(client: Redis, role: string): void {
+  const logger = new Logger('RedisConnection');
+  let hasBeenReady = false;
+  let outageReported = false;
+
+  client.on('ready', () => {
+    if (outageReported) {
+      logger.log(`${role} Redis connection restored.`);
+    } else if (!hasBeenReady) {
+      logger.log(`${role} Redis connection established.`);
+    }
+    hasBeenReady = true;
+    outageReported = false;
+  });
+
+  client.on('error', (error: Error) => {
+    if (!outageReported) {
+      logger.error(`${role} Redis connection error: ${error.message}`);
+      outageReported = true;
+    }
+  });
+
+  client.on('close', () => {
+    if (!outageReported) {
+      logger.warn(`${role} Redis connection closed; reconnecting.`);
+      outageReported = true;
+    }
+  });
+
+  client.on('reconnecting', (delay: number) => {
+    if (outageReported) logger.warn(`${role} Redis reconnect scheduled in ${delay}ms.`);
+  });
+}
 
 export const redisWorkerClient = new Redis({
   ...address,
   lazyConnect: true,
   maxRetriesPerRequest: null,
-  retryStrategy,
+  retryStrategy: redisRetryStrategy,
 });
 
 export const redisProducerClient = new Redis({
   ...address,
   lazyConnect: true,
-  connectTimeout: 1_000,
   commandTimeout: 3_500,
   maxRetriesPerRequest: 1,
-  retryStrategy,
+  retryStrategy: redisRetryStrategy,
 });
+
+logConnectionLifecycle(redisWorkerClient, 'Worker');
+logConnectionLifecycle(redisProducerClient, 'Producer');

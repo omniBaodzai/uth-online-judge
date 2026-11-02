@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   ChartColumn,
   FileCode,
@@ -15,6 +15,7 @@ import { buildLoginPath } from '../../auth/return-path'
 import { useAuth } from '../../auth/useAuth'
 import { useToast } from '../../../components/ui/toast-context'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
+import SubmissionsContent from '../../submissions/components/SubmissionsContent'
 import { submissionPageSizes } from '../../submissions/data'
 import {
   cancelStudentContestRegistration,
@@ -25,6 +26,9 @@ import {
   type StudentContestRequester,
   type StudentContestTimeStatus,
 } from '../student-contests.api'
+import ContestLeaderboardTab from './ContestLeaderboardTab'
+import ContestParticipantsTab from './ContestParticipantsTab'
+import ContestStatisticsTab from './ContestStatisticsTab'
 import styles from './ContestDetailPage.module.css'
 
 const DEFAULT_PAGE_SIZE = submissionPageSizes[0]
@@ -325,6 +329,16 @@ function ContestDetailPage() {
     }
   }
 
+  const handleParticipantsCountChange = useCallback((participantCount: number) => {
+    setLoaded((current) => {
+      if (!current || current.contest.participantCount === participantCount) return current
+      return {
+        ...current,
+        contest: { ...current.contest, participantCount },
+      }
+    })
+  }, [])
+
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentIndex: number) {
     let nextIndex: number
     if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length
@@ -448,6 +462,19 @@ function ContestDetailPage() {
               <ContestCountdown contest={contest} now={now} />
               <ContestProblemsTable contest={contest} />
             </div>
+          ) : activeTab === 'stats' ? (
+            <ContestStatisticsTab identifier={contest.slug} requester={requester} />
+          ) : activeTab === 'ranking' ? (
+            <ContestLeaderboardTab contestId={contest.slug} requester={requester} />
+          ) : activeTab === 'submissions' ? (
+            <SubmissionsContent contestIdentifier={contest.slug} requester={requester} />
+          ) : activeTab === 'participants' ? (
+            <ContestParticipantsTab
+              contestIdentifier={contest.slug}
+              participantCount={contest.participantCount}
+              requester={requester}
+              onParticipantCountChange={handleParticipantsCountChange}
+            />
           ) : (
             <UnsupportedContestTab tabId={activeTab} />
           )}

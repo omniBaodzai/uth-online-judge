@@ -29,6 +29,7 @@ describe('UsersService.updateProfile', () => {
       bio: 'Hello',
       organization: 'UTH',
     });
+
     expect(Object.hasOwn(input, 'avatarUrl')).toBe(true);
     expect(input.avatarUrl).toBeUndefined();
 
@@ -119,5 +120,21 @@ describe('UsersService.updateProfile', () => {
     expect(values[2]).toBeNull();
     expect(values[9]).toBe(true);
     expect(values[10]).toBe('');
+  });
+});
+
+describe('UsersService.updatePassword', () => {
+  it('updates the password only when the expected hash still matches', async () => {
+    const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [{ id: 'user-id' }] });
+    const service = new UsersService({ query } as never);
+
+    await expect(service.updatePassword('user-id', 'old-hash', 'new-hash')).resolves.toBe(true);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('password_hash = $3'),
+      ['user-id', 'old-hash', 'new-hash'],
+    );
+    expect(query.mock.calls[0]?.[0]).toContain('password_hash = $2');
+    expect(query.mock.calls[0]?.[0]).toContain('is_active = TRUE');
   });
 });

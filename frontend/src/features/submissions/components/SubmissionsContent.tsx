@@ -3,9 +3,15 @@ import { Link } from 'react-router-dom'
 import { ApiError, request as publicRequest } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import FilterDropdown from '../../problems/components/FilterDropdown'
-import { getGlobalSubmissions, type GlobalSubmissionPage } from '../../problems/submit/submission-service'
-import { createMockContestSubmissionItems, filterContestSubmissionItems, getContestSubmissionStatistics } from '../../contests/contest-submissions'
-import type { Contest } from '../../contests/data'
+import {
+  getGlobalSubmissions,
+  type GlobalSubmissionPage,
+} from '../../problems/submit/submission-service'
+import {
+  getStudentContestSubmissions,
+  type StudentContestRequester,
+  type StudentContestSubmissionsPage,
+} from '../../contests/student-contests.api'
 import SubmissionPagination from './SubmissionPagination'
 import SubmissionStatsChart from './SubmissionStatsChart'
 import SubmissionTable from './SubmissionTable'
@@ -15,22 +21,31 @@ import styles from '../pages/SubmissionsPage.module.css'
 const SEARCH_DEBOUNCE_MS = 300
 
 type SubmissionsContentProps = {
-  contest?: Contest
+  contestIdentifier?: string
+  requester?: StudentContestRequester
   problemCode?: string
   profileUserId?: string
 }
 
-function SubmissionsContent({ contest, problemCode, profileUserId }: SubmissionsContentProps) {
-  const isContestMode = Boolean(contest)
+function SubmissionsContent({
+  contestIdentifier,
+  requester: contestRequester,
+  problemCode,
+  profileUserId,
+}: SubmissionsContentProps) {
+  const isContestMode = Boolean(contestIdentifier)
   const { request: authRequest, accessToken, isLoading: isAuthLoading } = useAuth()
-  const request = accessToken ? authRequest : publicRequest
+  const request = contestRequester ?? (accessToken ? authRequest : publicRequest)
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [verdict, setVerdict] = useState<string[]>([])
   const [language, setLanguage] = useState<string[]>([])
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(submissionPageSizes[0])
-  const [data, setData] = useState<GlobalSubmissionPage | null>(null)
+  const [pageSize, setPageSize] = useState<10 | 20 | 50>(10)
+  const [loadedData, setLoadedData] = useState<{
+    key: string
+    value: GlobalSubmissionPage | StudentContestSubmissionsPage
+  } | null>(null)
   const [settled, setSettled] = useState<{ key: string; error: string } | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
@@ -41,25 +56,58 @@ function SubmissionsContent({ contest, problemCode, profileUserId }: Submissions
 
   const selectedVerdict = verdict[0]
   const selectedLanguage = language[0]
-  const requestKey = JSON.stringify([page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage, problemCode, profileUserId, retryKey])
-  const isLoading = !isContestMode && (isAuthLoading || settled?.key !== requestKey)
+  const requestKey = JSON.stringify([
+    contestIdentifier,
+    page,
+    pageSize,
+    debouncedQuery,
+    selectedVerdict,
+    selectedLanguage,
+    problemCode,
+    profileUserId,
+    retryKey,
+  ])
+  const data = loadedData?.key === requestKey ? loadedData.value : null
+  const isLoading = isAuthLoading || settled?.key !== requestKey
   const error = settled?.key === requestKey ? settled.error : ''
 
   useEffect(() => {
-    if (isContestMode || isAuthLoading) return
+    if (isAuthLoading) return
     const controller = new AbortController()
-    getGlobalSubmissions(
-      request,
-      { page, pageSize, q: debouncedQuery, status: selectedVerdict, language: selectedLanguage, problemCode, userId: profileUserId },
-      controller.signal,
-    )
+    const operation = contestIdentifier
+      ? getStudentContestSubmissions(
+        request,
+        contestIdentifier,
+        {
+          page,
+          pageSize,
+          search: debouncedQuery,
+          status: selectedVerdict,
+          language: selectedLanguage,
+        },
+        controller.signal,
+      )
+      : getGlobalSubmissions(
+        request,
+        {
+          page,
+          pageSize,
+          q: debouncedQuery,
+          status: selectedVerdict,
+          language: selectedLanguage,
+          problemCode,
+          userId: profileUserId,
+        },
+        controller.signal,
+      )
+    operation
       .then((result) => {
         if (controller.signal.aborted) return
         if (result.items.length === 0 && result.total > 0 && page > 1) {
           setPage(Math.ceil(result.total / pageSize))
           return
         }
-        setData(result)
+        setLoadedData({ key: requestKey, value: result })
         setSettled({ key: requestKey, error: '' })
       })
       .catch((requestError: unknown) => {
@@ -73,35 +121,30 @@ function SubmissionsContent({ contest, problemCode, profileUserId }: Submissions
         })
       })
     return () => controller.abort()
-  }, [isContestMode, request, isAuthLoading, requestKey, page, pageSize, debouncedQuery, selectedVerdict, selectedLanguage, problemCode, profileUserId])
+  }, [
+    contestIdentifier,
+    request,
+    isAuthLoading,
+    requestKey,
+    page,
+    pageSize,
+    debouncedQuery,
+    selectedVerdict,
+    selectedLanguage,
+    problemCode,
+    profileUserId,
+  ])
 
-  const contestSubmissions = useMemo(
-    () => contest ? createMockContestSubmissionItems(contest) : [],
-    [contest],
-  )
-  const filteredContestSubmissions = useMemo(
-    () => filterContestSubmissionItems(contestSubmissions, {
-      query: debouncedQuery,
-      verdict: selectedVerdict,
-      language: selectedLanguage,
-    }),
-    [contestSubmissions, debouncedQuery, selectedVerdict, selectedLanguage],
-  )
   const languageFilterOptions = useMemo(() => {
-    const languages = isContestMode
-      ? [...new Set(contestSubmissions.map(({ language: value }) => value))].sort()
-      : data?.filters.languages ?? []
+    const languages = loadedData?.value.filters.languages ?? []
     return languages.map((value) => ({ value, label: value }))
-  }, [isContestMode, contestSubmissions, data?.filters.languages])
+  }, [loadedData?.value.filters.languages])
 
   const hasFilters = query !== '' || verdict.length > 0 || language.length > 0
-  const totalItems = isContestMode ? filteredContestSubmissions.length : data?.total ?? 0
-  const items = isContestMode
-    ? filteredContestSubmissions.slice((page - 1) * pageSize, page * pageSize)
-    : data?.items ?? []
-  const statistics = isContestMode
-    ? getContestSubmissionStatistics(filteredContestSubmissions)
-    : data?.statistics
+  const totalItems = data?.total ?? 0
+  const items = data?.items ?? []
+  const statistics = data?.statistics
+  const globalProblem = data && 'problem' in data ? data.problem : null
 
   function resetFilters() {
     setQuery('')
@@ -119,7 +162,7 @@ function SubmissionsContent({ contest, problemCode, profileUserId }: Submissions
     label: 'bài nộp',
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
-      setPageSize(size)
+      if (size === 10 || size === 20 || size === 50) setPageSize(size)
       setPage(1)
     },
   }
@@ -131,8 +174,8 @@ function SubmissionsContent({ contest, problemCode, profileUserId }: Submissions
           {problemCode ? (
             <h1>
               Danh sách bài nộp của bài{' '}
-              <Link to={`/problems/${encodeURIComponent(data?.problem?.code ?? problemCode)}`} className={styles.problemLink}>
-                {data?.problem ? data.problem.title : problemCode}
+              <Link to={`/problems/${encodeURIComponent(globalProblem?.code ?? problemCode)}`} className={styles.problemLink}>
+                {globalProblem ? globalProblem.title : problemCode}
               </Link>
             </h1>
           ) : (
@@ -195,14 +238,17 @@ function SubmissionsContent({ contest, problemCode, profileUserId }: Submissions
             <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Thử lại</button>
           </div>
         )}
-        <SubmissionTable
-          items={items}
-          isLoading={isLoading}
-          hasFilters={hasFilters}
-          hideProblem={Boolean(problemCode)}
-          emptyTitle={contest && !hasFilters ? 'Cuộc thi chưa có bài nộp' : undefined}
-          emptyDescription={contest && !hasFilters ? 'Bài nộp trong cuộc thi sẽ xuất hiện tại đây.' : undefined}
-        />
+        {!error && (
+          <SubmissionTable
+            items={items}
+            isLoading={isLoading}
+            hasFilters={hasFilters}
+            hideProblem={Boolean(problemCode)}
+            contestIdentifier={contestIdentifier}
+            emptyTitle={isContestMode && !hasFilters ? 'Chưa có bài nộp' : undefined}
+            emptyDescription={isContestMode && !hasFilters ? 'Bài nộp trong cuộc thi sẽ xuất hiện tại đây.' : undefined}
+          />
+        )}
         <div className={styles.footer}>
           <SubmissionPagination {...paginationProps} />
         </div>

@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   Mail,
   MapPin,
@@ -15,6 +15,9 @@ import {
   CONTACT_SUPPORT_GROUP_URL,
 } from '../../../config/contact'
 import { validateContactForm, type ContactFormValues } from '../contact-validation'
+import { getContactApiErrorMessage, submitContactMessage } from '../contact-api'
+import { request as publicRequest } from '../../auth/api'
+import { useAuth } from '../../auth/useAuth'
 import styles from './ContactPage.module.css'
 
 const initialValues: ContactFormValues = {
@@ -92,25 +95,73 @@ function ContactPage() {
   const [touched, setTouched] = useState<Partial<Record<keyof ContactFormValues, boolean>>>({})
   const [submitted, setSubmitted] = useState(false)
   const [notice, setNotice] = useState('')
+  const [noticeIsError, setNoticeIsError] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const inFlightRef = useRef(false)
+  const mountedRef = useRef(true)
+  const requestControllerRef = useRef<AbortController | null>(null)
+  const { accessToken, request: authenticatedRequest } = useAuth()
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      requestControllerRef.current?.abort()
+    }
+  }, [])
   const errors = validateContactForm(values)
 
   function updateField(name: keyof ContactFormValues, value: string) {
     setValues((current) => ({ ...current, [name]: value }))
     setNotice('')
+    setNoticeIsError(false)
   }
 
   function handleBlur(name: keyof ContactFormValues) {
     setTouched((current) => ({ ...current, [name]: true }))
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (inFlightRef.current) return
     setSubmitted(true)
     setTouched({ name: true, email: true, subject: true, message: true })
 
     if (Object.keys(errors).length > 0) return
 
-    setNotice('Chức năng gửi liên hệ đang được phát triển. Vui lòng liên hệ qua email hoặc hotline.')
+    inFlightRef.current = true
+    const controller = new AbortController()
+    requestControllerRef.current = controller
+    setIsSubmitting(true)
+    setNotice('')
+    setNoticeIsError(false)
+    try {
+      const response = await submitContactMessage(
+        accessToken ? authenticatedRequest : publicRequest,
+        {
+          fullName: values.name.trim(),
+          email: values.email.trim(),
+          subject: values.subject.trim(),
+          content: values.message.trim(),
+        },
+        controller.signal,
+      )
+      if (!mountedRef.current) return
+      setValues(initialValues)
+      setTouched({})
+      setSubmitted(false)
+      setNotice(response.trackingAvailable
+        ? 'Yêu cầu của bạn đã được tiếp nhận thành công.'
+        : 'Yêu cầu đã được tiếp nhận. Hiện tại khách chưa hỗ trợ theo dõi phản hồi trực tuyến.')
+    } catch (error) {
+      if (mountedRef.current) {
+        setNotice(getContactApiErrorMessage(error, 'Không thể gửi yêu cầu lúc này. Vui lòng thử lại sau.'))
+        setNoticeIsError(true)
+      }
+    } finally {
+      inFlightRef.current = false
+      if (mountedRef.current) setIsSubmitting(false)
+    }
   }
 
   function getVisibleError(name: keyof ContactFormValues): string | undefined {
@@ -175,7 +226,7 @@ function ContactPage() {
               </div>
             </div>
 
-            <form className={styles.form} noValidate onSubmit={handleSubmit}>
+            <form className={styles.form} noValidate onSubmit={handleSubmit} aria-busy={isSubmitting}>
               {formFields.map(({ name, label, placeholder, type, maxLength, autoComplete }) => {
                 const error = getVisibleError(name)
                 const fieldId = `contact-${name}`
@@ -229,11 +280,15 @@ function ContactPage() {
                 )
               })}
 
-              <button className={styles.submitButton} type="submit">
+              <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
                 <Send size={17} aria-hidden="true" />
-                Gửi liên hệ
+                {isSubmitting ? 'Đang gửi...' : 'Gửi liên hệ'}
               </button>
-              {notice && <p className={styles.notice} role="status" aria-live="polite">{notice}</p>}
+              {notice && (
+                <p className={styles.notice} role={noticeIsError ? 'alert' : 'status'} aria-live={noticeIsError ? 'assertive' : 'polite'}>
+                  {notice}
+                </p>
+              )}
             </form>
           </section>
         </div>

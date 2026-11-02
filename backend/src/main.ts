@@ -6,10 +6,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { REFRESH_COOKIE_NAME } from './auth/auth.controller.js';
 import { AvatarStorageService } from './auth/avatar-storage.service.js';
-import { getAllowedFrontendOrigins } from './cors-origins.js';
+import { ALLOWED_CORS_HEADERS, getAllowedFrontendOrigins } from './cors-origins.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.enableShutdownHooks();
   // Ảnh đại diện là tài nguyên công khai; nosniff ngăn trình duyệt đoán sai kiểu nội dung.
   app.useStaticAssets(app.get(AvatarStorageService).root, {
     prefix: '/uploads/',
@@ -25,7 +26,7 @@ async function bootstrap() {
     origin: getAllowedFrontendOrigins(process.env.FRONTEND_ORIGINS),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ALLOWED_CORS_HEADERS,
   });
 
   // Validate dữ liệu đầu vào của các request

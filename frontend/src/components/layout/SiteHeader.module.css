@@ -114,6 +114,13 @@
   gap: 9px;
 }
 
+.accountControls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .accountMenu {
   position: relative;
 }
@@ -201,6 +208,7 @@
   display: flex;
   min-height: 42px;
   align-items: center;
+  gap: 10px;
   padding: 0 12px;
   border: 0;
   border-radius: 7px;
@@ -213,10 +221,22 @@
   text-decoration: none;
 }
 
+.accountDropdown a svg,
+.accountDropdown button svg {
+  flex: 0 0 auto;
+  color: #008689;
+}
+
 .accountDropdown a:hover,
 .accountDropdown button:hover {
   background: #eaf7f6;
   color: #006d70;
+}
+
+.accountDropdown a:focus-visible,
+.accountDropdown button:focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .28);
+  outline-offset: 1px;
 }
 
 .accountDropdown button:disabled {
@@ -537,8 +557,13 @@
     border-top: 1px solid rgba(0, 134, 137, 0.16);
   }
 
-  .accountMenu {
+  .accountControls {
     width: 100%;
+  }
+
+  .accountMenu {
+    min-width: 0;
+    flex: 1;
   }
 
   .accountButton {

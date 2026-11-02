@@ -56,7 +56,7 @@ describe('AdminUsersRepository.listUsers', () => {
     const database = {
       query: vi.fn()
         .mockResolvedValueOnce({ rows: [{ total: '1' }] })
-        .mockResolvedValueOnce({ rows: [userRow()] }),
+        .mockResolvedValueOnce({ rows: [userRow({ is_active: false })] }),
     };
     const repository = new AdminUsersRepository(database as never);
     const hostile = "x%'; DROP TABLE users; --";
@@ -80,7 +80,7 @@ describe('AdminUsersRepository.listUsers', () => {
       id: OTHER,
       fullName: 'Sinh Viên',
       role: 'STUDENT',
-      isActive: true,
+      isActive: false,
       authMethods: ['password', 'github'],
       createdAt: '2026-01-01T00:00:00.000Z',
     });
@@ -158,6 +158,8 @@ describe('AdminUsersRepository.applyChange', () => {
     );
     await repository.applyChange(OTHER, ACTOR, { isActive: false });
     expect(statements.some(([sql, values]) => sql.includes('UPDATE refresh_tokens') && values?.[0] === OTHER)).toBe(true);
+    expect(statements.some(([sql]) => /\bDELETE\b/i.test(sql))).toBe(false);
+    expect(statements.some(([sql]) => /UPDATE\s+(submissions|contest_participants)/i.test(sql))).toBe(false);
   });
 
   it('does not revoke tokens when reactivating an account', async () => {

@@ -35,7 +35,9 @@ describe('AuthService', () => {
     create: ReturnType<typeof vi.fn>;
     findByIdentifier: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
+    findPasswordCredential: ReturnType<typeof vi.fn>;
     updateProfile: ReturnType<typeof vi.fn>;
+    updatePassword: ReturnType<typeof vi.fn>;
   };
   let sessions: {
     create: ReturnType<typeof vi.fn>;
@@ -54,12 +56,15 @@ describe('AuthService', () => {
       create: vi.fn(),
       findByIdentifier: vi.fn(),
       findById: vi.fn(),
+      findPasswordCredential: vi.fn(),
       updateProfile: vi.fn(),
+      updatePassword: vi.fn(),
     };
     sessions = {
       create: vi.fn().mockResolvedValue(undefined),
       rotate: vi.fn(),
       revoke: vi.fn().mockResolvedValue(undefined),
+      revokeAllExcept: vi.fn().mockResolvedValue(undefined),
     };
     jwt = { signAsync: vi.fn().mockResolvedValue('access-token') };
     vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password');
@@ -133,6 +138,18 @@ describe('AuthService', () => {
     expect(result.user.id).toBe(user.id);
   });
 
+  it('rejects inactive users at login without creating a session', async () => {
+    users.findByIdentifier.mockResolvedValue({ ...user, is_active: false });
+
+    await expect(service.login('student01', 'password')).rejects.toMatchObject({
+      constructor: UnauthorizedException,
+      message: 'Tên đăng nhập/email hoặc mật khẩu không chính xác.',
+    });
+
+    expect(bcrypt.compare).toHaveBeenCalledWith('password', 'hashed-password');
+    expect(sessions.create).not.toHaveBeenCalled();
+  });
+
   it('returns the same generic error for unknown users and incorrect passwords', async () => {
     users.findByIdentifier.mockResolvedValue(null);
     vi.mocked(bcrypt.compare).mockResolvedValue(false);
@@ -174,10 +191,90 @@ describe('AuthService', () => {
     expect(sessions.revoke).toHaveBeenCalledWith(expect.stringMatching(/^[a-f0-9]{64}$/));
   });
 
+  it('rejects refresh for an inactive user and revokes the rotated token', async () => {
+    sessions.rotate.mockResolvedValue(user.id);
+    users.findById.mockResolvedValue(publicUser({ ...user, is_active: false }));
+
+    await expect(service.refresh('old-refresh-token')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+
+    expect(sessions.revoke).toHaveBeenCalledWith(expect.stringMatching(/^[a-f0-9]{64}$/));
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
   it('revokes only the supplied refresh-token session on logout', async () => {
     await service.logout('current-refresh-token');
 
     expect(sessions.revoke).toHaveBeenCalledWith(hashRefreshToken('current-refresh-token'));
+  });
+
+  it('changes the authenticated user password and preserves only the current refresh session', async () => {
+    users.findPasswordCredential.mockResolvedValue({
+      password_hash: 'old-password-hash',
+      is_active: true,
+    });
+    users.updatePassword.mockResolvedValue(true);
+    vi.mocked(bcrypt.hash).mockResolvedValue('new-password-hash');
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    await service.changePassword(
+      user.id,
+      'current-password',
+      'new-password',
+      'current-refresh-token',
+    );
+
+    expect(bcrypt.compare).toHaveBeenNthCalledWith(1, 'current-password', 'old-password-hash');
+    expect(bcrypt.compare).toHaveBeenNthCalledWith(2, 'new-password', 'old-password-hash');
+    expect(bcrypt.hash).toHaveBeenCalledWith('new-password', 12);
+    expect(users.updatePassword).toHaveBeenCalledWith(
+      user.id,
+      'old-password-hash',
+      'new-password-hash',
+    );
+    expect(sessions.revokeAllExcept).toHaveBeenCalledWith(
+      user.id,
+      hashRefreshToken('current-refresh-token'),
+    );
+  });
+
+  it('rejects an incorrect current password without updating credentials', async () => {
+    users.findPasswordCredential.mockResolvedValue({
+      password_hash: 'old-password-hash',
+      is_active: true,
+    });
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(false);
+
+    await expect(service.changePassword(user.id, 'wrong-password', 'new-password'))
+      .rejects.toMatchObject({ message: 'Mật khẩu hiện tại không chính xác.' });
+    expect(users.updatePassword).not.toHaveBeenCalled();
+    expect(sessions.revokeAllExcept).not.toHaveBeenCalled();
+  });
+
+  it('does not assume OAuth-only accounts have a password', async () => {
+    users.findPasswordCredential.mockResolvedValue({ password_hash: null, is_active: true });
+
+    await expect(service.changePassword(user.id, 'current', 'new-password'))
+      .rejects.toMatchObject({
+        message: 'Tài khoản chưa thiết lập mật khẩu. Vui lòng sử dụng quy trình đặt lại mật khẩu.',
+      });
+    expect(bcrypt.compare).not.toHaveBeenCalled();
+    expect(users.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects a password that is unchanged or exceeds bcrypt byte limits', async () => {
+    users.findPasswordCredential.mockResolvedValue({
+      password_hash: 'old-password-hash',
+      is_active: true,
+    });
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+    await expect(service.changePassword(user.id, 'same-password', 'same-password'))
+      .rejects.toMatchObject({ message: 'Mật khẩu mới phải khác mật khẩu hiện tại.' });
+    await expect(service.changePassword(user.id, 'current', 'é'.repeat(37)))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(users.updatePassword).not.toHaveBeenCalled();
   });
 
   it('updates only the current user profile fields', async () => {
