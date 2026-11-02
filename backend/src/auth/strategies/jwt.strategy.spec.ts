@@ -19,6 +19,7 @@ describe('JwtStrategy', () => {
       findById: vi.fn().mockResolvedValue({
         id: 'user-1',
         is_active: true,
+        auth_version: 0,
         role: 'ADMIN',
       }),
     };
@@ -38,5 +39,24 @@ describe('JwtStrategy', () => {
     await expect(strategy.validate({ sub: 'missing' })).rejects.toBeInstanceOf(UnauthorizedException);
     users.findById.mockResolvedValue({ id: 'inactive', is_active: false, role: 'ADMIN' });
     await expect(strategy.validate({ sub: 'inactive' })).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('rejects access tokens issued before the account password reset', async () => {
+    const users = {
+      findById: vi.fn().mockResolvedValue({
+        id: 'user-1',
+        is_active: true,
+        auth_version: 1,
+        role: 'STUDENT',
+      }),
+    };
+    const strategy = new JwtStrategy(users as unknown as UsersService);
+
+    await expect(strategy.validate({ sub: 'user-1', ver: 0 }))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(strategy.validate({ sub: 'user-1' }))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(strategy.validate({ sub: 'user-1', ver: 1 }))
+      .resolves.toMatchObject({ id: 'user-1' });
   });
 });

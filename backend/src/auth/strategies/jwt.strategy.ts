@@ -5,6 +5,7 @@ import { UsersService } from '../../users/users.service.js';
 
 export type AccessTokenPayload = {
   sub: string;
+  ver?: number;
   iat?: number;
   exp?: number;
 };
@@ -26,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: AccessTokenPayload) {
     const user = await this.users.findById(payload.sub);
-    if (!user || !user.is_active) {
+    if (!user || !user.is_active || (payload.ver ?? 0) !== user.auth_version) {
       throw new UnauthorizedException('Tài khoản không còn hoạt động.');
     }
     return { id: user.id, role: user.role };

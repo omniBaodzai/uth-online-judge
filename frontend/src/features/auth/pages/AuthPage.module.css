@@ -58,7 +58,7 @@
 .logoLink {
   display: flex;
   width: 140px;
-  min-height: 42px;
+  /* min-height: 42px; */
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
@@ -83,10 +83,11 @@
 
 .intro {
   margin: 8px 0 20px;
-  color: #64777a;
+  color: #008689;
   font-size: 14px;
   line-height: 1.6;
   text-align: center;
+  font-style: italic;
 }
 
 .form {
@@ -116,6 +117,7 @@
 
 .inputWrap {
   display: flex;
+  position: relative;
   min-height: 46px;
   align-items: center;
   gap: 10px;
@@ -169,6 +171,43 @@
 .input::placeholder {
   color: #93a3a4;
   opacity: 1;
+}
+
+.floatingField {
+  gap: 0;
+}
+
+.floatingInputWrap .input {
+  height: 44px;
+}
+
+.floatingInputWrap .input::placeholder {
+  color: transparent;
+}
+
+.floatingLabel {
+  position: absolute;
+  top: 0;
+  left: 42px;
+  padding: 0 4px;
+  background: #fff;
+  color: #71888a;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(23px) translateY(-50%);
+  transform-origin: left center;
+  transition:
+    transform 180ms ease,
+    color 180ms ease;
+}
+
+.floatingInputWrap .input:focus + .floatingLabel,
+.floatingInputWrap .input:not(:placeholder-shown) + .floatingLabel,
+.floatingInputWrap .input:-webkit-autofill + .floatingLabel {
+  color: #006d70;
+  transform: translateY(-50%) scale(0.82);
 }
 
 .passwordToggle {
@@ -284,6 +323,97 @@
   transform: translateY(0) scale(0.99);
 }
 
+.oauthDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 3px 0 1px;
+  color: #829395;
+  font-size: 13px;
+}
+
+.oauthDivider::before,
+.oauthDivider::after {
+  height: 1px;
+  flex: 1;
+  background: #e2e9e9;
+  content: '';
+}
+
+.oauthButtons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.oauthButton {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.oauthButton:disabled {
+  opacity: 0.78;
+  cursor: not-allowed;
+}
+
+.googleButton {
+  border-color: #d9e0e0;
+  background: #fff;
+  color: #263638;
+}
+
+.githubButton {
+  border-color: #24292f;
+  background: #24292f;
+  color: #fff;
+}
+
+.providerIcon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.oauthButton:focus-visible {
+  outline: 3px solid rgba(0, 134, 137, 0.3);
+  outline-offset: 2px;
+}
+
+.oauthButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(24, 51, 55, 0.12);
+}
+
+.googleButton:not(:disabled):hover {
+  border-color: #b7c5c6;
+  background: #f8fbfb;
+}
+
+.githubButton:not(:disabled):hover {
+  border-color: #111820;
+  background: #111820;
+}
+
+.oauthButton:not(:disabled):active {
+  transform: translateY(0) scale(0.99);
+}
+
 .notice {
   min-height: 0;
   margin: 10px 0 0;
@@ -355,6 +485,10 @@
   .card {
     padding-inline: 16px;
   }
+
+  .oauthButtons {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -364,7 +498,8 @@
 
   .inputWrap,
   .passwordToggle,
-  .submitButton {
+  .submitButton,
+  .oauthButton {
     transition: none;
   }
 }

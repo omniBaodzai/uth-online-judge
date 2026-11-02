@@ -11,7 +11,7 @@ function guardsOf(prototype: object, methodName: string): unknown[] {
 describe('cover upload authorization', () => {
   it('requires authentication and uses the caller ID instead of accepting an owner ID', async () => {
     const auth = { uploadCover: vi.fn().mockResolvedValue({ id: 'owner' }) };
-    const controller = new AuthController(auth as never);
+    const controller = new AuthController(auth as never, {} as never);
     const request = { user: { id: 'owner', role: 'STUDENT' } } as never;
     const crop = { x: 0, y: 0, width: 1280, height: 400, sourceWidth: 1280, sourceHeight: 400, aspect: 3.2 };
 
@@ -24,7 +24,7 @@ describe('cover upload authorization', () => {
   describe('change password authorization', () => {
     it('requires authentication and scopes the operation to the JWT user', async () => {
       const auth = { changePassword: vi.fn().mockResolvedValue(undefined) };
-      const controller = new AuthController(auth as never);
+      const controller = new AuthController(auth as never, {} as never);
       const request = {
         user: { id: 'owner', role: 'STUDENT' },
         headers: { cookie: `${REFRESH_COOKIE_NAME}=refresh-token; other=value` },
@@ -47,13 +47,56 @@ describe('cover upload authorization', () => {
 
   it('requires authentication and scopes profile updates to the JWT subject', async () => {
     const auth = { updateProfile: vi.fn().mockResolvedValue({ id: 'owner' }) };
-    const controller = new AuthController(auth as never);
+    const controller = new AuthController(auth as never, {} as never);
     const request = { user: { id: 'owner', role: 'STUDENT' } } as never;
     const guards = guardsOf(AuthController.prototype, 'updateMe');
 
     expect(guards).toContain(JwtAuthGuard);
     await controller.updateMe(request, { bio: 'About me' } as never);
     expect(auth.updateProfile).toHaveBeenCalledWith('owner', { bio: 'About me' });
+  });
+});
+
+describe('password reset endpoints', () => {
+  it('keeps the forgot-password response public and applies the request IP rate key', async () => {
+    const passwordReset = {
+      requestOtp: vi.fn().mockResolvedValue({ message: 'generic', retryAfterSeconds: 60 }),
+    };
+    const controller = new AuthController({} as never, passwordReset as never);
+    const request = {
+      ip: '192.0.2.10',
+      socket: { remoteAddress: '192.0.2.11' },
+    } as never;
+
+    expect(guardsOf(AuthController.prototype, 'forgotPassword')).toEqual([]);
+    await expect(controller.forgotPassword({ email: 'user@example.com' } as never, request))
+      .resolves.toMatchObject({ retryAfterSeconds: 60 });
+    expect(passwordReset.requestOtp).toHaveBeenCalledWith('user@example.com', '192.0.2.10');
+  });
+
+  it('verifies OTP and clears browser refresh cookies after password reset', async () => {
+    const passwordReset = {
+      verifyOtp: vi.fn().mockResolvedValue({ resetToken: 'one-time-token' }),
+      resetPassword: vi.fn().mockResolvedValue(undefined),
+    };
+    const controller = new AuthController({} as never, passwordReset as never);
+    const response = { clearCookie: vi.fn() } as never;
+
+    await expect(controller.verifyResetOtp({
+      email: 'user@example.com',
+      otp: '012345',
+    } as never)).resolves.toEqual({ resetToken: 'one-time-token' });
+    await controller.resetPassword({
+      resetToken: 'a'.repeat(43),
+      newPassword: 'new-secure-password',
+    } as never, response);
+
+    expect(passwordReset.verifyOtp).toHaveBeenCalledWith('user@example.com', '012345');
+    expect(passwordReset.resetPassword).toHaveBeenCalledWith(
+      'a'.repeat(43),
+      'new-secure-password',
+    );
+    expect(response.clearCookie).toHaveBeenCalledTimes(2);
   });
 });
 

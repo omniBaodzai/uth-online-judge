@@ -34,7 +34,11 @@ import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { ProfileUpdateDto } from './dto/profile-update.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { PasswordResetService } from './password-reset.service.js';
 
 export const REFRESH_COOKIE_NAME = 'uth_refresh_token';
 export const REMEMBER_LOGIN_COOKIE_NAME = 'uth_remember_login';
@@ -46,7 +50,37 @@ type AuthenticatedRequest = Request & { user: { id: string; role: 'STUDENT' | 'A
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly passwordReset: PasswordResetService,
+  ) {}
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Gửi mã OTP đặt lại mật khẩu nếu email thuộc tài khoản phù hợp' })
+  async forgotPassword(@Body() input: ForgotPasswordDto, @Req() request: Request) {
+    const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+    return this.passwordReset.requestOtp(input.email, ipAddress);
+  }
+
+  @Post('verify-reset-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xác minh OTP và cấp reset token sử dụng một lần' })
+  async verifyResetOtp(@Body() input: VerifyResetOtpDto) {
+    return this.passwordReset.verifyOtp(input.email, input.otp);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Đặt mật khẩu mới bằng reset token đã xác minh' })
+  async resetPassword(
+    @Body() input: ResetPasswordDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.passwordReset.resetPassword(input.resetToken, input.newPassword);
+    clearRefreshCookie(response);
+    clearRememberLoginCookie(response);
+  }
 
   @Post('register')
   @ApiOperation({ summary: 'Đăng ký bằng tên người dùng, email và mật khẩu' })

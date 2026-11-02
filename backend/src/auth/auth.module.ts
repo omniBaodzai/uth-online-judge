@@ -8,6 +8,9 @@ import { AuthSessionRepository } from './auth-session.repository.js';
 import { AvatarStorageService } from './avatar-storage.service.js';
 import { CoverStorageService } from './cover-storage.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
+import { PasswordResetEmailService } from './password-reset-email.service.js';
+import { PasswordResetRepository } from './password-reset.repository.js';
+import { PasswordResetService } from './password-reset.service.js';
 
 @Module({
   imports: [
@@ -24,7 +27,16 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthSessionRepository, AvatarStorageService, CoverStorageService, JwtStrategy],
+  providers: [
+    AuthService,
+    AuthSessionRepository,
+    AvatarStorageService,
+    CoverStorageService,
+    JwtStrategy,
+    PasswordResetEmailService,
+    PasswordResetRepository,
+    PasswordResetService,
+  ],
   exports: [AuthService, AvatarStorageService, CoverStorageService],
 })
 export class AuthModule {}

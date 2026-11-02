@@ -4,6 +4,8 @@
 
 Set `JWT_ACCESS_SECRET` in the local `.env` file to a randomly generated value of at least 32 characters. Do not commit that value. Set `FRONTEND_ORIGINS` to the exact browser origins allowed to call the API, and set the frontend build-time `VITE_API_BASE_URL` to the backend URL.
 
+Password reset email requires `RESEND_API_KEY` in the untracked repository `.env`. Set `RESEND_FROM_EMAIL` to a sender verified by the Resend account; local Compose defaults to the Resend onboarding sender used by the email test. Neither value is stored in source code.
+
 The refresh cookie is HttpOnly, scoped to `/auth`, uses `SameSite=Lax`, and is marked `Secure` in production. On login, “remember login” keeps it in the browser for up to seven days; otherwise it is a browser-session cookie. Refresh rotation preserves this choice. The server-side refresh session continues to use the existing seven-day sliding expiry. The browser must use credentials for API requests. The current cookie policy assumes the frontend and API are deployed on the same site; cross-site deployments require a deliberate cookie and CSRF review.
 
 ## Database migration
@@ -38,6 +40,9 @@ Run the migration once using the project's PostgreSQL operator/tooling after rev
 | --- | --- | --- |
 | `POST` | `/auth/register` | Create an account and sign in; returns user and access token, sets refresh cookie |
 | `POST` | `/auth/login` | Sign in with username or email and password |
+| `POST` | `/auth/forgot-password` | Request a password-reset OTP; always returns a generic account-safe message |
+| `POST` | `/auth/verify-reset-otp` | Verify an OTP and receive a short-lived reset token |
+| `POST` | `/auth/reset-password` | Change the password using a single-use reset token |
 | `POST` | `/auth/refresh` | Rotate the HttpOnly refresh cookie and issue a new access token |
 | `POST` | `/auth/logout` | Revoke the current refresh session and clear its cookie |
 | `GET` | `/auth/me` | Return the current user; requires a bearer access token |
@@ -51,6 +56,22 @@ The default storage directory is `uploads` relative to the backend working direc
 For Docker Compose, the backend defaults to `/app/uploads`, which is in the existing backend bind mount during local development. To use a different persistent location, set `UPLOAD_DIR` in the repository `.env` file and mount that location into the backend container.
 
 Swagger UI is available at `/api`. Use the `Authorize` control to set a bearer access token for `/auth/me`. To verify refresh/logout manually, use the browser-based frontend flow so the HttpOnly cookie is sent automatically.
+
+### Password reset
+
+Apply `sql/migrations/020_password_reset.sql` manually before deploying the matching backend. The migration adds rate-limit/challenge tables and `users.auth_version`; application startup does not run it. Existing tokens use version zero and remain valid until a password is changed. A password reset increments the version and revokes every refresh-token session in the same transaction, invalidating already-issued access tokens on their next protected request.
+
+The public forgot-password endpoint uses the same response for unknown, inactive, and OAuth-only accounts. OAuth-only accounts without a password do not receive reset OTPs. OTPs expire after five minutes, allow at most five guesses, and are stored as keyed hashes. A verified OTP is consumed and exchanged for a ten-minute, one-use reset token; only its hash is stored. Requests are limited to one per email per minute, five per email per hour, and twenty per IP per hour.
+
+From the repository root, back up the database and apply the migration manually only after reviewing the deployment plan:
+
+```powershell
+docker exec uth-online-judge-postgres sh -lc 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" -Fc -f /tmp/uth-online-judge-before-password-reset.dump'
+docker cp uth-online-judge-postgres:/tmp/uth-online-judge-before-password-reset.dump .\uth-online-judge-before-password-reset.dump
+Get-Content -Raw .\backend\sql\migrations\020_password_reset.sql | docker exec -i uth-online-judge-postgres sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -'
+```
+
+To try the flow, open `/forgot-password`, request an OTP for a password-enabled account, enter the received code, and set a new password. Confirm the new password works at `/login`, the old password fails, and any previously issued access and refresh tokens are rejected. Live email delivery must be tested manually with a real Resend key and a mailbox allowed by the Resend account; automated tests mock the Resend API and never send email.
 
 ## Local verification
 

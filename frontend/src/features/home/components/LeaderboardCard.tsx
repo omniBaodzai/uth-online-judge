@@ -46,20 +46,45 @@ function LeaderboardCard({ title, description, people, id, href, loading = false
                 key={person.handle}
               >
                 {index === 0 ? <FlameBorder /> : null}
-                <span className={styles.rank} aria-label={`Hạng ${index + 1}`}>
-                  {index + 1}
-                </span>
-                <span className={styles.avatar} aria-hidden="true">
-                  {avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(person.name)}
-                </span>
-                <span className={styles.identity}>
-                  <span className={styles.name}>{person.name}</span>
-                  <span className={styles.handle}>@{person.handle}</span>
-                </span>
-                <span className={styles.score}>
-                  <strong>{person.score}</strong>
-                  <span>{person.scoreLabel}</span>
-                </span>
+                {person.profileUsername ? (
+                  <Link
+                    className={styles.personLink}
+                    to={`/users/${encodeURIComponent(person.profileUsername)}`}
+                    aria-label={`Mở hồ sơ của ${person.name}`}
+                  >
+                    <span className={styles.rank} aria-label={`Hạng ${index + 1}`}>
+                      {index + 1}
+                    </span>
+                    <span className={styles.avatar} aria-hidden="true">
+                      {avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(person.name)}
+                    </span>
+                    <span className={styles.identity}>
+                      <span className={styles.name}>{person.name}</span>
+                      <span className={styles.handle}>@{person.handle}</span>
+                    </span>
+                    <span className={styles.score}>
+                      <strong>{person.score}</strong>
+                      <span>{person.scoreLabel}</span>
+                    </span>
+                  </Link>
+                ) : (
+                  <div className={styles.personContent}>
+                    <span className={styles.rank} aria-label={`Hạng ${index + 1}`}>
+                      {index + 1}
+                    </span>
+                    <span className={styles.avatar} aria-hidden="true">
+                      {avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(person.name)}
+                    </span>
+                    <span className={styles.identity}>
+                      <span className={styles.name}>{person.name}</span>
+                      <span className={styles.handle}>@{person.handle}</span>
+                    </span>
+                    <span className={styles.score}>
+                      <strong>{person.score}</strong>
+                      <span>{person.scoreLabel}</span>
+                    </span>
+                  </div>
+                )}
               </li>
             )
           })}

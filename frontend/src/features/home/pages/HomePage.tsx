@@ -10,6 +10,7 @@ function HomePage() {
   const topSolvers = leaderboard?.items.map((person) => ({
     name: person.displayName,
     handle: person.username ?? person.userId.slice(0, 8),
+    profileUsername: person.username,
     score: person.solvedCount,
     scoreLabel: 'bài AC',
     avatarUrl: person.avatarUrl,

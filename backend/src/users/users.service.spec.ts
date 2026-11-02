@@ -16,6 +16,7 @@ describe('UsersService.updateProfile', () => {
       bio: 'Hello',
       organization: 'UTH',
       is_active: true,
+      auth_version: 0,
       role: 'STUDENT',
       created_at: new Date('2026-01-01T00:00:00Z'),
       updated_at: new Date('2026-01-02T00:00:00Z'),
@@ -136,5 +137,6 @@ describe('UsersService.updatePassword', () => {
     );
     expect(query.mock.calls[0]?.[0]).toContain('password_hash = $2');
     expect(query.mock.calls[0]?.[0]).toContain('is_active = TRUE');
+    expect(query.mock.calls[0]?.[0]).toContain('auth_version = auth_version + 1');
   });
 });

@@ -15,14 +15,14 @@ type AuthPageProps = {
 
 const authCopy = {
   register: {
-    title: 'Đăng ký tài khoản',
+    title: 'ĐĂNG KÝ TÀI KHOẢN',
     submitLabel: 'Đăng ký',
     switchPrompt: 'Bạn đã có tài khoản?',
     switchLabel: 'Đăng nhập ngay',
     switchHref: '/login',
   },
   login: {
-    title: 'Đăng nhập hệ thống',
+    title: 'ĐĂNG NHẬP HỆ THỐNG',
     submitLabel: 'Đăng nhập',
     switchPrompt: 'Bạn chưa có tài khoản?',
     switchLabel: 'Đăng ký ngay',
@@ -63,6 +63,28 @@ function FieldIcon({ name }: { name: FieldIconName }) {
   )
 }
 
+function ProviderIcon({ provider }: { provider: 'google' | 'github' }) {
+  if (provider === 'google') {
+    return (
+      <svg className={styles.providerIcon} viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.8 6.1-15Z" />
+        <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.2A20 20 0 0 0 24 44Z" />
+        <path fill="#FBBC05" d="M12.6 27.6a12 12 0 0 1 0-7.2v-5.2H5.8a20 20 0 0 0 0 17.6l6.8-5.2Z" />
+        <path fill="#EA4335" d="M24 12c3 0 5.7 1 7.8 3.1l5.9-5.9A19.7 19.7 0 0 0 24 4 20 20 0 0 0 5.8 15.2l6.8 5.2C14.2 15.6 18.7 12 24 12Z" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg className={styles.providerIcon} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 .9a11.1 11.1 0 0 0-3.5 21.6c.6.1.8-.3.8-.6v-2.1c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.5-.3-5.1-1.2-5.1-5.5 0-1.2.4-2.2 1.2-3-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.1 1.2a10.7 10.7 0 0 1 5.7 0c2.1-1.5 3.1-1.2 3.1-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3 0 4.3-2.6 5.2-5.1 5.5.4.3.8 1 .8 2v3c0 .3.2.7.8.6A11.1 11.1 0 0 0 12 .9Z"
+      />
+    </svg>
+  )
+}
+
 function FormField({
   id,
   label,
@@ -75,6 +97,7 @@ function FormField({
   placeholder,
   defaultValue,
   error,
+  floatingLabel = false,
   required = true,
 }: {
   id: string
@@ -88,14 +111,15 @@ function FormField({
   placeholder?: string
   defaultValue?: string
   error?: string
+  floatingLabel?: boolean
   required?: boolean
 }) {
   return (
-    <div className={styles.field}>
-      <label className={styles.label} htmlFor={id}>
+    <div className={`${styles.field} ${floatingLabel ? styles.floatingField : ''}`}>
+      {!floatingLabel && <label className={styles.label} htmlFor={id}>
         {label}
-      </label>
-      <div className={styles.inputWrap}>
+      </label>}
+      <div className={`${styles.inputWrap} ${floatingLabel ? styles.floatingInputWrap : ''}`}>
         <span className={styles.fieldIcon}>
           <FieldIcon name={icon} />
         </span>
@@ -110,26 +134,39 @@ function FormField({
           pattern={pattern}
           required={required}
           defaultValue={defaultValue}
-          placeholder={placeholder ?? `Nhập ${label.toLocaleLowerCase('vi')}`}
+          placeholder={floatingLabel ? ' ' : placeholder ?? `Nhập ${label.toLocaleLowerCase('vi')}`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
         />
+        {floatingLabel && (
+          <label className={styles.floatingLabel} htmlFor={id}>
+            {label}
+          </label>
+        )}
       </div>
       {error && <span className={styles.fieldError} id={`${id}-error`} role="alert">{error}</span>}
     </div>
   )
 }
 
-function PasswordField({ mode, error }: { mode: AuthMode; error?: string }) {
+function PasswordField({
+  mode,
+  error,
+  floatingLabel = false,
+}: {
+  mode: AuthMode
+  error?: string
+  floatingLabel?: boolean
+}) {
   const [visible, setVisible] = useState(false)
   const label = 'Mật khẩu'
 
   return (
-    <div className={styles.field}>
-      <label className={styles.label} htmlFor="password">
+    <div className={`${styles.field} ${floatingLabel ? styles.floatingField : ''}`}>
+      {!floatingLabel && <label className={styles.label} htmlFor="password">
         {label}
-      </label>
-      <div className={styles.inputWrap}>
+      </label>}
+      <div className={`${styles.inputWrap} ${floatingLabel ? styles.floatingInputWrap : ''}`}>
         <span className={styles.fieldIcon}>
           <FieldIcon name="lock" />
         </span>
@@ -142,10 +179,15 @@ function PasswordField({ mode, error }: { mode: AuthMode; error?: string }) {
           minLength={mode === 'register' ? 8 : undefined}
           maxLength={72}
           required
-          placeholder="Nhập mật khẩu"
+          placeholder={floatingLabel ? ' ' : 'Nhập mật khẩu'}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? 'password-error' : undefined}
         />
+        {floatingLabel && (
+          <label className={styles.floatingLabel} htmlFor="password">
+            {label}
+          </label>
+        )}
         <button
           className={styles.passwordToggle}
           type="button"
@@ -310,14 +352,14 @@ function AuthPage({ mode }: AuthPageProps) {
           </h1>
           <p className={styles.intro}>
             {mode === 'register'
-              ? 'Tạo tài khoản để bắt đầu hành trình chinh phục lập trình.'
-              : 'Chào mừng bạn quay lại với cộng đồng lập trình UTH.'}
+              ? 'Bắt đầu hành trình chinh phục lập trình'
+              : 'Chào mừng bạn quay trở lại'}
           </p>
 
           <form className={styles.form} onSubmit={handleSubmit}>
             <FormField
               id="username"
-              label="Tên đăng nhập"
+              label={mode === 'login' ? 'Tên đăng nhập hoặc email' : 'Tên đăng nhập'}
               icon="user"
               autoComplete="username"
               minLength={mode === 'register' ? 3 : undefined}
@@ -326,6 +368,7 @@ function AuthPage({ mode }: AuthPageProps) {
               placeholder={mode === 'login' ? 'Nhập tên đăng nhập hoặc email' : undefined}
               defaultValue={mode === 'login' ? savedIdentifier : undefined}
               error={fieldErrors.username}
+              floatingLabel
             />
             {mode === 'register' && (
               <FormField
@@ -335,9 +378,14 @@ function AuthPage({ mode }: AuthPageProps) {
                 type="email"
                 autoComplete="email"
                 maxLength={254}
+                floatingLabel
               />
             )}
-            <PasswordField mode={mode} error={fieldErrors.password} />
+            <PasswordField
+              mode={mode}
+              error={fieldErrors.password}
+              floatingLabel
+            />
 
             {mode === 'login' && (
               <div className={styles.loginOptions}>
@@ -364,6 +412,31 @@ function AuthPage({ mode }: AuthPageProps) {
             >
               {isSubmitting ? 'Đang xử lý…' : copy.submitLabel}
             </button>
+            <div className={styles.oauthDivider} aria-hidden="true">
+              <span>Hoặc</span>
+            </div>
+            <div className={styles.oauthButtons}>
+              <button
+                className={`${styles.oauthButton} ${styles.googleButton}`}
+                type="button"
+                disabled
+                title="Sắp ra mắt"
+                aria-label={`${copy.submitLabel} qua Google — Sắp ra mắt`}
+              >
+                <ProviderIcon provider="google" />
+                <span>{copy.submitLabel} qua Google</span>
+              </button>
+              <button
+                className={`${styles.oauthButton} ${styles.githubButton}`}
+                type="button"
+                disabled
+                title="Sắp ra mắt"
+                aria-label={`${copy.submitLabel} qua GitHub — Sắp ra mắt`}
+              >
+                <ProviderIcon provider="github" />
+                <span>{copy.submitLabel} qua GitHub</span>
+              </button>
+            </div>
           </form>
 
           <p

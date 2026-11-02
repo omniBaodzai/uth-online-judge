@@ -11,7 +11,13 @@ import { AuthSessionRepository } from './auth-session.repository.js';
 import { AvatarStorageService } from './avatar-storage.service.js';
 import { CoverStorageService } from './cover-storage.service.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { UsersService, type CoverCropMetadata, type PublicUser, type UserRecord } from '../users/users.service.js';
+import {
+  UsersService,
+  type AuthenticatedUser,
+  type CoverCropMetadata,
+  type PublicUser,
+  type UserRecord,
+} from '../users/users.service.js';
 
 const BCRYPT_COST = 12;
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -45,7 +51,7 @@ export class AuthService {
     const email = input.email.trim().toLowerCase();
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
 
-    let user: PublicUser;
+    let user: AuthenticatedUser;
     try {
       user = await this.users.create({ username, email, passwordHash });
     } catch (error) {
@@ -154,7 +160,7 @@ export class AuthService {
     if (!user || !user.is_active) {
       throw new UnauthorizedException('Tài khoản không còn hoạt động.');
     }
-    return user;
+    return toPublicUser(user);
   }
 
   async updateProfile(
@@ -225,7 +231,7 @@ export class AuthService {
     }
   }
 
-  private async createSession(user: UserRecord | PublicUser): Promise<AuthResult> {
+  private async createSession(user: UserRecord | AuthenticatedUser): Promise<AuthResult> {
     const refreshToken = createRefreshToken();
     await this.sessions.create(
       user.id,
@@ -236,11 +242,11 @@ export class AuthService {
   }
 
   private async createSessionResult(
-    user: UserRecord | PublicUser,
+    user: UserRecord | AuthenticatedUser,
     refreshToken: string,
   ): Promise<AuthResult> {
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id },
+      { sub: user.id, ver: user.auth_version },
       { secret: process.env.JWT_ACCESS_SECRET, expiresIn: ACCESS_TOKEN_TTL_SECONDS },
     );
 
@@ -261,7 +267,7 @@ function createRefreshToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
-function toPublicUser(user: UserRecord | PublicUser): PublicUser {
+function toPublicUser(user: UserRecord | AuthenticatedUser): PublicUser {
   return {
     id: user.id,
     username: user.username,

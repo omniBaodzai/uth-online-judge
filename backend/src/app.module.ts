@@ -12,9 +12,23 @@ import { CommunityModule } from './community/community.module.js';
 import { LeaderboardModule } from './leaderboard/leaderboard.module.js';
 import { ContestsModule } from './contests/contests.module.js';
 import { ContactModule } from './contact/contact.module.js';
+import { PublicStatsModule } from './public-stats/public-stats.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, DemoQueueModule, ProblemsModule, SubmissionsModule, AdminModule, Judge0Module, CommunityModule, LeaderboardModule, ContestsModule, ContactModule],
+  imports: [
+    DatabaseModule,
+    AuthModule,
+    DemoQueueModule,
+    ProblemsModule,
+    SubmissionsModule,
+    AdminModule,
+    Judge0Module,
+    CommunityModule,
+    LeaderboardModule,
+    ContestsModule,
+    ContactModule,
+    PublicStatsModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -5,8 +5,33 @@ import { ProfileUpdateDto } from './profile-update.dto.js';
 import { RegisterDto } from './register.dto.js';
 import { CoverCropMetadataDto, CoverUploadDto } from './cover-upload.dto.js';
 import { ChangePasswordDto } from './change-password.dto.js';
+import { ForgotPasswordDto } from './forgot-password.dto.js';
+import { VerifyResetOtpDto } from './verify-reset-otp.dto.js';
+import { ResetPasswordDto } from './reset-password.dto.js';
 
 describe('authentication DTO validation', () => {
+  it('validates password-reset email, OTP, and reset-token payloads', () => {
+    expect(validateSync(plainToInstance(ForgotPasswordDto, {
+      email: 'student@example.com',
+    }))).toHaveLength(0);
+    expect(validateSync(plainToInstance(VerifyResetOtpDto, {
+      email: 'student@example.com',
+      otp: '012345',
+    }))).toHaveLength(0);
+    expect(validateSync(plainToInstance(VerifyResetOtpDto, {
+      email: 'student@example.com',
+      otp: '12345x',
+    })).length).toBeGreaterThan(0);
+    expect(validateSync(plainToInstance(ResetPasswordDto, {
+      resetToken: 'a'.repeat(43),
+      newPassword: 'a-secure-password',
+    }))).toHaveLength(0);
+    expect(validateSync(plainToInstance(ResetPasswordDto, {
+      resetToken: 'short',
+      newPassword: 'short',
+    })).length).toBeGreaterThan(0);
+  });
+
   it('accepts a valid email, username, and password', () => {
     const dto = plainToInstance(RegisterDto, {
       username: 'student_01',

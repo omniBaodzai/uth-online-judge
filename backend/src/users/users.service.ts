@@ -14,6 +14,7 @@ export type UserRecord = {
   bio: string | null;
   organization: string | null;
   is_active: boolean;
+  auth_version: number;
   role: 'STUDENT' | 'ADMIN';
   created_at: Date;
   updated_at: Date;
@@ -29,7 +30,8 @@ export type CoverCropMetadata = {
   aspect: number;
 };
 
-export type PublicUser = Omit<UserRecord, 'password_hash'>;
+export type AuthenticatedUser = Omit<UserRecord, 'password_hash'>;
+export type PublicUser = Omit<UserRecord, 'password_hash' | 'auth_version'>;
 
 export type PasswordCredential = {
   password_hash: string | null;
@@ -47,7 +49,7 @@ export class UsersService {
     const result = await this.database.query<UserRecord>(
       `SELECT id, username, email, password_hash, full_name, avatar_url,
               cover_image_url, cover_crop, bio, organization,
-              is_active, role, created_at, updated_at
+              is_active, auth_version, role, created_at, updated_at
        FROM users
        WHERE lower(email) = $1 OR lower(username) = $1
        LIMIT 1`,
@@ -57,10 +59,10 @@ export class UsersService {
     return result.rows[0] ?? null;
   }
 
-  async findById(id: string): Promise<PublicUser | null> {
-    const result = await this.database.query<PublicUser>(
+  async findById(id: string): Promise<AuthenticatedUser | null> {
+    const result = await this.database.query<AuthenticatedUser>(
       `SELECT id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
-              is_active, role, created_at, updated_at
+              is_active, auth_version, role, created_at, updated_at
        FROM users
        WHERE id = $1
        LIMIT 1`,
@@ -90,6 +92,7 @@ export class UsersService {
     const result = await this.database.query(
       `UPDATE users
        SET password_hash = $3,
+           auth_version = auth_version + 1,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
          AND password_hash = $2
@@ -105,11 +108,12 @@ export class UsersService {
     username: string;
     email: string;
     passwordHash: string;
-  }): Promise<PublicUser> {
-    const result = await this.database.query<PublicUser>(
+  }): Promise<AuthenticatedUser> {
+    const result = await this.database.query<AuthenticatedUser>(
       `INSERT INTO users (username, email, password_hash)
        VALUES ($1, $2, $3)
       RETURNING id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
+                 auth_version,
                  is_active, role, created_at, updated_at`,
       [input.username, input.email, input.passwordHash],
     );

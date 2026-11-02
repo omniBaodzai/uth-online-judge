@@ -24,6 +24,7 @@ const user: UserRecord = {
   bio: null,
   organization: null,
   is_active: true,
+  auth_version: 0,
   role: 'STUDENT',
   created_at: new Date('2026-01-01T00:00:00.000Z'),
   updated_at: new Date('2026-01-01T00:00:00.000Z'),
@@ -79,7 +80,7 @@ describe('AuthService', () => {
   });
 
   it('normalizes registration data and returns no password or refresh hash', async () => {
-    users.create.mockResolvedValue(publicUser(user));
+    users.create.mockResolvedValue(authenticatedUser(user));
 
     const result = await service.register({
       username: ' Student01 ',
@@ -97,6 +98,10 @@ describe('AuthService', () => {
     expect(result).not.toHaveProperty('token_hash');
     expect(result.accessToken).toBe('access-token');
     expect(result.expiresIn).toBe(900);
+    expect(jwt.signAsync).toHaveBeenCalledWith(
+      { sub: user.id, ver: user.auth_version },
+      expect.any(Object),
+    );
     expect(sessions.create).toHaveBeenCalledWith(
       user.id,
       expect.stringMatching(/^[a-f0-9]{64}$/),
@@ -422,6 +427,11 @@ describe('AuthService', () => {
 });
 
 function publicUser(record: UserRecord): PublicUser {
+  const { password_hash: _passwordHash, auth_version: _authVersion, ...result } = record;
+  return result;
+}
+
+function authenticatedUser(record: UserRecord) {
   const { password_hash: _passwordHash, ...result } = record;
   return result;
 }

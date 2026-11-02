@@ -1,12 +1,30 @@
-import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import uthLogo from '../../../assets/uth_logo.png'
+import {
+  ApiError,
+  requestPasswordReset,
+  resetPassword,
+  verifyPasswordResetOtp,
+} from '../api'
 import styles from './AuthPage.module.css'
 import pageStyles from './ForgotPasswordPage.module.css'
 
 const CODE_LENGTH = 6
 
-function PasswordInput({ id, label }: { id: string; label: string }) {
+function PasswordInput({
+  id,
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string
+  disabled: boolean
+  onChange: (value: string) => void
+}) {
   const [visible, setVisible] = useState(false)
 
   return (
@@ -29,6 +47,9 @@ function PasswordInput({ id, label }: { id: string; label: string }) {
           maxLength={72}
           required
           placeholder={label}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
         />
         <button
           className={styles.passwordToggle}
@@ -55,8 +76,103 @@ function PasswordInput({ id, label }: { id: string; label: string }) {
 }
 
 function ForgotPasswordPage() {
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''))
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [resetToken, setResetToken] = useState<string | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const inputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const redirectTimer = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+    const timer = window.setTimeout(
+      () => setCooldownSeconds((remaining) => Math.max(0, remaining - 1)),
+      1000,
+    )
+    return () => window.clearTimeout(timer)
+  }, [cooldownSeconds])
+
+  useEffect(() => () => {
+    if (redirectTimer.current !== null) window.clearTimeout(redirectTimer.current)
+  }, [])
+
+  async function handleRequestOtp(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const response = await requestPasswordReset(email)
+      setStep(2)
+      setCooldownSeconds(response.retryAfterSeconds)
+      setNotice(response.message)
+    } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.retryAfterSeconds) {
+        setCooldownSeconds(requestError.retryAfterSeconds)
+      }
+      setError(getErrorMessage(requestError, 'Không thể gửi mã xác nhận. Vui lòng thử lại.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleVerifyOtp() {
+    const otp = code.join('')
+    if (otp.length !== CODE_LENGTH) {
+      setError('Vui lòng nhập đủ 6 chữ số của mã xác nhận.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const response = await verifyPasswordResetOtp(email, otp)
+      setResetToken(response.resetToken)
+      setStep(3)
+      setNotice('Mã xác nhận hợp lệ. Hãy tạo mật khẩu mới.')
+    } catch (verifyError) {
+      setError(getErrorMessage(verifyError, 'Không thể xác minh mã. Vui lòng thử lại.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleResetPassword() {
+    if (newPassword !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp.')
+      return
+    }
+    if (!resetToken) {
+      setError('Phiên xác minh không hợp lệ. Vui lòng yêu cầu mã mới.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await resetPassword(resetToken, newPassword)
+      setResetToken(null)
+      setCode(Array(CODE_LENGTH).fill(''))
+      setNewPassword('')
+      setConfirmPassword('')
+      setNotice('Đổi mật khẩu thành công. Đang chuyển về trang đăng nhập.')
+      redirectTimer.current = window.setTimeout(
+        () => navigate('/login', { replace: true }),
+        1200,
+      )
+    } catch (resetError) {
+      setError(getErrorMessage(resetError, 'Không thể đổi mật khẩu. Vui lòng thử lại.'))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   function updateCodeAt(index: number, value: string) {
     const digits = value.replace(/\D/g, '')
@@ -107,7 +223,7 @@ function ForgotPasswordPage() {
             Khôi phục mật khẩu qua email, mã sẽ gửi qua email bạn đã đăng ký tài khoản để thay đổi mật khẩu
           </p>
 
-          <form className={`${styles.form} ${pageStyles.form}`} onSubmit={(event) => event.preventDefault()}>
+          <form className={`${styles.form} ${pageStyles.form}`} onSubmit={handleRequestOtp}>
             <section className={pageStyles.step} aria-labelledby="email-step-title">
               <h2 className={pageStyles.stepTitle} id="email-step-title">
                 <span>1</span>
@@ -131,12 +247,16 @@ function ForgotPasswordPage() {
                     maxLength={254}
                     required
                     placeholder="Nhập email đã đăng ký"
+                    value={email}
+                    disabled={step > 1 || busy}
+                    onChange={(event) => setEmail(event.target.value)}
                   />
                 </div>
               </div>
-              <button className={styles.submitButton} type="button">
-                Gửi mã xác nhận
+              <button className={styles.submitButton} type="submit" disabled={busy || step > 1}>
+                {busy && step === 1 ? 'Đang gửi mã…' : 'Gửi mã xác nhận'}
               </button>
+              {step === 1 && error ? <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{error}</p> : null}
             </section>
 
             <section className={pageStyles.step} aria-labelledby="code-step-title">
@@ -157,6 +277,7 @@ function ForgotPasswordPage() {
                     aria-label={`Chữ số ${index + 1}`}
                     maxLength={CODE_LENGTH}
                     value={digit}
+                    disabled={step !== 2 || busy}
                     onChange={(event) => updateCodeAt(index, event.target.value)}
                     onKeyDown={(event) => handleCodeKeyDown(index, event)}
                     onPaste={handleCodePaste}
@@ -164,9 +285,32 @@ function ForgotPasswordPage() {
                 ))}
               </div>
               <div className={pageStyles.resendRow}>
-                <span>Chưa nhận được mã?</span>
-                <button className={pageStyles.resendButton} type="button">Gửi lại mã xác nhận</button>
+                <span>
+                  {cooldownSeconds > 0
+                    ? `Bạn có thể gửi lại mã sau ${formatCountdown(cooldownSeconds)}.`
+                    : 'Chưa nhận được mã?'}
+                </span>
+                <button
+                  className={pageStyles.resendButton}
+                  type="button"
+                  disabled={busy || cooldownSeconds > 0 || step !== 2}
+                  onClick={() => void handleRequestOtp()}
+                >
+                  Gửi lại mã xác nhận
+                </button>
               </div>
+              {step === 2 ? (
+                <button
+                  className={styles.submitButton}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleVerifyOtp()}
+                >
+                  {busy ? 'Đang xác minh…' : 'Xác minh mã'}
+                </button>
+              ) : null}
+              {step === 2 && error ? <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{error}</p> : null}
+              {step === 2 && notice ? <p className={styles.notice} role="status">{notice}</p> : null}
             </section>
 
             <section className={pageStyles.step} aria-labelledby="password-step-title">
@@ -174,24 +318,50 @@ function ForgotPasswordPage() {
                 <span>3</span>
                 Tạo mật khẩu mới
               </h2>
-              <PasswordInput id="new-password" label="Mật khẩu mới" />
-              <PasswordInput id="confirm-password" label="Nhập lại mật khẩu mới" />
-              <button className={styles.submitButton} type="button">
-                Xác nhận
+              <PasswordInput
+                id="new-password"
+                label="Mật khẩu mới"
+                value={newPassword}
+                disabled={step !== 3 || busy}
+                onChange={setNewPassword}
+              />
+              <PasswordInput
+                id="confirm-password"
+                label="Nhập lại mật khẩu mới"
+                value={confirmPassword}
+                disabled={step !== 3 || busy}
+                onChange={setConfirmPassword}
+              />
+              <button
+                className={styles.submitButton}
+                type="button"
+                disabled={busy || step !== 3}
+                onClick={() => void handleResetPassword()}
+              >
+                {busy && step === 3 ? 'Đang cập nhật…' : 'Xác nhận'}
               </button>
+              {step === 3 && error ? <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{error}</p> : null}
+              {step === 3 && notice ? <p className={styles.notice} role="status">{notice}</p> : null}
             </section>
           </form>
 
           <p className={`${styles.switchPrompt} ${pageStyles.backLink}`}>
             <Link to="/login">← Quay lại đăng nhập</Link>
           </p>
-          <p className={pageStyles.disclaimer}>
-            Giao diện hiện chưa kết nối dịch vụ gửi email hoặc đổi mật khẩu.
-          </p>
         </section>
       </main>
     </div>
   )
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback
+}
+
+function formatCountdown(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
 }
 
 export default ForgotPasswordPage

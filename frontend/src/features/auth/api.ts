@@ -33,12 +33,19 @@ type RefreshResponse = AuthResponse
 export class ApiError extends Error {
   readonly status: number
   readonly submissionId?: string
+  readonly retryAfterSeconds?: number
 
-  constructor(message: string, status: number, submissionId?: string) {
+  constructor(
+    message: string,
+    status: number,
+    submissionId?: string,
+    retryAfterSeconds?: number,
+  ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.submissionId = submissionId
+    this.retryAfterSeconds = retryAfterSeconds
   }
 }
 
@@ -89,6 +96,35 @@ export async function login(input: {
   return request<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(input),
+  })
+}
+
+export type PasswordResetRequestResponse = {
+  message: string
+  retryAfterSeconds: number
+}
+
+export async function requestPasswordReset(email: string): Promise<PasswordResetRequestResponse> {
+  return request<PasswordResetRequestResponse>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function verifyPasswordResetOtp(
+  email: string,
+  otp: string,
+): Promise<{ resetToken: string }> {
+  return request<{ resetToken: string }>('/auth/verify-reset-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp }),
+  })
+}
+
+export async function resetPassword(resetToken: string, newPassword: string): Promise<void> {
+  await request<void>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ resetToken, newPassword }),
   })
 }
 
@@ -230,7 +266,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as
-      | { message?: string | string[]; submissionId?: string }
+      | { message?: string | string[]; submissionId?: string; retryAfterSeconds?: number }
       | null
     const message = Array.isArray(body?.message)
       ? body.message.join(' ')
@@ -239,6 +275,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       message,
       response.status,
       typeof body?.submissionId === 'string' ? body.submissionId : undefined,
+      typeof body?.retryAfterSeconds === 'number' ? body.retryAfterSeconds : undefined,
     )
   }
 

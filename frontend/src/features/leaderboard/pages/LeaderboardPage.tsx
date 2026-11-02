@@ -16,10 +16,6 @@ function formatPerformance(percentile: number | null, comparableProblems: number
   return `Top ${Math.max(1, Math.ceil(percentile * 100))}% · ${comparableProblems} bài so sánh`
 }
 
-function profilePath(username: string | null, userId: string): string {
-  return username ? `/users/${encodeURIComponent(username)}` : `/users/id/${encodeURIComponent(userId)}`
-}
-
 function LeaderboardPage() {
   const { user } = useAuth()
   const [query, setQuery] = useState('')
@@ -102,38 +98,47 @@ function LeaderboardPage() {
                 {pageItems.map((entry) => {
                   const isViewer = entry.userId === user?.id
                   const isTopThree = entry.rank >= 1 && entry.rank <= 3
+                  const rowContent = (
+                    <>
+                      <span className={styles.rank} aria-label={`Hạng ${entry.rank}`}>
+                        {entry.rank === 1 ? <Crown className={styles.crown} size={16} aria-hidden="true" /> : null}
+                        <span className={styles.rankNumber}>{entry.rank}</span>
+                      </span>
+                      <span className={styles.points}>{entry.cumulativePoints}</span>
+                      <span className={styles.coder}>
+                        <UserAvatar
+                          source={resolveAvatarUrl(entry.avatarUrl)}
+                          username={entry.username ?? entry.displayName}
+                          label={`Ảnh đại diện ${entry.displayName}`}
+                        />
+                        <span className={styles.identity}>
+                          <strong>{entry.displayName}</strong>
+                          <span>@{entry.username ?? entry.userId.slice(0, 8)}</span>
+                          {entry.comparableProblems > 0 ? (
+                            <span className={styles.performance}>{formatPerformance(entry.performancePercentile, entry.comparableProblems)}</span>
+                          ) : null}
+                        </span>
+                      </span>
+                      <span className={styles.solvedCount}>{entry.solvedCount}</span>
+                    </>
+                  )
                   return (
                     <li
                       className={`${styles.entry} ${isTopThree ? styles[`top${entry.rank}`] : ''} ${isViewer ? styles.viewer : ''}`}
                       key={entry.userId}
                       aria-current={isViewer ? 'true' : undefined}
                     >
-                      <Link
-                        className={styles.rowLink}
-                        to={profilePath(entry.username, entry.userId)}
-                        aria-label={`Mở hồ sơ của ${entry.displayName}, hạng ${entry.rank}`}
-                      >
-                        <span className={styles.rank} aria-label={`Hạng ${entry.rank}`}>
-                          {entry.rank === 1 ? <Crown className={styles.crown} size={16} aria-hidden="true" /> : null}
-                          <span className={styles.rankNumber}>{entry.rank}</span>
-                        </span>
-                        <span className={styles.points}>{entry.cumulativePoints}</span>
-                        <span className={styles.coder}>
-                          <UserAvatar
-                            source={resolveAvatarUrl(entry.avatarUrl)}
-                            username={entry.username ?? entry.displayName}
-                            label={`Ảnh đại diện ${entry.displayName}`}
-                          />
-                          <span className={styles.identity}>
-                            <strong>{entry.displayName}</strong>
-                            <span>@{entry.username ?? entry.userId.slice(0, 8)}</span>
-                            {entry.comparableProblems > 0 ? (
-                              <span className={styles.performance}>{formatPerformance(entry.performancePercentile, entry.comparableProblems)}</span>
-                            ) : null}
-                          </span>
-                        </span>
-                        <span className={styles.solvedCount}>{entry.solvedCount}</span>
-                      </Link>
+                      {entry.username ? (
+                        <Link
+                          className={`${styles.row} ${styles.rowLink}`}
+                          to={`/users/${encodeURIComponent(entry.username)}`}
+                          aria-label={`Mở hồ sơ của ${entry.displayName}, hạng ${entry.rank}`}
+                        >
+                          {rowContent}
+                        </Link>
+                      ) : (
+                        <div className={styles.row}>{rowContent}</div>
+                      )}
                     </li>
                   )
                 })}
