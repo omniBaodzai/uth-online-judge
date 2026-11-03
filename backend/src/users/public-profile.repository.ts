@@ -56,17 +56,29 @@ export class PublicProfileRepository {
   }
 
   async listActivity(userId: string): Promise<ProfileActivityDay[]> {
-    const result = await this.pool.query<{ date: Date | string; count: number }>(
-      `SELECT submitted_at::date AS date, COUNT(*)::int AS count
-       FROM public.submissions
-       WHERE user_id = $1
-         AND submitted_at >= CURRENT_DATE - INTERVAL '370 days'
-       GROUP BY submitted_at::date
+    const result = await this.pool.query<{ date: string; count: number }>(
+      `WITH local_date AS (
+         SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS today
+       )
+       SELECT TO_CHAR(
+                (s.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,
+                'YYYY-MM-DD'
+              ) AS date,
+              COUNT(*)::int AS count
+       FROM public.submissions s
+       CROSS JOIN local_date
+       WHERE s.user_id = $1
+         AND s.submitted_at >= (
+               (local_date.today - INTERVAL '370 days')::timestamp
+               AT TIME ZONE 'Asia/Ho_Chi_Minh'
+             )
+         AND s.submitted_at < CURRENT_TIMESTAMP
+       GROUP BY (s.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
        ORDER BY date DESC`,
       [userId],
     );
     return result.rows.map((row) => ({
-      date: row.date instanceof Date ? row.date.toISOString().slice(0, 10) : String(row.date).slice(0, 10),
+      date: row.date,
       count: Number(row.count),
     }));
   }

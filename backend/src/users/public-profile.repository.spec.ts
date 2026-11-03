@@ -16,15 +16,29 @@ describe('PublicProfileRepository', () => {
     expect(parameters).toEqual(['coder']);
   });
 
-  it('limits activity to the heatmap window and the selected coder', async () => {
+  it('groups TIMESTAMPTZ activity by Vietnam date and limits the window to the selected user', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const repository = new PublicProfileRepository({ query } as never);
 
     await repository.listActivity('coder-id');
 
-    expect(query).toHaveBeenCalledWith(
-      expect.stringContaining("submitted_at >= CURRENT_DATE - INTERVAL '370 days'"),
-      ['coder-id'],
-    );
+    const [sql, parameters] = query.mock.calls[0] as [string, string[]];
+    expect(sql).toContain("(s.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date");
+    expect(sql).toContain("(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS today");
+    expect(sql).toContain("(local_date.today - INTERVAL '370 days')");
+    expect(sql).toContain('s.submitted_at < CURRENT_TIMESTAMP');
+    expect(sql).not.toContain('CURRENT_DATE');
+    expect(parameters).toEqual(['coder-id']);
+  });
+
+  it('returns date keys unchanged instead of converting them through the server timezone', async () => {
+    const query = vi.fn().mockResolvedValue({
+      rows: [{ date: '2026-11-04', count: '2' }],
+    });
+    const repository = new PublicProfileRepository({ query } as never);
+
+    await expect(repository.listActivity('coder-id')).resolves.toEqual([
+      { date: '2026-11-04', count: 2 },
+    ]);
   });
 });

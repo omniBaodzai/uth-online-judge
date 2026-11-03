@@ -421,7 +421,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
               {renderPasswordField('currentPassword', 'current-password')}
               {renderPasswordField('newPassword', 'new-password')}
               {renderPasswordField('confirmPassword', 'new-password')}
-              <p className={styles.passwordHint}>Mật khẩu mới cần có ít nhất 8 ký tự và tối đa 72 byte.</p>
+              <p className={styles.passwordHint}></p>
               {requestError && <p className={styles.requestError} role="alert">{requestError}</p>}
               <div className={styles.actions}>
                 <button
@@ -446,7 +446,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
             <>
               {renderPasswordField('newPassword', 'new-password')}
               {renderPasswordField('confirmPassword', 'new-password')}
-              <p className={styles.passwordHint}>Mật khẩu mới cần có ít nhất 8 ký tự và tối đa 72 byte.</p>
+              <p className={styles.passwordHint}></p>
               {requestError && <p className={styles.requestError} role="alert">{requestError}</p>}
               <div className={styles.actions}>
                 <button

@@ -523,7 +523,26 @@
   font-size: 12px;
 }
 
+.activityCalendar {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.weekdayLabels {
+  display: grid;
+  grid-template-rows: repeat(7, 10px);
+  gap: 3px;
+  padding-top: 18px;
+  color: #617576;
+  font-size: 9px;
+  line-height: 10px;
+  text-align: right;
+}
+
 .heatmapScroll {
+  min-width: 0;
   overflow-x: auto;
   padding: 4px 2px 10px;
   scrollbar-color: #9eb4b4 transparent;
@@ -532,6 +551,24 @@
 .heatmapScroll:focus-visible {
   outline: 3px solid #f4c96b;
   outline-offset: 2px;
+}
+
+.heatmapContent {
+  width: max-content;
+}
+
+.monthLabels {
+  position: relative;
+  height: 14px;
+  color: #617576;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.monthLabel {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
 }
 
 .heatmap {
@@ -547,8 +584,33 @@
   display: block;
   width: 10px;
   height: 10px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
   border-radius: 2px;
   background: #e8eeee;
+  cursor: pointer;
+}
+
+.activityDay:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #006d70;
+  outline-offset: 2px;
+}
+
+.activityDayPlaceholder {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.activityFutureDay {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #f5f7f7;
 }
 
 .activityDay[data-level='1'] {
@@ -579,6 +641,33 @@
 .heatmapLegend .activityDay {
   width: 9px;
   height: 9px;
+  cursor: default;
+}
+
+.activityTooltip {
+  position: fixed;
+  z-index: 10000;
+  display: grid;
+  max-width: min(260px, calc(100vw - 16px));
+  gap: 3px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  background: #173f40;
+  box-shadow: 0 4px 14px rgba(13, 49, 50, 0.2);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.activityTooltip[data-placement='above'] {
+  transform: translate(-50%, -100%);
+}
+
+.activityTooltip[data-placement='below'] {
+  transform: translateX(-50%);
 }
 
 .emptyState {

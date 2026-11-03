@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Circle } from 'lucide-react'
-import { getPasswordRequirements } from '../password-policy'
+import { getPasswordAssessment } from '../password-policy'
 import type { PasswordStrengthEvaluation } from '../password-strength'
 import styles from './PasswordStrengthMeter.module.css'
 
@@ -8,8 +8,6 @@ type PasswordStrengthMeterProps = {
   id: string
   password: string
 }
-
-const strengthLabels = ['Rất yếu', 'Yếu', 'Trung bình', 'Mạnh', 'Rất mạnh'] as const
 
 function Requirement({
   met,
@@ -37,7 +35,7 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
   const [loadError, setLoadError] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
   const loadPromise = useRef<Promise<typeof import('../password-strength')> | null>(null)
-  const requirements = getPasswordRequirements(password)
+  const assessment = getPasswordAssessment(password)
   const hasInput = password.length > 0
 
   useEffect(() => {
@@ -81,7 +79,7 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
     [evaluate, hasInput, password],
   )
   const evaluationError = hasInput && evaluate !== null && evaluation === null
-  const score = evaluation?.score ?? null
+  const score = evaluation?.display.score ?? null
   const loading = hasInput && !evaluate && !loadError
   const label = !hasInput
     ? 'Chưa nhập'
@@ -89,13 +87,8 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
       ? 'Đang đánh giá…'
       : loadError || evaluationError
         ? 'Chưa thể đánh giá'
-        : strengthLabels[score ?? 0]
-  const progress = score === null ? 0 : ((score + 1) / strengthLabels.length) * 100
-  // const withinPolicy = requirements.minLength && requirements.maxLength && requirements.maxUtf8Bytes
-  const upper = /\p{Lu}/u.test(password)
-  const lower = /\p{Ll}/u.test(password)
-  const number = /\p{N}/u.test(password)
-  const special = /[^\p{L}\p{N}]/u.test(password)
+        : evaluation?.display.label ?? 'Đang đánh giá…'
+  const progress = evaluation?.display.progress ?? 0
 
   return (
     <section className={styles.meter} id={id} aria-label="Đánh giá mật khẩu">
@@ -125,21 +118,12 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
       </div>
 
       <ul className={styles.checks} aria-label="Điều kiện bắt buộc và gợi ý tăng độ mạnh">
-        <Requirement active={hasInput} met={requirements.minLength}>8+ ký tự</Requirement>
-        <Requirement active={hasInput} met={upper}>A - Z</Requirement>
-        <Requirement active={hasInput} met={lower}>a - z</Requirement>
-        <Requirement active={hasInput} met={number}>0 - 9</Requirement>
-        <Requirement active={hasInput} met={special}>@#$</Requirement>
+        <Requirement active={hasInput} met={assessment.criteria.minLength}>8+ ký tự</Requirement>
+        <Requirement active={hasInput} met={assessment.criteria.uppercase}>A - Z</Requirement>
+        <Requirement active={hasInput} met={assessment.criteria.lowercase}>a - z</Requirement>
+        <Requirement active={hasInput} met={assessment.criteria.number}>0 - 9</Requirement>
+        <Requirement active={hasInput} met={assessment.criteria.special}>@#$</Requirement>
       </ul>
-      {/* <p
-        className={`${styles.policy} ${hasInput ? (withinPolicy ? styles.policyMet : styles.policyUnmet) : ''}`}
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {hasInput && withinPolicy ? <Check size={12} aria-hidden="true" /> : null}
-        {hasInput && !withinPolicy ? <Circle size={12} aria-hidden="true" /> : null}
-        Bắt buộc: 8–72 ký tự · ≤72 byte UTF-8
-      </p> */}
       {hasInput && (loadError || evaluationError) ? (
         <div className={styles.loadError}>
           <p role="status">Không thể đánh giá độ mạnh.</p>
