@@ -99,6 +99,20 @@ export async function login(input: {
   })
 }
 
+export function startGoogleOAuth(mode: 'login' | 'register', rememberLogin: boolean): void {
+  const url = new URL(`${apiBaseUrl}/auth/google`)
+  url.searchParams.set('mode', mode)
+  url.searchParams.set('rememberLogin', String(rememberLogin))
+  window.location.assign(url.href)
+}
+
+export function startGitHubOAuth(mode: 'login' | 'register', rememberLogin: boolean): void {
+  const url = new URL(`${apiBaseUrl}/auth/github`)
+  url.searchParams.set('mode', mode)
+  url.searchParams.set('rememberLogin', String(rememberLogin))
+  window.location.assign(url.href)
+}
+
 export type PasswordResetRequestResponse = {
   message: string
   retryAfterSeconds: number
@@ -176,6 +190,22 @@ export async function changePasswordWithRefresh(
     method: 'POST',
     body: JSON.stringify(input),
   })
+}
+
+export async function completePasswordSetupWithRefresh(
+  input: { setupToken: string; newPassword: string },
+  accessToken: string,
+  onRefresh: (nextAccessToken: string) => void,
+): Promise<{ accessToken: string; expiresIn: number }> {
+  return requestProtected<{ accessToken: string; expiresIn: number }>(
+    '/auth/me/password-setup/complete',
+    accessToken,
+    onRefresh,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
 }
 
 export async function uploadCoverWithRefresh(

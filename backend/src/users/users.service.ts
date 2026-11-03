@@ -59,6 +59,89 @@ export class UsersService {
     return result.rows[0] ?? null;
   }
 
+  async findByGoogleId(googleId: string): Promise<AuthenticatedUser | null> {
+    const result = await this.database.query<AuthenticatedUser>(
+      `SELECT id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
+              is_active, auth_version, role, created_at, updated_at
+       FROM users
+       WHERE google_id = $1
+       LIMIT 1`,
+      [googleId],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  async findByGitHubId(githubId: string): Promise<AuthenticatedUser | null> {
+    const result = await this.database.query<AuthenticatedUser>(
+      `SELECT id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
+              is_active, auth_version, role, created_at, updated_at
+       FROM users
+       WHERE github_id = $1
+       LIMIT 1`,
+      [githubId],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  async findByEmail(email: string): Promise<AuthenticatedUser | null> {
+    const result = await this.database.query<AuthenticatedUser>(
+      `SELECT id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
+              is_active, auth_version, role, created_at, updated_at
+       FROM users
+       WHERE lower(email) = $1
+       LIMIT 1`,
+      [email],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  async createGoogleAccount(input: {
+    username: string;
+    email: string;
+    googleId: string;
+    fullName: string | null;
+  }): Promise<AuthenticatedUser> {
+    const result = await this.database.query<AuthenticatedUser>(
+      `INSERT INTO users (username, email, password_hash, full_name, google_id)
+       VALUES ($1, $2, NULL, $3, $4)
+       RETURNING id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
+                 is_active, auth_version, role, created_at, updated_at`,
+      [input.username, input.email, input.fullName, input.googleId],
+    );
+
+    const user = result.rows[0];
+    if (!user) {
+      throw new Error('Google user insert did not return a row');
+    }
+
+    return user;
+  }
+
+  async createGitHubAccount(input: {
+    username: string;
+    email: string;
+    githubId: string;
+    fullName: string | null;
+  }): Promise<AuthenticatedUser> {
+    const result = await this.database.query<AuthenticatedUser>(
+      `INSERT INTO users (username, email, password_hash, full_name, github_id)
+       VALUES ($1, $2, NULL, $3, $4)
+       RETURNING id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
+                 is_active, auth_version, role, created_at, updated_at`,
+      [input.username, input.email, input.fullName, input.githubId],
+    );
+
+    const user = result.rows[0];
+    if (!user) {
+      throw new Error('GitHub user insert did not return a row');
+    }
+
+    return user;
+  }
+
   async findById(id: string): Promise<AuthenticatedUser | null> {
     const result = await this.database.query<AuthenticatedUser>(
       `SELECT id, username, email, full_name, avatar_url, cover_image_url, cover_crop, bio, organization,
@@ -140,7 +223,8 @@ export class UsersService {
     const updateFullName = input.fullName !== undefined;
     const updateAvatarUrl = input.avatarUrl !== undefined;
     const updateCoverImageUrl = input.coverImageUrl !== undefined;
-    const updateCoverCrop = input.coverCrop !== undefined || updateCoverImageUrl;
+    const updateCoverCrop =
+      input.coverCrop !== undefined || updateCoverImageUrl;
     const updateBio = input.bio !== undefined;
     const updateOrganization = input.organization !== undefined;
     const result = await this.database.query<PublicUser>(
@@ -158,17 +242,17 @@ export class UsersService {
       [
         id,
         updateFullName,
-        updateFullName ? input.fullName?.trim() ?? null : null,
+        updateFullName ? (input.fullName?.trim() ?? null) : null,
         updateAvatarUrl,
-        updateAvatarUrl ? input.avatarUrl?.trim() ?? null : null,
+        updateAvatarUrl ? (input.avatarUrl?.trim() ?? null) : null,
         updateCoverImageUrl,
-        updateCoverImageUrl ? input.coverImageUrl?.trim() ?? null : null,
+        updateCoverImageUrl ? (input.coverImageUrl?.trim() ?? null) : null,
         updateCoverCrop,
         input.coverCrop ? JSON.stringify(input.coverCrop) : null,
         updateBio,
-        updateBio ? input.bio?.trim() ?? null : null,
+        updateBio ? (input.bio?.trim() ?? null) : null,
         updateOrganization,
-        updateOrganization ? input.organization?.trim() ?? null : null,
+        updateOrganization ? (input.organization?.trim() ?? null) : null,
       ],
     );
 

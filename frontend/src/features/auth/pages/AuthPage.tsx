@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import uthLogo from '../../../assets/uth_logo.png'
-import { ApiError } from '../api'
+import { ApiError, startGitHubOAuth, startGoogleOAuth } from '../api'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import { getReturnPath } from '../return-path'
 import { useAuth } from '../useAuth'
 import styles from './AuthPage.module.css'
@@ -159,7 +160,10 @@ function PasswordField({
   floatingLabel?: boolean
 }) {
   const [visible, setVisible] = useState(false)
+  const [password, setPassword] = useState('')
+  const [meterVisible, setMeterVisible] = useState(false)
   const label = 'Mật khẩu'
+  const strengthId = 'registration-password-strength'
 
   return (
     <div className={`${styles.field} ${floatingLabel ? styles.floatingField : ''}`}>
@@ -181,7 +185,20 @@ function PasswordField({
           required
           placeholder={floatingLabel ? ' ' : 'Nhập mật khẩu'}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? 'password-error' : undefined}
+          aria-describedby={[
+            error ? 'password-error' : null,
+            mode === 'register' && meterVisible ? strengthId : null,
+          ].filter(Boolean).join(' ') || undefined}
+          onChange={mode === 'register' ? (event) => setPassword(event.target.value) : undefined}
+          onFocus={mode === 'register' ? (event) => {
+            setPassword(event.currentTarget.value)
+            setMeterVisible(true)
+          } : undefined}
+          onBlur={mode === 'register' ? (event) => {
+            const currentPassword = event.currentTarget.value
+            setPassword(currentPassword)
+            if (!currentPassword) setMeterVisible(false)
+          } : undefined}
         />
         {floatingLabel && (
           <label className={styles.floatingLabel} htmlFor="password">
@@ -209,6 +226,9 @@ function PasswordField({
         </button>
       </div>
       {error && <span className={styles.fieldError} id="password-error" role="alert">{error}</span>}
+      {mode === 'register' && meterVisible ? (
+        <PasswordStrengthMeter id={strengthId} password={password} />
+      ) : null}
     </div>
   )
 }
@@ -231,6 +251,26 @@ function readRememberPreference(): boolean {
     return window.localStorage.getItem(REMEMBER_OPT_OUT_KEY) !== '1'
   } catch {
     return true
+  }
+}
+
+function oauthErrorMessage(code: string, provider: 'google' | 'github'): string {
+  const providerName = provider === 'github' ? 'GitHub' : 'Google'
+  switch (code) {
+    case 'provider_cancelled':
+      return `Bạn đã hủy đăng nhập ${providerName}. Bạn có thể thử lại bất cứ lúc nào.`
+    case 'account_exists':
+      return `Email ${providerName} này đã có tài khoản. Vui lòng đăng nhập bằng phương thức hiện tại.`
+    case 'account_disabled':
+      return 'Tài khoản UTH này hiện không hoạt động. Vui lòng liên hệ quản trị viên.'
+    case 'email_unverified':
+      return `${providerName} chưa cung cấp email đã xác minh. Hãy xác minh email trên ${providerName} rồi thử lại.`
+    case 'state_invalid':
+      return `Phiên xác thực ${providerName} không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.`
+    case 'provider_unavailable':
+      return `Đăng nhập ${providerName} hiện chưa sẵn sàng. Vui lòng thử lại sau.`
+    default:
+      return `Không thể xác thực với ${providerName}. Vui lòng thử lại.`
   }
 }
 
@@ -267,6 +307,13 @@ async function storeBrowserCredential(identifier: string, password: string) {
 
 function AuthPage({ mode }: AuthPageProps) {
   const copy = authCopy[mode]
+  const navigate = useNavigate()
+  const { pathname, search } = useLocation()
+  const initialOAuthParams = new URLSearchParams(search)
+  const initialOAuthError = initialOAuthParams.get('oauthError')
+  const initialOAuthProvider = initialOAuthParams.get('oauthProvider') === 'github'
+    ? 'github'
+    : 'google'
   const {
     login,
     register,
@@ -276,15 +323,31 @@ function AuthPage({ mode }: AuthPageProps) {
   } = useAuth()
   const [savedIdentifier] = useState(readSavedIdentifier)
   const [rememberMe, setRememberMe] = useState(readRememberPreference)
-  const [notice, setNotice] = useState('')
-  const [noticeType, setNoticeType] = useState<'error' | 'success' | ''>('')
+  const [notice, setNotice] = useState(() =>
+    initialOAuthError ? oauthErrorMessage(initialOAuthError, initialOAuthProvider) : '',
+  )
+  const [noticeType, setNoticeType] = useState<'error' | 'success' | ''>(() =>
+    initialOAuthError ? 'error' : '',
+  )
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const navigate = useNavigate()
-  const { search } = useLocation()
   const redirectTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => () => window.clearTimeout(redirectTimer.current), [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(search)
+    const oauthError = params.get('oauthError')
+    if (!oauthError) return
+
+    params.delete('oauthError')
+    params.delete('oauthProvider')
+    const nextSearch = params.toString()
+    navigate(
+      { pathname, search: nextSearch ? `?${nextSearch}` : '' },
+      { replace: true },
+    )
+  }, [navigate, pathname, search])
 
   // Phiên được khôi phục từ cookie: không cần đăng nhập lại.
   useEffect(() => {
@@ -340,6 +403,32 @@ function AuthPage({ mode }: AuthPageProps) {
     }
   }
 
+  function handleGoogleOAuth() {
+    setNotice('')
+    setNoticeType('')
+    setIsSubmitting(true)
+    try {
+      startGoogleOAuth(mode, mode === 'register' || rememberMe)
+    } catch {
+      setIsSubmitting(false)
+      setNotice('Không thể bắt đầu đăng nhập Google. Vui lòng thử lại.')
+      setNoticeType('error')
+    }
+  }
+
+  function handleGitHubOAuth() {
+    setNotice('')
+    setNoticeType('')
+    setIsSubmitting(true)
+    try {
+      startGitHubOAuth(mode, mode === 'register' || rememberMe)
+    } catch {
+      setIsSubmitting(false)
+      setNotice('Không thể bắt đầu đăng nhập GitHub. Vui lòng thử lại.')
+      setNoticeType('error')
+    }
+  }
+
   return (
     <div className={styles.page}>
       <main className={styles.main} id="main-content">
@@ -382,6 +471,7 @@ function AuthPage({ mode }: AuthPageProps) {
               />
             )}
             <PasswordField
+              key={mode}
               mode={mode}
               error={fieldErrors.password}
               floatingLabel
@@ -419,9 +509,9 @@ function AuthPage({ mode }: AuthPageProps) {
               <button
                 className={`${styles.oauthButton} ${styles.googleButton}`}
                 type="button"
-                disabled
-                title="Sắp ra mắt"
-                aria-label={`${copy.submitLabel} qua Google — Sắp ra mắt`}
+                disabled={isSubmitting || restoringSession}
+                aria-label={`${copy.submitLabel} qua Google`}
+                onClick={handleGoogleOAuth}
               >
                 <ProviderIcon provider="google" />
                 <span>{copy.submitLabel} qua Google</span>
@@ -429,9 +519,9 @@ function AuthPage({ mode }: AuthPageProps) {
               <button
                 className={`${styles.oauthButton} ${styles.githubButton}`}
                 type="button"
-                disabled
-                title="Sắp ra mắt"
-                aria-label={`${copy.submitLabel} qua GitHub — Sắp ra mắt`}
+                disabled={isSubmitting || restoringSession}
+                aria-label={`${copy.submitLabel} qua GitHub`}
+                onClick={handleGitHubOAuth}
               >
                 <ProviderIcon provider="github" />
                 <span>{copy.submitLabel} qua GitHub</span>

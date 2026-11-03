@@ -151,10 +151,15 @@ describe('Judge0Service', () => {
       stdin: String(index),
     }));
     const fetchFn = vi.fn().mockResolvedValue(
-      json(inputs.map((_input, index) => ({ token: `token-${index}` })), 201),
+      json(
+        inputs.map((_input, index) => ({ token: `token-${index}` })),
+        201,
+      ),
     );
 
-    await expect(build(fetchFn).createSubmissionBatch(inputs)).resolves.toHaveLength(8);
+    await expect(
+      build(fetchFn).createSubmissionBatch(inputs),
+    ).resolves.toHaveLength(8);
     await expect(
       build(vi.fn()).createSubmissionBatch([...inputs, inputs[0]]),
     ).rejects.toBeInstanceOf(Judge0InvalidResponseError);
@@ -335,6 +340,8 @@ describe('Judge0Service', () => {
       '/submissions/batch',
     );
     expect(results.timedOut).toBe(false);
+    expect(results.pollAttempts).toBe(1);
+    expect(results.pollElapsedMs).toBeGreaterThanOrEqual(0);
     expect(results.results.map((item) => item.token)).toEqual([
       'token-1',
       'token-2',
@@ -400,10 +407,14 @@ describe('Judge0Service', () => {
     vi.useFakeTimers();
     try {
       const pending = {
-        submissions: [{ token: 'token-1', status: { id: 2, description: 'Processing' } }],
+        submissions: [
+          { token: 'token-1', status: { id: 2, description: 'Processing' } },
+        ],
       };
       const finished = {
-        submissions: [{ token: 'token-1', status: { id: 3, description: 'Accepted' } }],
+        submissions: [
+          { token: 'token-1', status: { id: 3, description: 'Accepted' } },
+        ],
       };
       let responseNumber = 0;
       const fetchFn = vi
@@ -470,6 +481,8 @@ describe('Judge0Service', () => {
       const outcome = await waiting;
 
       expect(outcome.timedOut).toBe(false);
+      expect(outcome.pollAttempts).toBe(2);
+      expect(outcome.pollElapsedMs).toBeGreaterThanOrEqual(0);
       expect(outcome.results.map((item) => item.verdict)).toEqual([
         Judge0Verdict.Accepted,
         Judge0Verdict.WrongAnswer,

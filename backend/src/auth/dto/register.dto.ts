@@ -14,7 +14,7 @@ export class RegisterDto {
   @MaxLength(32, { message: 'Tên đăng nhập không được vượt quá 32 ký tự.' })
   @Matches(/^[a-zA-Z0-9._-]+$/, {
     message:
-      'Tên đăng nhập chỉ được gồm chữ cái không dấu, số, dấu chấm, gạch dưới và gạch ngang; không được chứa @.',
+      'Tên đăng nhập chỉ được gồm chữ cái không dấu, số, dấu chấm, gạch dưới và gạch ngang',
   })
   username!: string;
 

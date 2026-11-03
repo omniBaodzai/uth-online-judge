@@ -10,6 +10,8 @@ type RateLimitRow = {
   current_time: Date;
 };
 
+export type PasswordChallengePurpose = 'PASSWORD_RESET' | 'PASSWORD_SETUP';
+
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 const EMAIL_COOLDOWN_MS = 60 * 1000;
 const EMAIL_LIMIT = 5;
@@ -106,20 +108,41 @@ export class PasswordResetRepository {
     return result.rows[0] ?? null;
   }
 
+  async findPasswordSetupAccount(
+    userId: string,
+  ): Promise<{ id: string; email: string; auth_version: number } | null> {
+    const result = await this.pool.query<{
+      id: string;
+      email: string;
+      auth_version: number;
+    }>(
+      `SELECT id, email, auth_version
+       FROM public.users
+       WHERE id = $1
+         AND is_active = TRUE
+         AND password_hash IS NULL
+         AND (google_id IS NOT NULL OR github_id IS NOT NULL)
+       LIMIT 1`,
+      [userId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async storeOtp(
     userId: string,
     emailHash: string,
     authVersion: number,
     otpHash: string,
     expiresAt: Date,
-  ): Promise<void> {
-    await this.pool.query(
+    purpose: PasswordChallengePurpose = 'PASSWORD_RESET',
+  ): Promise<string> {
+    const result = await this.pool.query<{ id: string }>(
       `INSERT INTO public.password_reset_challenges
-         (user_id, email_hash, auth_version, otp_hash, expires_at)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (email_hash) DO UPDATE
+         (user_id, email_hash, auth_version, otp_hash, expires_at, purpose)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (purpose, email_hash) DO UPDATE
        SET user_id = EXCLUDED.user_id,
-       auth_version = EXCLUDED.auth_version,
+           auth_version = EXCLUDED.auth_version,
            otp_hash = EXCLUDED.otp_hash,
            expires_at = EXCLUDED.expires_at,
            attempts = 0,
@@ -127,8 +150,29 @@ export class PasswordResetRepository {
            reset_token_hash = NULL,
            reset_token_expires_at = NULL,
            consumed_at = NULL,
-           created_at = CURRENT_TIMESTAMP`,
-      [userId, emailHash, authVersion, otpHash, expiresAt],
+           created_at = CURRENT_TIMESTAMP
+       RETURNING id`,
+      [userId, emailHash, authVersion, otpHash, expiresAt, purpose],
+    );
+    const challenge = result.rows[0];
+    if (!challenge) throw new Error('Password challenge was not stored.');
+    return challenge.id;
+  }
+
+  async invalidateOtp(
+    challengeId: string,
+    userId: string,
+    purpose: PasswordChallengePurpose,
+  ): Promise<void> {
+    await this.pool.query(
+      `UPDATE public.password_reset_challenges
+       SET otp_hash = NULL,
+           reset_token_hash = NULL,
+           reset_token_expires_at = NULL,
+           consumed_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND user_id = $2 AND purpose = $3
+         AND consumed_at IS NULL`,
+      [challengeId, userId, purpose],
     );
   }
 
@@ -138,6 +182,9 @@ export class PasswordResetRepository {
     otpHash: string,
     resetTokenHash: string,
     resetTokenExpiresAt: Date,
+    purpose: PasswordChallengePurpose = 'PASSWORD_RESET',
+    userId?: string,
+    challengeId?: string,
   ): Promise<boolean> {
     const client = await this.pool.connect();
     try {
@@ -153,7 +200,18 @@ export class PasswordResetRepository {
          JOIN public.users account ON account.id = challenge.user_id
          WHERE challenge.email_hash = $1
            AND lower(account.email) = $2
+           AND challenge.purpose = $3
+           AND ($4::uuid IS NULL OR challenge.user_id = $4)
+           AND ($5::uuid IS NULL OR challenge.id = $5)
            AND account.is_active = TRUE
+           AND (
+             ($3 = 'PASSWORD_RESET' AND account.password_hash IS NOT NULL)
+             OR (
+               $3 = 'PASSWORD_SETUP'
+               AND account.password_hash IS NULL
+               AND (account.google_id IS NOT NULL OR account.github_id IS NOT NULL)
+             )
+           )
            AND challenge.auth_version = account.auth_version
            AND challenge.otp_hash IS NOT NULL
            AND challenge.consumed_at IS NULL
@@ -161,7 +219,7 @@ export class PasswordResetRepository {
            AND challenge.expires_at > CURRENT_TIMESTAMP
            AND challenge.attempts < 5
          FOR UPDATE OF challenge`,
-        [emailHash, email],
+        [emailHash, email, purpose, userId ?? null, challengeId ?? null],
       );
       const challenge = result.rows[0];
       if (!challenge) {
@@ -176,8 +234,8 @@ export class PasswordResetRepository {
            SET attempts = $2,
                otp_hash = CASE WHEN $2 >= 5 THEN NULL ELSE otp_hash END,
                consumed_at = CASE WHEN $2 >= 5 THEN CURRENT_TIMESTAMP ELSE consumed_at END
-           WHERE id = $1`,
-          [challenge.id, attempts],
+           WHERE id = $1 AND purpose = $3`,
+          [challenge.id, attempts, purpose],
         );
         await client.query('COMMIT');
         return false;
@@ -190,9 +248,10 @@ export class PasswordResetRepository {
              reset_token_hash = $2,
              reset_token_expires_at = $3
          WHERE id = $1
+           AND purpose = $4
            AND consumed_at IS NULL
            AND verified_at IS NULL`,
-        [challenge.id, resetTokenHash, resetTokenExpiresAt],
+        [challenge.id, resetTokenHash, resetTokenExpiresAt, purpose],
       );
       if (updated.rowCount !== 1) {
         await client.query('ROLLBACK');
@@ -217,9 +276,11 @@ export class PasswordResetRepository {
          FROM public.password_reset_challenges challenge
          JOIN public.users account ON account.id = challenge.user_id
          WHERE challenge.reset_token_hash = $1
+           AND challenge.purpose = 'PASSWORD_RESET'
            AND challenge.reset_token_expires_at > CURRENT_TIMESTAMP
            AND challenge.consumed_at IS NULL
            AND account.is_active = TRUE
+           AND account.password_hash IS NOT NULL
            AND challenge.auth_version = account.auth_version
          FOR UPDATE OF challenge, account`,
         [resetTokenHash],
@@ -247,7 +308,8 @@ export class PasswordResetRepository {
          SET reset_token_hash = NULL,
              reset_token_expires_at = NULL,
              consumed_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND reset_token_hash = $2 AND consumed_at IS NULL`,
+         WHERE id = $1 AND reset_token_hash = $2
+           AND purpose = 'PASSWORD_RESET' AND consumed_at IS NULL`,
         [challenge.id, resetTokenHash],
       );
       if (consumed.rowCount !== 1) {
@@ -262,6 +324,100 @@ export class PasswordResetRepository {
       );
       await client.query('COMMIT');
       return true;
+    } catch (error) {
+      await rollback(client);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async completePasswordSetup(
+    userId: string,
+    email: string,
+    emailHash: string,
+    setupTokenHash: string,
+    passwordHash: string,
+    currentRefreshTokenHash?: string,
+  ): Promise<number | null> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query<{
+        id: string;
+        user_id: string;
+        auth_version: number;
+      }>(
+        `SELECT challenge.id, challenge.user_id, account.auth_version
+         FROM public.password_reset_challenges challenge
+         JOIN public.users account ON account.id = challenge.user_id
+         WHERE challenge.reset_token_hash = $1
+           AND challenge.purpose = 'PASSWORD_SETUP'
+           AND challenge.user_id = $2
+           AND challenge.email_hash = $3
+           AND lower(account.email) = $4
+           AND challenge.auth_version = account.auth_version
+           AND challenge.reset_token_expires_at > CURRENT_TIMESTAMP
+           AND challenge.consumed_at IS NULL
+           AND challenge.verified_at IS NOT NULL
+           AND account.is_active = TRUE
+           AND account.password_hash IS NULL
+           AND (account.google_id IS NOT NULL OR account.github_id IS NOT NULL)
+         FOR UPDATE OF challenge, account`,
+        [setupTokenHash, userId, emailHash, email],
+      );
+      const challenge = result.rows[0];
+      if (!challenge) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      const updated = await client.query<{ auth_version: number }>(
+        `UPDATE public.users
+         SET password_hash = $2,
+             auth_version = auth_version + 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+           AND lower(email) = $3
+           AND auth_version = $4
+           AND is_active = TRUE
+           AND password_hash IS NULL
+         RETURNING auth_version`,
+        [userId, passwordHash, email, challenge.auth_version],
+      );
+      const account = updated.rows[0];
+      if (updated.rowCount !== 1 || !account) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      const consumed = await client.query(
+        `UPDATE public.password_reset_challenges
+         SET reset_token_hash = NULL,
+             reset_token_expires_at = NULL,
+             consumed_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+           AND user_id = $2
+           AND purpose = 'PASSWORD_SETUP'
+           AND reset_token_hash = $3
+           AND consumed_at IS NULL`,
+        [challenge.id, userId, setupTokenHash],
+      );
+      if (consumed.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      await client.query(
+        `UPDATE public.refresh_tokens
+         SET revoked_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1
+           AND revoked_at IS NULL
+           AND ($2::text IS NULL OR token_hash <> $2)`,
+        [userId, currentRefreshTokenHash ?? null],
+      );
+      await client.query('COMMIT');
+      return account.auth_version;
     } catch (error) {
       await rollback(client);
       throw error;

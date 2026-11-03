@@ -8,6 +8,8 @@ import { ChangePasswordDto } from './change-password.dto.js';
 import { ForgotPasswordDto } from './forgot-password.dto.js';
 import { VerifyResetOtpDto } from './verify-reset-otp.dto.js';
 import { ResetPasswordDto } from './reset-password.dto.js';
+import { VerifyPasswordSetupOtpDto } from './verify-password-setup-otp.dto.js';
+import { CompletePasswordSetupDto } from './complete-password-setup.dto.js';
 
 describe('authentication DTO validation', () => {
   it('validates password-reset email, OTP, and reset-token payloads', () => {
@@ -30,6 +32,28 @@ describe('authentication DTO validation', () => {
       resetToken: 'short',
       newPassword: 'short',
     })).length).toBeGreaterThan(0);
+  });
+
+  it('validates the setup transaction OTP and one-time setup token', () => {
+    const otp = plainToInstance(VerifyPasswordSetupOtpDto, {
+      transactionId: '00000000-0000-4000-8000-000000000001',
+      otp: '012345',
+    });
+    expect(validateSync(otp, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
+
+    const invalidOtp = plainToInstance(VerifyPasswordSetupOtpDto, {
+      transactionId: 'not-a-uuid',
+      otp: '12345x',
+      userId: 'attacker-chosen-id',
+    });
+    expect(validateSync(invalidOtp, { whitelist: true, forbidNonWhitelisted: true }).length)
+      .toBeGreaterThanOrEqual(2);
+
+    const complete = plainToInstance(CompletePasswordSetupDto, {
+      setupToken: 'a'.repeat(43),
+      newPassword: 'a-secure-password',
+    });
+    expect(validateSync(complete, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
   });
 
   it('accepts a valid email, username, and password', () => {

@@ -12,9 +12,12 @@ describe('PasswordResetService', () => {
   let repository: {
     consumeRequestRateLimit: ReturnType<typeof vi.fn>;
     findEligibleAccount: ReturnType<typeof vi.fn>;
+    findPasswordSetupAccount: ReturnType<typeof vi.fn>;
     storeOtp: ReturnType<typeof vi.fn>;
+    invalidateOtp: ReturnType<typeof vi.fn>;
     verifyOtp: ReturnType<typeof vi.fn>;
     consumeResetToken: ReturnType<typeof vi.fn>;
+    completePasswordSetup: ReturnType<typeof vi.fn>;
   };
   let email: { sendOtp: ReturnType<typeof vi.fn> };
   let service: PasswordResetService;
@@ -25,9 +28,12 @@ describe('PasswordResetService', () => {
     repository = {
       consumeRequestRateLimit: vi.fn().mockResolvedValue(null),
       findEligibleAccount: vi.fn().mockResolvedValue(null),
-      storeOtp: vi.fn().mockResolvedValue(undefined),
+      findPasswordSetupAccount: vi.fn().mockResolvedValue(null),
+      storeOtp: vi.fn().mockResolvedValue('transaction-id'),
+      invalidateOtp: vi.fn().mockResolvedValue(undefined),
       verifyOtp: vi.fn().mockResolvedValue(true),
       consumeResetToken: vi.fn().mockResolvedValue(true),
+      completePasswordSetup: vi.fn().mockResolvedValue(1),
     };
     email = { sendOtp: vi.fn().mockResolvedValue(undefined) };
     vi.mocked(bcrypt.hash).mockResolvedValue('new-password-hash');
@@ -62,6 +68,7 @@ describe('PasswordResetService', () => {
       account.auth_version,
       expect.stringMatching(/^[a-f0-9]{64}$/),
       expect.any(Date),
+      'PASSWORD_RESET',
     );
     expect(repository.storeOtp.mock.calls[0]?.[3]).not.toBe(otp);
     expect(response.retryAfterSeconds).toBe(60);
@@ -74,6 +81,134 @@ describe('PasswordResetService', () => {
     await expect(service.requestOtp(account.email, '192.0.2.3'))
       .resolves.toMatchObject({ retryAfterSeconds: 60 });
     expect(repository.storeOtp).not.toHaveBeenCalled();
+  });
+
+  it('creates a password-setup OTP only for the authenticated OAuth account email', async () => {
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+
+    const response = await service.requestPasswordSetupOtp('user-id', '192.0.2.5');
+
+    expect(repository.findPasswordSetupAccount).toHaveBeenCalledWith('user-id');
+    expect(repository.storeOtp).toHaveBeenCalledWith(
+      account.id,
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      account.auth_version,
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.any(Date),
+      'PASSWORD_SETUP',
+    );
+    const [recipient, otp, purpose] = email.sendOtp.mock.calls[0] as [
+      string,
+      string,
+      string,
+    ];
+    expect(recipient).toBe(account.email);
+    expect(otp).toMatch(/^\d{6}$/);
+    expect(purpose).toBe('PASSWORD_SETUP');
+    expect(response).toMatchObject({
+      transactionId: 'transaction-id',
+      expiresInSeconds: 300,
+      retryAfterSeconds: 60,
+    });
+  });
+
+  it('invalidates a setup challenge if Resend fails', async () => {
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+    email.sendOtp.mockRejectedValue(new Error('provider unavailable'));
+
+    await expect(service.requestPasswordSetupOtp('user-id', '192.0.2.6'))
+      .rejects.toMatchObject({ status: HttpStatus.SERVICE_UNAVAILABLE });
+    expect(repository.invalidateOtp).toHaveBeenCalledWith(
+      'transaction-id',
+      'user-id',
+      'PASSWORD_SETUP',
+    );
+  });
+
+  it('binds setup OTP verification to user and transaction and hashes its one-time token', async () => {
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+
+    const result = await service.verifyPasswordSetupOtp(
+      'user-id',
+      'transaction-id',
+      '012345',
+    );
+
+    expect(result.setupToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(repository.verifyOtp).toHaveBeenCalledWith(
+      account.email,
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.any(Date),
+      'PASSWORD_SETUP',
+      'user-id',
+      'transaction-id',
+    );
+    expect(repository.verifyOtp.mock.calls[0]?.[2]).not.toBe('012345');
+    expect(repository.verifyOtp.mock.calls[0]?.[3]).not.toBe(result.setupToken);
+  });
+
+  it('uses distinct keyed OTP hashes for reset and setup purposes', async () => {
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+    await service.verifyOtp(account.email, '012345');
+    const resetHash = repository.verifyOtp.mock.calls[0]?.[2];
+    repository.verifyOtp.mockClear();
+
+    await service.verifyPasswordSetupOtp('user-id', 'transaction-id', '012345');
+    const setupHash = repository.verifyOtp.mock.calls[0]?.[2];
+
+    expect(resetHash).not.toBe(setupHash);
+  });
+
+  it('uses the same purpose-specific hash when storing and verifying each OTP', async () => {
+    let sentOtp = '';
+    email.sendOtp.mockImplementation(async (_recipient: string, otp: string) => {
+      sentOtp = otp;
+    });
+    repository.findEligibleAccount.mockResolvedValue(account);
+
+    await service.requestOtp(account.email, '192.0.2.8');
+    const resetStoredHash = repository.storeOtp.mock.calls[0]?.[3];
+    await service.verifyOtp(account.email, sentOtp);
+    expect(repository.verifyOtp.mock.calls[0]?.[2]).toBe(resetStoredHash);
+    expect(repository.verifyOtp.mock.calls[0]?.[5]).toBe('PASSWORD_RESET');
+
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+    repository.verifyOtp.mockClear();
+    await service.requestPasswordSetupOtp('user-id', '192.0.2.9');
+    const setupStoredHash = repository.storeOtp.mock.calls[1]?.[3];
+    await service.verifyPasswordSetupOtp('user-id', 'transaction-id', sentOtp);
+
+    expect(repository.verifyOtp.mock.calls[0]?.[2]).toBe(setupStoredHash);
+    expect(repository.verifyOtp.mock.calls[0]?.[5]).toBe('PASSWORD_SETUP');
+  });
+
+  it('hashes the password and asks the repository to atomically consume setup grant', async () => {
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+
+    await service.completePasswordSetup(
+      'user-id',
+      'a'.repeat(43),
+      'new-secure-password',
+      'current-refresh-hash',
+    );
+
+    expect(bcrypt.hash).toHaveBeenCalledWith('new-secure-password', 12);
+    expect(repository.completePasswordSetup).toHaveBeenCalledWith(
+      'user-id',
+      account.email,
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      'new-password-hash',
+      'current-refresh-hash',
+    );
+  });
+
+  it('rejects setup requests for accounts with no eligible OAuth-only state', async () => {
+    await expect(service.requestPasswordSetupOtp('user-id', '192.0.2.7'))
+      .rejects.toMatchObject({ status: HttpStatus.CONFLICT });
+    expect(email.sendOtp).not.toHaveBeenCalled();
   });
 
   it('rejects rate-limited requests before looking up an account', async () => {
@@ -98,6 +233,7 @@ describe('PasswordResetService', () => {
       expect.stringMatching(/^[a-f0-9]{64}$/),
       expect.stringMatching(/^[a-f0-9]{64}$/),
       expect.any(Date),
+      'PASSWORD_RESET',
     );
     expect(repository.verifyOtp.mock.calls[0]?.[2]).not.toBe('012345');
     expect(repository.verifyOtp.mock.calls[0]?.[3]).not.toBe(result.resetToken);

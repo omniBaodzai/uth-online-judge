@@ -176,7 +176,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
   }, [isOpen])
 
   function toggleDropdown() {
-    if (!isOpen && window.matchMedia('(max-width: 1160px)').matches) {
+    if (!isOpen && window.matchMedia('(max-width: 1200px)').matches) {
       const bounds = buttonRef.current?.getBoundingClientRect()
       const rootBounds = rootRef.current?.getBoundingClientRect()
       if (bounds && rootBounds) {

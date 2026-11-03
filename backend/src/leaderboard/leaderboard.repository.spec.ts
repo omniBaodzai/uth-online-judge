@@ -25,6 +25,7 @@ describe('LeaderboardRepository', () => {
         user_id: 'u1', username: null, display_name: 'Member', avatar_url: null,
         solved_count: 2, cumulative_points: 17, performance_percentile: '0.25',
         comparable_problems: 3, achievement_at: new Date('2026-01-01T00:00:00Z'),
+        created_at: '2026-01-01T00:00:00.123456Z',
       }],
     });
     const rows = await new LeaderboardRepository({ query } as never).findCandidates();
@@ -32,6 +33,10 @@ describe('LeaderboardRepository', () => {
       userId: 'u1', username: null, displayName: 'Member', avatarUrl: null,
       solvedCount: 2, cumulativePoints: 17, performancePercentile: 0.25,
       comparableProblems: 3, achievementAt: '2026-01-01T00:00:00.000Z',
+      createdAt: '2026-01-01T00:00:00.123456Z',
     });
+    expect(String(query.mock.calls[0][0])).toMatch(
+      /to_char\(\s*u\.created_at AT TIME ZONE 'UTC',\s*'YYYY-MM-DD"T"HH24:MI:SS\.US"Z"'\s*\) AS created_at/s,
+    );
   });
 });

@@ -211,7 +211,12 @@ export class Judge0Service {
     tokens: string[],
     timeoutMs: number,
     onCompleted?: (results: Judge0SubmissionResult[]) => Promise<void>,
-  ): Promise<{ results: Judge0SubmissionResult[]; timedOut: boolean }> {
+  ): Promise<{
+    results: Judge0SubmissionResult[];
+    timedOut: boolean;
+    pollElapsedMs: number;
+    pollAttempts: number;
+  }> {
     if (
       tokens.length === 0 ||
       tokens.length > MAX_JUDGE0_BATCH_SIZE ||
@@ -233,6 +238,7 @@ export class Judge0Service {
     const startedAt = performance.now();
     let requestMs = 0;
     let attempts = 0;
+    let callbackElapsedMs = 0;
     const completed = new Set<string>();
     const latest = new Map<string, Judge0SubmissionResult>();
 
@@ -261,16 +267,25 @@ export class Judge0Service {
           newlyCompleted.push(result);
         }
       }
-      if (newlyCompleted.length > 0 && onCompleted)
+      if (newlyCompleted.length > 0 && onCompleted) {
+        const callbackStartedAt = performance.now();
         await onCompleted(newlyCompleted);
+        callbackElapsedMs += elapsedMs(callbackStartedAt);
+      }
 
       if (completed.size === tokens.length) {
+        const pollElapsedMs = Math.max(
+          0,
+          elapsedMs(startedAt) - callbackElapsedMs,
+        );
         this.logger.log(
-          `Judge0 batch poll finished count=${tokens.length} polls=${attempts} pollElapsedMs=${elapsedMs(startedAt)} httpMs=${requestMs} judge0LifetimeMs=${sumMetric(tokens.map((token) => latest.get(token)?.submissionDurationMs ?? null))} executionMs=${sumMetric(tokens.map((token) => toMsNumber(latest.get(token)?.timeSeconds ?? null)))} wallMs=${sumMetric(tokens.map((token) => toMsNumber(latest.get(token)?.wallTimeSeconds ?? null)))}`,
+          `Judge0 batch poll finished count=${tokens.length} polls=${attempts} pollElapsedMs=${pollElapsedMs} callbackElapsedMs=${callbackElapsedMs} httpMs=${requestMs} judge0LifetimeMs=${sumMetric(tokens.map((token) => latest.get(token)?.submissionDurationMs ?? null))} executionMs=${sumMetric(tokens.map((token) => toMsNumber(latest.get(token)?.timeSeconds ?? null)))} wallMs=${sumMetric(tokens.map((token) => toMsNumber(latest.get(token)?.wallTimeSeconds ?? null)))}`,
         );
         return {
           results: tokens.map((token) => latest.get(token)!),
           timedOut: false,
+          pollElapsedMs,
+          pollAttempts: attempts,
         };
       }
 
@@ -285,12 +300,15 @@ export class Judge0Service {
     }
 
     const timedOut = completed.size !== tokens.length;
+    const pollElapsedMs = Math.max(0, elapsedMs(startedAt) - callbackElapsedMs);
     this.logger.warn(
-      `Judge0 batch poll ${timedOut ? 'deadline reached' : 'finished'} count=${tokens.length} completed=${completed.size} polls=${attempts} pollElapsedMs=${elapsedMs(startedAt)} httpMs=${requestMs}`,
+      `Judge0 batch poll ${timedOut ? 'deadline reached' : 'finished'} count=${tokens.length} completed=${completed.size} polls=${attempts} pollElapsedMs=${pollElapsedMs} callbackElapsedMs=${callbackElapsedMs} httpMs=${requestMs}`,
     );
     return {
       results: tokens.map((token) => latest.get(token)).filter(isDefined),
       timedOut,
+      pollElapsedMs,
+      pollAttempts: attempts,
     };
   }
 }

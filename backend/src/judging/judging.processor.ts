@@ -45,6 +45,9 @@ export class JudgingProcessor extends WorkerHost {
 
     const { submissionId } = job.data;
     const workerStartedAt = performance.now();
+    const queueWaitMs = Number.isFinite(job.timestamp)
+      ? Math.max(0, Date.now() - job.timestamp)
+      : 'unknown';
     const claimStartedAt = performance.now();
     const claimed = await this.repository.claim(
       submissionId,
@@ -63,18 +66,19 @@ export class JudgingProcessor extends WorkerHost {
     }
 
     try {
-      const queueWaitMs = Number.isFinite(job.timestamp)
-        ? Math.max(0, Date.now() - job.timestamp)
-        : 'unknown';
       this.logger.log(
         `Judging started submission=${submissionId} queueWaitMs=${queueWaitMs} attempt=${job.attemptsMade + 1}`,
       );
       const batchSize = getJudgingBatchSize();
+      const initialPreparationStartedAt = performance.now();
       const initialContext = await this.repository.loadContext(
         submissionId,
         batchSize,
         null,
         job.data.activeBatch?.testCaseIds,
+      );
+      this.logger.log(
+        `Judging test data prepared submission=${submissionId} testCases=${initialContext?.testCases.length ?? 0} prepareElapsedMs=${Math.round(performance.now() - initialPreparationStartedAt)} page=1`,
       );
       if (!initialContext || !initialContext.hasSnapshots) {
         await this.repository.persistFinalResult(submissionId, true);
@@ -99,13 +103,18 @@ export class JudgingProcessor extends WorkerHost {
       }
 
       let judgedTestCaseCount = 0;
+      let judgedBatchCount = 0;
       while (true) {
         if (!activeBatch && pendingTestCases.length === 0) {
           if (!needsPageLoad) break;
+          const preparationStartedAt = performance.now();
           const nextContext = await this.repository.loadContext(
             submissionId,
             batchSize,
             cursorPosition,
+          );
+          this.logger.log(
+            `Judging test data prepared submission=${submissionId} testCases=${nextContext?.testCases.length ?? 0} prepareElapsedMs=${Math.round(performance.now() - preparationStartedAt)} afterPosition=${cursorPosition ?? 'none'}`,
           );
           if (!nextContext) {
             throw new Error(
@@ -129,6 +138,9 @@ export class JudgingProcessor extends WorkerHost {
 
         let batch: JudgingContext['testCases'];
         let tokens: string[];
+        const batchStartedAt = performance.now();
+        let submitElapsedMs = 0;
+        const reusedJudge0Batch = Boolean(activeBatch);
         if (activeBatch) {
           const resumedBatch = activeBatch;
           if (
@@ -179,6 +191,7 @@ export class JudgingProcessor extends WorkerHost {
           activeBatch = undefined;
         } else {
           batch = pendingTestCases.slice(0, batchSize);
+          const submitStartedAt = performance.now();
           tokens = await this.judge0.createSubmissionBatch(
             batch.map((testCase) => ({
               languageId: judgingContext.judge0LanguageId,
@@ -189,6 +202,7 @@ export class JudgingProcessor extends WorkerHost {
               memoryLimitKb: testCase.memoryLimitKb,
             })),
           );
+          submitElapsedMs = Math.round(performance.now() - submitStartedAt);
           if (
             tokens.length !== batch.length ||
             new Set(tokens).size !== tokens.length
@@ -204,6 +218,7 @@ export class JudgingProcessor extends WorkerHost {
           });
         }
         const activeTestCases = batch.filter(isDefined);
+        const batchIndex = ++judgedBatchCount;
         const tokenToTestCase = new Map(
           tokens.map((token, index) => [token, activeTestCases[index]]),
         );
@@ -215,6 +230,7 @@ export class JudgingProcessor extends WorkerHost {
             ),
           ) + 30_000,
         );
+        let persistElapsedMs = 0;
         const outcome = await this.judge0.waitForResults(
           tokens,
           timeoutMs,
@@ -232,7 +248,14 @@ export class JudgingProcessor extends WorkerHost {
                 }
                 return mapPersistedResult(testCase, result);
               });
-            await this.repository.persistTestResults(submissionId, persisted);
+            const persistStartedAt = performance.now();
+            try {
+              await this.repository.persistTestResults(submissionId, persisted);
+            } finally {
+              persistElapsedMs += Math.round(
+                performance.now() - persistStartedAt,
+              );
+            }
             if (
               results.some(
                 (result) => result.verdict === Judge0Verdict.InternalError,
@@ -265,6 +288,9 @@ export class JudgingProcessor extends WorkerHost {
           },
         );
 
+        this.logger.log(
+          `Judging batch timings submission=${submissionId} batchIndex=${batchIndex} testCount=${activeTestCases.length} submitElapsedMs=${submitElapsedMs} pollElapsedMs=${outcome.pollElapsedMs} pollAttempts=${outcome.pollAttempts} persistElapsedMs=${persistElapsedMs} batchTotalElapsedMs=${Math.round(performance.now() - batchStartedAt)} attempt=${job.attemptsMade + 1} reusedJudge0Batch=${reusedJudge0Batch} timedOut=${outcome.timedOut}`,
+        );
         if (outcome.timedOut) {
           throw new Judge0SubmissionTimeoutError(
             `Judge0 submission did not finish before the batch deadline (${outcome.results.length}/${batch.length} completed).`,

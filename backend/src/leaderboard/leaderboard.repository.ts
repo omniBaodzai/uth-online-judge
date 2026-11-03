@@ -13,6 +13,7 @@ interface LeaderboardRow {
   performance_percentile: number | string | null;
   comparable_problems: number;
   achievement_at: Date | string | null;
+  created_at: string;
 }
 
 @Injectable()
@@ -163,7 +164,11 @@ export class LeaderboardRepository {
              COALESCE(progress.cumulative_points, 0)::int AS cumulative_points,
              performance.performance_percentile,
              COALESCE(performance.comparable_problems, 0)::int AS comparable_problems,
-             GREATEST(solved.achievement_at, progress.achievement_at) AS achievement_at
+             GREATEST(solved.achievement_at, progress.achievement_at) AS achievement_at,
+             to_char(
+               u.created_at AT TIME ZONE 'UTC',
+               'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+             ) AS created_at
       FROM public.users u
       LEFT JOIN solve_stats solved ON solved.user_id = u.id
       LEFT JOIN cumulative_progress progress ON progress.user_id = u.id
@@ -185,6 +190,7 @@ export class LeaderboardRepository {
       achievementAt: row.achievement_at instanceof Date
         ? row.achievement_at.toISOString()
         : row.achievement_at,
+      createdAt: row.created_at,
     }));
   }
 }

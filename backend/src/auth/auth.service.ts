@@ -11,6 +11,7 @@ import { AuthSessionRepository } from './auth-session.repository.js';
 import { AvatarStorageService } from './avatar-storage.service.js';
 import { CoverStorageService } from './cover-storage.service.js';
 import { RegisterDto } from './dto/register.dto.js';
+import type { VerifiedGitHubIdentity } from './github-oauth.service.js';
 import {
   UsersService,
   type AuthenticatedUser,
@@ -18,12 +19,15 @@ import {
   type PublicUser,
   type UserRecord,
 } from '../users/users.service.js';
+import type { VerifiedGoogleIdentity } from './google-oauth.service.js';
 
 const BCRYPT_COST = 12;
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const DUMMY_PASSWORD_HASH = '$2b$12$donv/cj6TyYj20d2wA2yT.PWwKPymRVkCAbrbtr8VQk7S0i3E0pUu';
-const INVALID_CREDENTIALS = 'Tên đăng nhập/email hoặc mật khẩu không chính xác.';
+const DUMMY_PASSWORD_HASH =
+  '$2b$12$donv/cj6TyYj20d2wA2yT.PWwKPymRVkCAbrbtr8VQk7S0i3E0pUu';
+const INVALID_CREDENTIALS =
+  'Tên đăng nhập/email hoặc mật khẩu không chính xác.';
 
 export type AuthResult = {
   user: PublicUser;
@@ -56,7 +60,9 @@ export class AuthService {
       user = await this.users.create({ username, email, passwordHash });
     } catch (error) {
       if (isUniqueViolation(error)) {
-        throw new ConflictException('Tên đăng nhập hoặc email đã được sử dụng.');
+        throw new ConflictException(
+          'Tên đăng nhập hoặc email đã được sử dụng.',
+        );
       }
       throw error;
     }
@@ -70,7 +76,10 @@ export class AuthService {
 
     const normalizedIdentifier = identifier.trim().toLowerCase();
     const user = await this.users.findByIdentifier(normalizedIdentifier);
-    const matches = await bcrypt.compare(password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
+    const matches = await bcrypt.compare(
+      password,
+      user?.password_hash ?? DUMMY_PASSWORD_HASH,
+    );
 
     if (!user || !user.is_active || !user.password_hash || !matches) {
       throw new UnauthorizedException(INVALID_CREDENTIALS);
@@ -79,9 +88,111 @@ export class AuthService {
     return this.createSession(user);
   }
 
+  async loginWithGoogle(identity: VerifiedGoogleIdentity): Promise<AuthResult> {
+    const googleId = identity.googleId.trim();
+    const email = identity.email.trim().toLowerCase();
+    if (!googleId || !email || identity.emailVerified !== true) {
+      throw new UnauthorizedException('Không thể xác minh tài khoản Google.');
+    }
+
+    const linkedUser = await this.users.findByGoogleId(googleId);
+    if (linkedUser) return this.createSessionForActiveUser(linkedUser);
+
+    const emailUser = await this.users.findByEmail(email);
+    if (emailUser) {
+      throw new ConflictException(
+        'Email Google này đã có tài khoản. Vui lòng đăng nhập bằng phương thức hiện tại.',
+      );
+    }
+
+    const usernameBase = googleUsernameBase(email);
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const suffix = attempt === 0 ? '' : `-${attempt}`;
+      const username = `${usernameBase.slice(0, 32 - suffix.length)}${suffix}`;
+      try {
+        const user = await this.users.createGoogleAccount({
+          username,
+          email,
+          googleId,
+          fullName: identity.fullName?.trim().slice(0, 100) || null,
+        });
+        return this.createSessionForActiveUser(user);
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+
+        const racedGoogleUser = await this.users.findByGoogleId(googleId);
+        if (racedGoogleUser)
+          return this.createSessionForActiveUser(racedGoogleUser);
+
+        const racedEmailUser = await this.users.findByEmail(email);
+        if (racedEmailUser) {
+          throw new ConflictException(
+            'Email Google này đã có tài khoản. Vui lòng đăng nhập bằng phương thức hiện tại.',
+          );
+        }
+      }
+    }
+
+    throw new ConflictException(
+      'Không thể tạo tên đăng nhập cho tài khoản Google này.',
+    );
+  }
+
+  async loginWithGitHub(identity: VerifiedGitHubIdentity): Promise<AuthResult> {
+    const githubId = identity.githubId.trim();
+    const email = identity.email.trim().toLowerCase();
+    if (!/^\d+$/.test(githubId) || !email || identity.emailVerified !== true) {
+      throw new UnauthorizedException('Không thể xác minh tài khoản GitHub.');
+    }
+
+    const linkedUser = await this.users.findByGitHubId(githubId);
+    if (linkedUser) return this.createSessionForActiveUser(linkedUser);
+
+    const emailUser = await this.users.findByEmail(email);
+    if (emailUser) {
+      throw new ConflictException(
+        'Email GitHub này đã có tài khoản. Vui lòng đăng nhập bằng phương thức hiện tại.',
+      );
+    }
+
+    const usernameBase = githubUsernameBase(email);
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const suffix = attempt === 0 ? '' : `-${attempt}`;
+      const username = `${usernameBase.slice(0, 32 - suffix.length)}${suffix}`;
+      try {
+        const user = await this.users.createGitHubAccount({
+          username,
+          email,
+          githubId,
+          fullName: identity.fullName?.trim().slice(0, 100) || null,
+        });
+        return this.createSessionForActiveUser(user);
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+
+        const racedGitHubUser = await this.users.findByGitHubId(githubId);
+        if (racedGitHubUser)
+          return this.createSessionForActiveUser(racedGitHubUser);
+
+        const racedEmailUser = await this.users.findByEmail(email);
+        if (racedEmailUser) {
+          throw new ConflictException(
+            'Email GitHub này đã có tài khoản. Vui lòng đăng nhập bằng phương thức hiện tại.',
+          );
+        }
+      }
+    }
+
+    throw new ConflictException(
+      'Không thể tạo tên đăng nhập cho tài khoản GitHub này.',
+    );
+  }
+
   async refresh(refreshToken: string | undefined): Promise<AuthResult> {
     if (!refreshToken) {
-      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
     }
 
     const nextRefreshToken = createRefreshToken();
@@ -92,13 +203,17 @@ export class AuthService {
     );
 
     if (!userId) {
-      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
     }
 
     const user = await this.users.findById(userId);
     if (!user || !user.is_active) {
       await this.sessions.revoke(hashRefreshToken(nextRefreshToken));
-      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
     }
 
     return this.createSessionResult(user, nextRefreshToken);
@@ -120,7 +235,9 @@ export class AuthService {
       Buffer.byteLength(currentPassword, 'utf8') > 72 ||
       Buffer.byteLength(newPassword, 'utf8') > 72
     ) {
-      throw new BadRequestException('Mật khẩu không được vượt quá giới hạn 72 byte.');
+      throw new BadRequestException(
+        'Mật khẩu không được vượt quá giới hạn 72 byte.',
+      );
     }
 
     const credential = await this.users.findPasswordCredential(userId);
@@ -132,11 +249,13 @@ export class AuthService {
         'Tài khoản chưa thiết lập mật khẩu. Vui lòng sử dụng quy trình đặt lại mật khẩu.',
       );
     }
-    if (!await bcrypt.compare(currentPassword, credential.password_hash)) {
+    if (!(await bcrypt.compare(currentPassword, credential.password_hash))) {
       throw new BadRequestException('Mật khẩu hiện tại không chính xác.');
     }
     if (await bcrypt.compare(newPassword, credential.password_hash)) {
-      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại.');
+      throw new BadRequestException(
+        'Mật khẩu mới phải khác mật khẩu hiện tại.',
+      );
     }
 
     const nextPasswordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
@@ -146,13 +265,43 @@ export class AuthService {
       nextPasswordHash,
     );
     if (!updated) {
-      throw new ConflictException('Thông tin mật khẩu đã thay đổi. Vui lòng thử lại.');
+      throw new ConflictException(
+        'Thông tin mật khẩu đã thay đổi. Vui lòng thử lại.',
+      );
     }
 
     await this.sessions.revokeAllExcept(
       userId,
       currentRefreshToken ? hashRefreshToken(currentRefreshToken) : undefined,
     );
+  }
+
+  async getPasswordStatus(userId: string): Promise<{ hasPassword: boolean }> {
+    const credential = await this.users.findPasswordCredential(userId);
+    if (!credential || !credential.is_active) {
+      throw new UnauthorizedException('Tài khoản không còn hoạt động.');
+    }
+    return { hasPassword: credential.password_hash !== null };
+  }
+
+  async issueAccessToken(
+    userId: string,
+  ): Promise<{ accessToken: string; expiresIn: number }> {
+    const user = await this.users.findById(userId);
+    if (!user || !user.is_active) {
+      throw new UnauthorizedException('Tài khoản không còn hoạt động.');
+    }
+
+    return {
+      accessToken: await this.jwt.signAsync(
+        { sub: user.id, ver: user.auth_version },
+        {
+          secret: process.env.JWT_ACCESS_SECRET,
+          expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+        },
+      ),
+      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+    };
   }
 
   async getProfile(userId: string): Promise<PublicUser> {
@@ -174,10 +323,17 @@ export class AuthService {
       organization?: string | null;
     },
   ): Promise<PublicUser> {
-    if (input.fullName === undefined && input.avatarUrl === undefined &&
-        input.coverImageUrl === undefined && input.coverCrop === undefined &&
-        input.bio === undefined && input.organization === undefined) {
-      throw new BadRequestException('Hãy nhập ít nhất một thông tin cần cập nhật.');
+    if (
+      input.fullName === undefined &&
+      input.avatarUrl === undefined &&
+      input.coverImageUrl === undefined &&
+      input.coverCrop === undefined &&
+      input.bio === undefined &&
+      input.organization === undefined
+    ) {
+      throw new BadRequestException(
+        'Hãy nhập ít nhất một thông tin cần cập nhật.',
+      );
     }
 
     const previous = await this.users.findById(userId);
@@ -203,7 +359,10 @@ export class AuthService {
     validateCoverCrop(crop);
     const coverImageUrl = await this.covers.save(file);
     try {
-      return await this.updateProfile(userId, { coverImageUrl, coverCrop: crop });
+      return await this.updateProfile(userId, {
+        coverImageUrl,
+        coverCrop: crop,
+      });
     } catch (error) {
       await this.covers.remove(coverImageUrl);
       throw error;
@@ -231,7 +390,9 @@ export class AuthService {
     }
   }
 
-  private async createSession(user: UserRecord | AuthenticatedUser): Promise<AuthResult> {
+  private async createSession(
+    user: UserRecord | AuthenticatedUser,
+  ): Promise<AuthResult> {
     const refreshToken = createRefreshToken();
     await this.sessions.create(
       user.id,
@@ -241,13 +402,27 @@ export class AuthService {
     return this.createSessionResult(user, refreshToken);
   }
 
+  private async createSessionForActiveUser(
+    user: AuthenticatedUser,
+  ): Promise<AuthResult> {
+    if (!user.is_active) {
+      throw new UnauthorizedException(
+        'Tài khoản UTH này hiện không hoạt động.',
+      );
+    }
+    return this.createSession(user);
+  }
+
   private async createSessionResult(
     user: UserRecord | AuthenticatedUser,
     refreshToken: string,
   ): Promise<AuthResult> {
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, ver: user.auth_version },
-      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: ACCESS_TOKEN_TTL_SECONDS },
+      {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+      },
     );
 
     return {
@@ -265,6 +440,32 @@ export function hashRefreshToken(token: string): string {
 
 function createRefreshToken(): string {
   return randomBytes(32).toString('base64url');
+}
+
+function googleUsernameBase(email: string): string {
+  const localPart = email.split('@')[0] ?? '';
+  const normalized = localPart
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/^[._-]+|[._-]+$/g, '')
+    .slice(0, 32);
+  if (normalized.length >= 3) return normalized;
+  return normalized ? `${normalized}user` : 'googleuser';
+}
+
+function githubUsernameBase(email: string): string {
+  const localPart = email.split('@')[0] ?? '';
+  const normalized = localPart
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/^[._-]+|[._-]+$/g, '')
+    .slice(0, 32);
+  if (normalized.length >= 3) return normalized;
+  return normalized ? `${normalized}user` : 'githubuser';
 }
 
 function toPublicUser(user: UserRecord | AuthenticatedUser): PublicUser {
@@ -295,11 +496,24 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function validateCoverCrop(crop: CoverCropMetadata): void {
-  const values = [crop.x, crop.y, crop.width, crop.height, crop.sourceWidth, crop.sourceHeight, crop.aspect];
+  const values = [
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    crop.sourceWidth,
+    crop.sourceHeight,
+    crop.aspect,
+  ];
   if (
     values.some((value) => !Number.isFinite(value)) ||
-    crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0 ||
-    crop.sourceWidth <= 0 || crop.sourceHeight <= 0 || crop.aspect <= 0 ||
+    crop.x < 0 ||
+    crop.y < 0 ||
+    crop.width <= 0 ||
+    crop.height <= 0 ||
+    crop.sourceWidth <= 0 ||
+    crop.sourceHeight <= 0 ||
+    crop.aspect <= 0 ||
     crop.x + crop.width > crop.sourceWidth + 1 ||
     crop.y + crop.height > crop.sourceHeight + 1 ||
     Math.abs(crop.width / crop.height - crop.aspect) > 0.02

@@ -1,13 +1,17 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   Patch,
+  Query,
   Req,
   Res,
+  UnauthorizedException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -26,7 +30,11 @@ import {
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type {} from 'multer';
-import { AuthService, type AuthResult } from './auth.service.js';
+import {
+  AuthService,
+  hashRefreshToken,
+  type AuthResult,
+} from './auth.service.js';
 import { AVATAR_MAX_BYTES } from './avatar-storage.service.js';
 import { COVER_MAX_BYTES } from './cover-storage.service.js';
 import { CoverUploadDto } from './dto/cover-upload.dto.js';
@@ -37,28 +45,59 @@ import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { VerifyPasswordSetupOtpDto } from './dto/verify-password-setup-otp.dto.js';
+import { CompletePasswordSetupDto } from './dto/complete-password-setup.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { PasswordResetService } from './password-reset.service.js';
+import {
+  GoogleOAuthFlowError,
+  GoogleOAuthService,
+} from './google-oauth.service.js';
+import {
+  GitHubOAuthFlowError,
+  GitHubOAuthService,
+} from './github-oauth.service.js';
+import {
+  GOOGLE_OAUTH_STATE_COOKIE_PATH,
+  googleOAuthStateCookieName,
+  type GoogleOAuthMode,
+} from './google-oauth-state.store.js';
+import {
+  GITHUB_OAUTH_STATE_COOKIE_PATH,
+  githubOAuthStateCookieName,
+  type GitHubOAuthMode,
+} from './github-oauth-state.store.js';
 
 export const REFRESH_COOKIE_NAME = 'uth_refresh_token';
 export const REMEMBER_LOGIN_COOKIE_NAME = 'uth_remember_login';
 export const REFRESH_COOKIE_PATH = '/auth';
 export const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-type AuthenticatedRequest = Request & { user: { id: string; role: 'STUDENT' | 'ADMIN' } };
+type AuthenticatedRequest = Request & {
+  user: { id: string; role: 'STUDENT' | 'ADMIN' };
+};
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly passwordReset: PasswordResetService,
+    private readonly googleOAuth: GoogleOAuthService,
+    private readonly githubOAuth: GitHubOAuthService,
   ) {}
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Gửi mã OTP đặt lại mật khẩu nếu email thuộc tài khoản phù hợp' })
-  async forgotPassword(@Body() input: ForgotPasswordDto, @Req() request: Request) {
+  @ApiOperation({
+    summary: 'Gửi mã OTP đặt lại mật khẩu nếu email thuộc tài khoản phù hợp',
+  })
+  async forgotPassword(
+    @Body() input: ForgotPasswordDto,
+    @Req() request: Request,
+  ) {
     const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
     return this.passwordReset.requestOtp(input.email, ipAddress);
   }
@@ -108,17 +147,175 @@ export class AuthController {
     return toClientResult(result);
   }
 
+  @Get('google')
+  @ApiOperation({
+    summary:
+      'Bắt đầu đăng nhập hoặc đăng ký Google bằng Authorization Code Flow',
+  })
+  async startGoogleOAuth(
+    @Query('mode') modeValue: string | undefined,
+    @Query('rememberLogin') rememberLoginValue: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const mode: GoogleOAuthMode =
+      modeValue === 'register' ? 'register' : 'login';
+    if (modeValue && modeValue !== 'login' && modeValue !== 'register') {
+      response.redirect(frontendRedirect('/login', 'oauth_failed'));
+      return;
+    }
+
+    try {
+      const authorization = await this.googleOAuth.start(
+        mode,
+        mode === 'register' || rememberLoginValue !== 'false',
+      );
+      response.cookie(authorization.cookieName, authorization.cookieValue, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: GOOGLE_OAUTH_STATE_COOKIE_PATH,
+        maxAge: 5 * 60 * 1000,
+      });
+      response.redirect(authorization.url);
+    } catch {
+      this.logger.warn('Google OAuth initiation failed.');
+      response.redirect(frontendRedirect(`/${mode}`, 'provider_unavailable'));
+    }
+  }
+
+  @Get('google/callback')
+  @ApiOperation({
+    summary: 'Xác minh callback Google và tạo phiên đăng nhập hiện tại',
+  })
+  async completeGoogleOAuth(
+    @Req() request: Request,
+    @Res() response: Response,
+  ): Promise<void> {
+    const callbackUrl = new URL(request.originalUrl, 'http://localhost');
+    const stateValues = callbackUrl.searchParams.getAll('state');
+    const state = stateValues.length === 1 ? stateValues[0] : undefined;
+    const stateCookieName = state
+      ? googleOAuthStateCookieName(state)
+      : undefined;
+    const stateCookieValue = stateCookieName
+      ? readCookie(request, stateCookieName)
+      : undefined;
+
+    if (stateCookieName) clearGoogleOAuthStateCookie(response, stateCookieName);
+
+    try {
+      const completed = await this.googleOAuth.complete(
+        request.originalUrl,
+        stateCookieValue,
+      );
+      const result = await this.auth.loginWithGoogle(completed.identity);
+      setRefreshCookie(response, result.refreshToken, completed.rememberLogin);
+      response.redirect(frontendRedirect('/'));
+    } catch (error) {
+      this.logger.warn('Google OAuth callback was rejected.');
+      const mode =
+        error instanceof GoogleOAuthFlowError && error.mode
+          ? error.mode
+          : 'login';
+      response.redirect(frontendRedirect(`/${mode}`, oauthFailureCode(error)));
+    }
+  }
+
+  @Get('github')
+  @ApiOperation({
+    summary:
+      'Bắt đầu đăng nhập hoặc đăng ký GitHub bằng Authorization Code Flow',
+  })
+  async startGitHubOAuth(
+    @Query('mode') modeValue: string | undefined,
+    @Query('rememberLogin') rememberLoginValue: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const mode: GitHubOAuthMode =
+      modeValue === 'register' ? 'register' : 'login';
+    if (modeValue && modeValue !== 'login' && modeValue !== 'register') {
+      response.redirect(frontendRedirect('/login', 'oauth_failed', 'github'));
+      return;
+    }
+
+    try {
+      const authorization = await this.githubOAuth.start(
+        mode,
+        mode === 'register' || rememberLoginValue !== 'false',
+      );
+      response.cookie(authorization.cookieName, authorization.cookieValue, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: GITHUB_OAUTH_STATE_COOKIE_PATH,
+        maxAge: 5 * 60 * 1000,
+      });
+      response.redirect(authorization.url);
+    } catch {
+      this.logger.warn('GitHub OAuth initiation failed.');
+      response.redirect(
+        frontendRedirect(`/${mode}`, 'provider_unavailable', 'github'),
+      );
+    }
+  }
+
+  @Get('github/callback')
+  @ApiOperation({
+    summary: 'Xác minh callback GitHub và tạo phiên đăng nhập hiện tại',
+  })
+  async completeGitHubOAuth(
+    @Req() request: Request,
+    @Res() response: Response,
+  ): Promise<void> {
+    const callbackUrl = new URL(request.originalUrl, 'http://localhost');
+    const stateValues = callbackUrl.searchParams.getAll('state');
+    const state = stateValues.length === 1 ? stateValues[0] : undefined;
+    const stateCookieName = state
+      ? githubOAuthStateCookieName(state)
+      : undefined;
+    const stateCookieValue = stateCookieName
+      ? readCookie(request, stateCookieName)
+      : undefined;
+
+    if (stateCookieName) clearGitHubOAuthStateCookie(response, stateCookieName);
+
+    try {
+      const completed = await this.githubOAuth.complete(
+        request.originalUrl,
+        stateCookieValue,
+      );
+      const result = await this.auth.loginWithGitHub(completed.identity);
+      setRefreshCookie(response, result.refreshToken, completed.rememberLogin);
+      response.redirect(frontendRedirect('/'));
+    } catch (error) {
+      this.logger.warn('GitHub OAuth callback was rejected.');
+      const mode =
+        error instanceof GitHubOAuthFlowError && error.mode
+          ? error.mode
+          : 'login';
+      response.redirect(
+        frontendRedirect(`/${mode}`, githubOAuthFailureCode(error), 'github'),
+      );
+    }
+  }
+
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cập nhật cookie làm mới (refresh cookie) và cấp mã truy cập (access token) mới' })
+  @ApiOperation({
+    summary:
+      'Cập nhật cookie làm mới (refresh cookie) và cấp mã truy cập (access token) mới',
+  })
   @ApiCookieAuth(REFRESH_COOKIE_NAME)
-  @ApiOkResponse({ description: 'Mã truy cập đã được làm mới; cookie làm mới đã được thay mới' })
+  @ApiOkResponse({
+    description: 'Mã truy cập đã được làm mới; cookie làm mới đã được thay mới',
+  })
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.auth.refresh(readRefreshCookie(request));
-    const rememberLogin = readCookie(request, REMEMBER_LOGIN_COOKIE_NAME) !== '0';
+    const rememberLogin =
+      readCookie(request, REMEMBER_LOGIN_COOKIE_NAME) !== '0';
     setRefreshCookie(response, result.refreshToken, rememberLogin);
     return toClientResult(result);
   }
@@ -163,7 +360,10 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiCookieAuth(REFRESH_COOKIE_NAME)
   @ApiOperation({ summary: 'Đổi mật khẩu của người dùng hiện tại' })
-  @ApiBadRequestResponse({ description: 'Thông tin mật khẩu không hợp lệ hoặc mật khẩu hiện tại không đúng' })
+  @ApiBadRequestResponse({
+    description:
+      'Thông tin mật khẩu không hợp lệ hoặc mật khẩu hiện tại không đúng',
+  })
   async changePassword(
     @Req() request: AuthenticatedRequest,
     @Body() input: ChangePasswordDto,
@@ -176,14 +376,79 @@ export class AuthController {
     );
   }
 
+  @Get('me/password-status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Kiểm tra tài khoản hiện tại đã có mật khẩu hay chưa' })
+  async getPasswordStatus(@Req() request: AuthenticatedRequest) {
+    return this.auth.getPasswordStatus(request.user.id);
+  }
+
+  @Post('me/password-setup/otp')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Gửi OTP xác minh email để thiết lập mật khẩu' })
+  async requestPasswordSetupOtp(@Req() request: AuthenticatedRequest) {
+    const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+    return this.passwordReset.requestPasswordSetupOtp(
+      request.user.id,
+      ipAddress,
+    );
+  }
+
+  @Post('me/password-setup/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Xác minh OTP cho giao dịch thiết lập mật khẩu' })
+  async verifyPasswordSetupOtp(
+    @Req() request: AuthenticatedRequest,
+    @Body() input: VerifyPasswordSetupOtpDto,
+  ) {
+    return this.passwordReset.verifyPasswordSetupOtp(
+      request.user.id,
+      input.transactionId,
+      input.otp,
+    );
+  }
+
+  @Post('me/password-setup/complete')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiCookieAuth(REFRESH_COOKIE_NAME)
+  @ApiOperation({ summary: 'Lưu mật khẩu sau khi xác minh email' })
+  async completePasswordSetup(
+    @Req() request: AuthenticatedRequest,
+    @Body() input: CompletePasswordSetupDto,
+  ) {
+    const refreshToken = readRefreshCookie(request);
+    await this.passwordReset.completePasswordSetup(
+      request.user.id,
+      input.setupToken,
+      input.newPassword,
+      refreshToken ? hashRefreshToken(refreshToken) : undefined,
+    );
+    return this.auth.issueAccessToken(request.user.id);
+  }
+
   @Post('me/avatar')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('avatar', { limits: { fileSize: AVATAR_MAX_BYTES, files: 1 } }))
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: { fileSize: AVATAR_MAX_BYTES, files: 1 },
+    }),
+  )
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Tải ảnh đại diện (PNG, JPEG, WebP, GIF, tối đa 2 MB)' })
-  @ApiOkResponse({ description: 'Thông tin người dùng sau khi cập nhật ảnh đại diện' })
+  @ApiOperation({
+    summary: 'Tải ảnh đại diện (PNG, JPEG, WebP, GIF, tối đa 2 MB)',
+  })
+  @ApiOkResponse({
+    description: 'Thông tin người dùng sau khi cập nhật ảnh đại diện',
+  })
   async uploadAvatar(
     @Req() request: AuthenticatedRequest,
     @UploadedFile() file: Express.Multer.File | undefined,
@@ -195,11 +460,20 @@ export class AuthController {
   @Post('me/cover')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('cover', { limits: { fileSize: COVER_MAX_BYTES, files: 1 } }))
+  @UseInterceptors(
+    FileInterceptor('cover', {
+      limits: { fileSize: COVER_MAX_BYTES, files: 1 },
+    }),
+  )
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Tải ảnh bìa đã cắt cho hồ sơ hiện tại (PNG, JPEG, WebP hoặc GIF, tối đa 5 MB)' })
-  @ApiOkResponse({ description: 'Thông tin người dùng sau khi cập nhật ảnh bìa' })
+  @ApiOperation({
+    summary:
+      'Tải ảnh bìa đã cắt cho hồ sơ hiện tại (PNG, JPEG, WebP hoặc GIF, tối đa 5 MB)',
+  })
+  @ApiOkResponse({
+    description: 'Thông tin người dùng sau khi cập nhật ảnh bìa',
+  })
   async uploadCover(
     @Req() request: AuthenticatedRequest,
     @UploadedFile() file: Express.Multer.File | undefined,
@@ -232,7 +506,100 @@ function readCookie(request: Request, cookieName: string): string | undefined {
   return undefined;
 }
 
-function setRefreshCookie(response: Response, token: string, rememberLogin: boolean): void {
+function clearGoogleOAuthStateCookie(
+  response: Response,
+  cookieName: string,
+): void {
+  response.clearCookie(cookieName, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: GOOGLE_OAUTH_STATE_COOKIE_PATH,
+  });
+}
+
+function clearGitHubOAuthStateCookie(
+  response: Response,
+  cookieName: string,
+): void {
+  response.clearCookie(cookieName, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: GITHUB_OAUTH_STATE_COOKIE_PATH,
+  });
+}
+
+function frontendRedirect(
+  path: string,
+  errorCode?: string,
+  oauthProvider?: 'github',
+): string {
+  const configuredUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const baseUrl = new URL(configuredUrl);
+  if (
+    !['http:', 'https:'].includes(baseUrl.protocol) ||
+    baseUrl.username ||
+    baseUrl.password ||
+    baseUrl.pathname !== '/' ||
+    baseUrl.search ||
+    baseUrl.hash
+  ) {
+    throw new Error('FRONTEND_URL must be an HTTP(S) origin.');
+  }
+
+  const destination = new URL(path, baseUrl);
+  if (errorCode) destination.searchParams.set('oauthError', errorCode);
+  if (oauthProvider)
+    destination.searchParams.set('oauthProvider', oauthProvider);
+  return destination.href;
+}
+
+function oauthFailureCode(error: unknown): string {
+  if (error instanceof GoogleOAuthFlowError) {
+    switch (error.code) {
+      case 'invalid_state':
+        return 'state_invalid';
+      case 'provider_cancelled':
+        return 'provider_cancelled';
+      case 'email_unverified':
+        return 'email_unverified';
+      case 'invalid_callback':
+      case 'invalid_identity':
+        return 'oauth_failed';
+    }
+  }
+  if (error instanceof ConflictException) return 'account_exists';
+  if (error instanceof UnauthorizedException) return 'account_disabled';
+  return 'oauth_failed';
+}
+
+function githubOAuthFailureCode(error: unknown): string {
+  if (error instanceof GitHubOAuthFlowError) {
+    switch (error.code) {
+      case 'invalid_state':
+        return 'state_invalid';
+      case 'provider_cancelled':
+        return 'provider_cancelled';
+      case 'email_unverified':
+        return 'email_unverified';
+      case 'provider_unavailable':
+        return 'provider_unavailable';
+      case 'invalid_callback':
+      case 'invalid_identity':
+        return 'oauth_failed';
+    }
+  }
+  if (error instanceof ConflictException) return 'account_exists';
+  if (error instanceof UnauthorizedException) return 'account_disabled';
+  return 'oauth_failed';
+}
+
+function setRefreshCookie(
+  response: Response,
+  token: string,
+  rememberLogin: boolean,
+): void {
   response.cookie(REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

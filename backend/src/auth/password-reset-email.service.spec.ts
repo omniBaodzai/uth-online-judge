@@ -42,6 +42,22 @@ describe('PasswordResetEmailService', () => {
     expect(passwordResetEmailHtml('012345')).not.toContain('test-resend-key');
   });
 
+  it('uses a distinct message for the password setup purpose', async () => {
+    await new PasswordResetEmailService().sendOtp(
+      'oauth@example.com',
+      '987654',
+      'PASSWORD_SETUP',
+    );
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      subject: string;
+      html: string;
+    };
+    expect(requestBody.subject).toContain('thiết lập mật khẩu');
+    expect(requestBody.html).toContain('Xác minh thiết lập mật khẩu');
+    expect(requestBody.html).toContain('đăng nhập bằng email');
+  });
+
   it('surfaces provider and configuration errors without returning provider response content', async () => {
     fetchMock.mockResolvedValue(new Response('secret response body', { status: 500 }));
     await expect(new PasswordResetEmailService().sendOtp('user@example.com', '012345'))

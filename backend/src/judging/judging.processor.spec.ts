@@ -3,6 +3,7 @@ import {
   Judge0Verdict,
   type Judge0SubmissionResult,
 } from '../judge0/judge0.types.js';
+import { Logger } from '@nestjs/common';
 import {
   JUDGE_SUBMISSION_JOB,
   type JudgeSubmissionJobData,
@@ -143,7 +144,7 @@ describe('JudgingProcessor', () => {
       ) => {
         const results = tokens.map((token) => result(token));
         if (onCompleted) await onCompleted(results);
-        return { results, timedOut: false };
+        return { results, timedOut: false, pollElapsedMs: 10, pollAttempts: 1 };
       },
     );
   });
@@ -195,6 +196,28 @@ describe('JudgingProcessor', () => {
     );
   });
 
+  it('logs per-batch timings correlated to the submission without Judge0 tokens', async () => {
+    const log = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined);
+    try {
+      await processor.process(job());
+
+      expect(log).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /Judging batch timings submission=a246b1f2-c8bb-4b43-b2e1-b50dc6001e11 batchIndex=1 testCount=2 submitElapsedMs=\d+ pollElapsedMs=10 pollAttempts=1 persistElapsedMs=\d+ batchTotalElapsedMs=\d+ attempt=1 reusedJudge0Batch=false timedOut=false/,
+        ),
+      );
+      expect(
+        log.mock.calls.some(([message]) =>
+          /judge-token-\d/.test(String(message)),
+        ),
+      ).toBe(false);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it('converts Judge0 CPU seconds to milliseconds and retains memory in KB', async () => {
     judge0.waitForResults.mockImplementationOnce(
       async (
@@ -211,7 +234,7 @@ describe('JudgingProcessor', () => {
           { ...result(tokens[1]), timeSeconds: null, memoryKb: null },
         ];
         if (onCompleted) await onCompleted(results);
-        return { results, timedOut: false };
+        return { results, timedOut: false, pollElapsedMs: 10, pollAttempts: 1 };
       },
     );
 
@@ -296,7 +319,12 @@ describe('JudgingProcessor', () => {
         ) => {
           const results = [result(tokens[0], verdict, null), result(tokens[1])];
           if (onCompleted) await onCompleted(results);
-          return { results, timedOut: false };
+          return {
+            results,
+            timedOut: false,
+            pollElapsedMs: 10,
+            pollAttempts: 1,
+          };
         },
       );
 
@@ -321,7 +349,7 @@ describe('JudgingProcessor', () => {
           result(tokens[1]),
         ];
         if (onCompleted) await onCompleted(results);
-        return { results, timedOut: false };
+        return { results, timedOut: false, pollElapsedMs: 10, pollAttempts: 1 };
       },
     );
 
@@ -370,7 +398,7 @@ describe('JudgingProcessor', () => {
       ) => {
         const results = [result(tokens[0])];
         if (onCompleted) await onCompleted(results);
-        return { results, timedOut: false };
+        return { results, timedOut: false, pollElapsedMs: 10, pollAttempts: 1 };
       },
     );
     await processor.process(job(1));
@@ -494,7 +522,7 @@ describe('JudgingProcessor', () => {
           ),
         );
         if (onCompleted) await onCompleted(results);
-        return { results, timedOut: false };
+        return { results, timedOut: false, pollElapsedMs: 10, pollAttempts: 1 };
       },
     );
 
@@ -517,7 +545,12 @@ describe('JudgingProcessor', () => {
       ) => {
         const completed = [result(tokens[0])];
         if (onCompleted) await onCompleted(completed);
-        return { results: completed, timedOut: true };
+        return {
+          results: completed,
+          timedOut: true,
+          pollElapsedMs: 10,
+          pollAttempts: 1,
+        };
       },
     );
 

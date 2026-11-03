@@ -47,3 +47,31 @@ Thumbs.db
 # Root npm files are currently unused
 /package.json
 /package-lock.json
+
+# Database backups and exports
+*.dump
+*.backup
+*.bak
+*.sql.gz
+*.sql.zip
+/backups/
+
+# Local testing and temporary directories
+/.venv/
+/email-test/
+/google-auth-test/
+/frontend-temp/
+/backend-generated/
+
+# Local Judge0 runtime (only if it is a separate local installation)
+/judge0/
+
+# Temporary and local test files
+/test.sql
+/test-judge0-windows.js
+
+# Local diagrams and drafts (optional)
+/*.drawio
+
+# Markdown documentation - keep local only
+*.md

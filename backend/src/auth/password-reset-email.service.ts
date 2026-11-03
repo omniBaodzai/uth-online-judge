@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import type { PasswordChallengePurpose } from './password-reset.repository.js';
 
 @Injectable()
 export class PasswordResetEmailService {
-  async sendOtp(email: string, otp: string): Promise<void> {
+  async sendOtp(
+    email: string,
+    otp: string,
+    purpose: PasswordChallengePurpose = 'PASSWORD_RESET',
+  ): Promise<void> {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       throw new Error('RESEND_API_KEY is not configured');
@@ -17,8 +22,11 @@ export class PasswordResetEmailService {
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'UTH Online Judge <onboarding@resend.dev>',
         to: [email],
-        subject: 'UTH Online Judge - Mã xác nhận đặt lại mật khẩu',
-        html: passwordResetEmailHtml(otp),
+        subject:
+          purpose === 'PASSWORD_SETUP'
+            ? 'UTH Online Judge - Mã xác nhận thiết lập mật khẩu'
+            : 'UTH Online Judge - Mã xác nhận đặt lại mật khẩu',
+        html: passwordResetEmailHtml(otp, purpose),
       }),
       signal: AbortSignal.timeout(10_000),
     });
@@ -29,7 +37,24 @@ export class PasswordResetEmailService {
   }
 }
 
-export function passwordResetEmailHtml(otp: string): string {
+export function passwordResetEmailHtml(
+  otp: string,
+  purpose: PasswordChallengePurpose = 'PASSWORD_RESET',
+): string {
+  const isSetup = purpose === 'PASSWORD_SETUP';
+  const heading = isSetup
+    ? 'Xác minh thiết lập mật khẩu'
+    : 'Xác nhận đặt lại mật khẩu';
+  const explanation = isSetup
+    ? 'Chúng tôi đã nhận được yêu cầu thiết lập mật khẩu đăng nhập bằng email cho tài khoản UTH Online Judge của bạn.'
+    : 'Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản UTH Online Judge của bạn.';
+  const destination = isSetup
+    ? 'Nhập mã này vào cửa sổ thiết lập mật khẩu để tiếp tục.'
+    : 'Nhập mã này vào trang Quên mật khẩu để tiếp tục.';
+  const warning = isSetup
+    ? 'Nếu bạn không yêu cầu thiết lập mật khẩu, hãy bỏ qua email này. Phương thức đăng nhập hiện tại của bạn sẽ không thay đổi.'
+    : 'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Mật khẩu hiện tại của bạn sẽ không thay đổi.';
+
   return `
 <!DOCTYPE html>
 <html lang="vi">
@@ -45,9 +70,9 @@ export function passwordResetEmailHtml(otp: string): string {
         <h2 style="color:#008b8c;margin:0 0 8px;">UTH Online Judge</h2>
         <p style="font-size:12px;color:#789092;margin:0;">HỆ THỐNG LUYỆN TẬP LẬP TRÌNH</p>
         <hr style="border:0;border-top:1px solid #e5eeee;margin:28px 0;">
-        <h2 style="font-size:23px;margin:0 0 14px;">Xác nhận đặt lại mật khẩu</h2>
+        <h2 style="font-size:23px;margin:0 0 14px;">${heading}</h2>
         <p style="font-size:14px;line-height:1.7;color:#526b70;">
-          Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản UTH Online Judge của bạn.
+          ${explanation}
         </p>
         <table role="presentation" cellpadding="0" cellspacing="0"
           style="width:100%;margin:26px 0;background:#eff9f8;border:1px solid #d0ebe8;border-radius:10px;">
@@ -60,10 +85,10 @@ export function passwordResetEmailHtml(otp: string): string {
           </tr>
         </table>
         <p style="font-size:14px;line-height:1.7;color:#526b70;">
-          Nhập mã này vào trang Quên mật khẩu để tiếp tục. Không chia sẻ mã với bất kỳ ai.
+          ${destination} Không chia sẻ mã với bất kỳ ai.
         </p>
         <p style="font-size:12px;line-height:1.7;background:#f6f9f9;padding:14px;border-radius:8px;color:#6d8083;">
-          Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Mật khẩu hiện tại của bạn sẽ không thay đổi.
+          ${warning}
         </p>
         <hr style="border:0;border-top:1px solid #e5eeee;margin:26px 0;">
         <p style="font-size:12px;color:#91a1a3;">© 2026 UTH Online Judge</p>

@@ -8,32 +8,27 @@ export interface LeaderboardCandidate {
   performancePercentile: number | null;
   comparableProblems: number;
   achievementAt: string | null;
+  createdAt: string;
 }
 
-export type RankedLeaderboardCandidate = LeaderboardCandidate & { rank: number };
+export type RankedLeaderboardCandidate = Omit<LeaderboardCandidate, 'createdAt'> & { rank: number };
 
 function compareCandidates(
   left: LeaderboardCandidate,
   right: LeaderboardCandidate,
 ): number {
-  const solvedDifference = right.solvedCount - left.solvedCount;
-  if (solvedDifference !== 0) return solvedDifference;
-
   const pointsDifference = right.cumulativePoints - left.cumulativePoints;
   if (pointsDifference !== 0) return pointsDifference;
 
-  const leftPerformance = left.performancePercentile ?? 0.5;
-  const rightPerformance = right.performancePercentile ?? 0.5;
-  if (leftPerformance !== rightPerformance) return leftPerformance - rightPerformance;
+  const solvedDifference = right.solvedCount - left.solvedCount;
+  if (solvedDifference !== 0) return solvedDifference;
 
-  if (left.achievementAt && right.achievementAt) {
-    const timeDifference = Date.parse(left.achievementAt) - Date.parse(right.achievementAt);
-    if (Number.isFinite(timeDifference) && timeDifference !== 0) return timeDifference;
-  } else if (left.achievementAt || right.achievementAt) {
-    return left.achievementAt ? -1 : 1;
+  if (left.createdAt !== right.createdAt) {
+    return left.createdAt < right.createdAt ? -1 : 1;
   }
 
-  return left.userId.localeCompare(right.userId);
+  if (left.userId === right.userId) return 0;
+  return left.userId < right.userId ? -1 : 1;
 }
 
 export function rankLeaderboardCandidates(
@@ -41,5 +36,8 @@ export function rankLeaderboardCandidates(
 ): RankedLeaderboardCandidate[] {
   return [...candidates]
     .sort(compareCandidates)
-    .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
+    .map(({ createdAt: _createdAt, ...candidate }, index) => ({
+      ...candidate,
+      rank: index + 1,
+    }));
 }

@@ -56,7 +56,7 @@ function SiteHeader() {
 
   function handlePasswordChanged() {
     setChangePasswordOpen(false)
-    showToast('Đổi mật khẩu thành công.')
+    showToast('Mật khẩu đã được cập nhật.')
     window.requestAnimationFrame(() => accountButtonRef.current?.focus())
   }
 
@@ -159,7 +159,12 @@ function SiteHeader() {
                       source={resolveAvatarUrl(user.avatar_url)}
                       username={user.username ?? user.email}
                     />
-                    <span className={styles.userGreeting}>Xin chào, {user.username ?? user.email}</span>
+                    <span className={styles.userGreeting}>
+                      <span className={styles.greetingLabel}>Xin chào,</span>
+                      <span className={styles.username} title={user.username ?? user.email}>
+                        {user.username ?? user.email}
+                      </span>
+                    </span>
                     <span className={styles.accountChevron} aria-hidden="true">⌄</span>
                   </button>
                   {accountMenuOpen && (

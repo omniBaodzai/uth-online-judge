@@ -7,6 +7,7 @@ import {
   resetPassword,
   verifyPasswordResetOtp,
 } from '../api'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import styles from './AuthPage.module.css'
 import pageStyles from './ForgotPasswordPage.module.css'
 
@@ -18,14 +19,22 @@ function PasswordInput({
   value,
   disabled,
   onChange,
+  showStrength = false,
 }: {
   id: string
   label: string
   value: string
   disabled: boolean
   onChange: (value: string) => void
+  showStrength?: boolean
 }) {
   const [visible, setVisible] = useState(false)
+  const [meterVisible, setMeterVisible] = useState(false)
+  const [inputFocused, setInputFocused] = useState(false)
+  const strengthId = `${id}-strength`
+  const shouldShowMeter = showStrength
+    && meterVisible
+    && (inputFocused || value.length > 0)
 
   return (
     <div className={styles.field}>
@@ -49,7 +58,17 @@ function PasswordInput({
           placeholder={label}
           value={value}
           disabled={disabled}
+          aria-describedby={shouldShowMeter ? strengthId : undefined}
           onChange={(event) => onChange(event.target.value)}
+          onFocus={(event) => {
+            onChange(event.currentTarget.value)
+            setInputFocused(true)
+            if (showStrength) setMeterVisible(true)
+          }}
+          onBlur={(event) => {
+            setInputFocused(false)
+            if (showStrength && !event.currentTarget.value) setMeterVisible(false)
+          }}
         />
         <button
           className={styles.passwordToggle}
@@ -71,6 +90,7 @@ function PasswordInput({
           )}
         </button>
       </div>
+      {shouldShowMeter ? <PasswordStrengthMeter id={strengthId} password={value} /> : null}
     </div>
   )
 }
@@ -83,6 +103,7 @@ function ForgotPasswordPage() {
   const [resetToken, setResetToken] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordResetSucceeded, setPasswordResetSucceeded] = useState(false)
   const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -158,6 +179,7 @@ function ForgotPasswordPage() {
     setNotice('')
     try {
       await resetPassword(resetToken, newPassword)
+      setPasswordResetSucceeded(true)
       setResetToken(null)
       setCode(Array(CODE_LENGTH).fill(''))
       setNewPassword('')
@@ -324,6 +346,7 @@ function ForgotPasswordPage() {
                 value={newPassword}
                 disabled={step !== 3 || busy}
                 onChange={setNewPassword}
+                showStrength={step === 3 && !passwordResetSucceeded}
               />
               <PasswordInput
                 id="confirm-password"

@@ -11,6 +11,17 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { PasswordResetEmailService } from './password-reset-email.service.js';
 import { PasswordResetRepository } from './password-reset.repository.js';
 import { PasswordResetService } from './password-reset.service.js';
+import { GoogleOAuthService } from './google-oauth.service.js';
+import { GitHubOAuthService } from './github-oauth.service.js';
+import { redisProducerClient } from '../queues/redis-clients.js';
+import {
+  GOOGLE_OAUTH_REDIS,
+  GoogleOAuthStateStore,
+} from './google-oauth-state.store.js';
+import {
+  GITHUB_OAUTH_REDIS,
+  GitHubOAuthStateStore,
+} from './github-oauth-state.store.js';
 
 @Module({
   imports: [
@@ -20,7 +31,9 @@ import { PasswordResetService } from './password-reset.service.js';
       useFactory: () => {
         const secret = process.env.JWT_ACCESS_SECRET;
         if (!secret || Buffer.byteLength(secret) < 32) {
-          throw new Error('JWT_ACCESS_SECRET must be configured with at least 32 bytes');
+          throw new Error(
+            'JWT_ACCESS_SECRET must be configured with at least 32 bytes',
+          );
         }
         return { secret, signOptions: { expiresIn: 900 } };
       },
@@ -36,6 +49,12 @@ import { PasswordResetService } from './password-reset.service.js';
     PasswordResetEmailService,
     PasswordResetRepository,
     PasswordResetService,
+    GoogleOAuthService,
+    GoogleOAuthStateStore,
+    GitHubOAuthService,
+    GitHubOAuthStateStore,
+    { provide: GOOGLE_OAUTH_REDIS, useValue: redisProducerClient },
+    { provide: GITHUB_OAUTH_REDIS, useValue: redisProducerClient },
   ],
   exports: [AuthService, AvatarStorageService, CoverStorageService],
 })

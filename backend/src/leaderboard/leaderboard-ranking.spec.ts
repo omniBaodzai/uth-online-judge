@@ -12,42 +12,59 @@ function candidate(userId: string, patch: Partial<LeaderboardCandidate> = {}): L
     performancePercentile: null,
     comparableProblems: 0,
     achievementAt: null,
+    createdAt: '2026-01-01T00:00:00.000000Z',
     ...patch,
   };
 }
 
 describe('leaderboard ranking', () => {
-  it('orders by unique accepted problems before cumulative points', () => {
+  it('orders by cumulative points before accepted problems', () => {
     const ranked = rankLeaderboardCandidates([
       candidate('more-points', { solvedCount: 1, cumulativePoints: 100 }),
       candidate('more-solves', { solvedCount: 2, cumulativePoints: 1 }),
     ]);
-    expect(ranked.map(({ userId }) => userId)).toEqual(['more-solves', 'more-points']);
+    expect(ranked.map(({ userId }) => userId)).toEqual(['more-points', 'more-solves']);
   });
 
-  it('uses normalized comparable performance only after solved count and points', () => {
+  it('orders equal points and accepted counts by account creation time, including zero scores', () => {
     const ranked = rankLeaderboardCandidates([
-      candidate('slower', { solvedCount: 3, cumulativePoints: 20, performancePercentile: 0.8 }),
-      candidate('faster', { solvedCount: 3, cumulativePoints: 20, performancePercentile: 0.2 }),
-      candidate('more-points', { solvedCount: 3, cumulativePoints: 21, performancePercentile: 1 }),
+      candidate('newest', { createdAt: '2026-01-03T00:00:00.000000Z' }),
+      candidate('oldest', { createdAt: '2026-01-01T00:00:00.000000Z' }),
+      candidate('middle', { createdAt: '2026-01-02T00:00:00.000000Z' }),
     ]);
-    expect(ranked.map(({ userId }) => userId)).toEqual(['more-points', 'faster', 'slower']);
-  });
-
-  it('treats missing comparable performance as neutral and prefers the earlier achievement', () => {
-    const ranked = rankLeaderboardCandidates([
-      candidate('unknown', { solvedCount: 1, cumulativePoints: 10, achievementAt: '2026-01-03T00:00:00Z' }),
-      candidate('known-average', { solvedCount: 1, cumulativePoints: 10, performancePercentile: 0.5, achievementAt: '2026-01-02T00:00:00Z' }),
-      candidate('known-fast', { solvedCount: 1, cumulativePoints: 10, performancePercentile: 0.1, achievementAt: '2026-01-04T00:00:00Z' }),
+    expect(ranked.map(({ userId, rank }) => [userId, rank])).toEqual([
+      ['oldest', 1],
+      ['middle', 2],
+      ['newest', 3],
     ]);
-    expect(ranked.map(({ userId }) => userId)).toEqual(['known-fast', 'known-average', 'unknown']);
   });
 
-  it('uses user ID for a stable order when achievements and metrics tie', () => {
-    const achievementAt = '2026-01-01T00:00:00Z';
+  it('preserves timestamp ordering below JavaScript Date millisecond precision', () => {
     const ranked = rankLeaderboardCandidates([
-      candidate('b', { solvedCount: 1, cumulativePoints: 4, achievementAt }),
-      candidate('a', { solvedCount: 1, cumulativePoints: 4, achievementAt }),
+      candidate('later-microsecond', { createdAt: '2026-01-01T00:00:00.000002Z' }),
+      candidate('earlier-microsecond', { createdAt: '2026-01-01T00:00:00.000001Z' }),
+    ]);
+
+    expect(ranked.map(({ userId }) => userId)).toEqual([
+      'earlier-microsecond',
+      'later-microsecond',
+    ]);
+  });
+
+  it('uses the user ID when creation timestamps match and ignores performance and achievement ties', () => {
+    const ranked = rankLeaderboardCandidates([
+      candidate('b', {
+        cumulativePoints: 10,
+        solvedCount: 1,
+        performancePercentile: 0,
+        achievementAt: '2026-01-01T00:00:00Z',
+      }),
+      candidate('a', {
+        cumulativePoints: 10,
+        solvedCount: 1,
+        performancePercentile: 1,
+        achievementAt: '2026-01-03T00:00:00Z',
+      }),
     ]);
     expect(ranked.map(({ userId }) => userId)).toEqual(['a', 'b']);
   });
@@ -55,5 +72,6 @@ describe('leaderboard ranking', () => {
   it('assigns deterministic ranks to users with no accepted submissions', () => {
     const ranked = rankLeaderboardCandidates([candidate('b'), candidate('a')]);
     expect(ranked.map(({ userId, rank }) => [userId, rank])).toEqual([['a', 1], ['b', 2]]);
+    expect(ranked[0]).not.toHaveProperty('createdAt');
   });
 });
