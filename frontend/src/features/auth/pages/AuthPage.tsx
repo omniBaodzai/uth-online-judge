@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import uthLogo from '../../../assets/uth_logo.png'
 import { ApiError, startGitHubOAuth, startGoogleOAuth } from '../api'
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
@@ -13,29 +14,6 @@ type FieldIconName = 'user' | 'mail' | 'lock'
 type AuthPageProps = {
   mode: AuthMode
 }
-
-const authCopy = {
-  register: {
-    title: 'ĐĂNG KÝ TÀI KHOẢN',
-    submitLabel: 'Đăng ký',
-    switchPrompt: 'Bạn đã có tài khoản?',
-    switchLabel: 'Đăng nhập ngay',
-    switchHref: '/login',
-  },
-  login: {
-    title: 'ĐĂNG NHẬP HỆ THỐNG',
-    submitLabel: 'Đăng nhập',
-    switchPrompt: 'Bạn chưa có tài khoản?',
-    switchLabel: 'Đăng ký ngay',
-    switchHref: '/register',
-  },
-} satisfies Record<AuthMode, {
-  title: string
-  submitLabel: string
-  switchPrompt: string
-  switchLabel: string
-  switchHref: string
-}>
 
 function FieldIcon({ name }: { name: FieldIconName }) {
   if (name === 'user') {
@@ -135,7 +113,7 @@ function FormField({
           pattern={pattern}
           required={required}
           defaultValue={defaultValue}
-          placeholder={floatingLabel ? ' ' : placeholder ?? `Nhập ${label.toLocaleLowerCase('vi')}`}
+          placeholder={floatingLabel ? ' ' : placeholder ?? label}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
         />
@@ -162,7 +140,8 @@ function PasswordField({
   const [visible, setVisible] = useState(false)
   const [password, setPassword] = useState('')
   const [meterVisible, setMeterVisible] = useState(false)
-  const label = 'Mật khẩu'
+  const { t } = useTranslation('auth')
+  const label = t('password')
   const strengthId = 'registration-password-strength'
 
   return (
@@ -183,7 +162,7 @@ function PasswordField({
           minLength={mode === 'register' ? 8 : undefined}
           maxLength={72}
           required
-          placeholder={floatingLabel ? ' ' : 'Nhập mật khẩu'}
+          placeholder={floatingLabel ? ' ' : t('enterPassword')}
           aria-invalid={Boolean(error)}
           aria-describedby={[
             error ? 'password-error' : null,
@@ -208,7 +187,7 @@ function PasswordField({
         <button
           className={styles.passwordToggle}
           type="button"
-          aria-label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+          aria-label={visible ? t('hidePassword') : t('showPassword')}
           aria-pressed={visible}
           onClick={() => setVisible((isVisible) => !isVisible)}
         >
@@ -254,23 +233,22 @@ function readRememberPreference(): boolean {
   }
 }
 
-function oauthErrorMessage(code: string, provider: 'google' | 'github'): string {
-  const providerName = provider === 'github' ? 'GitHub' : 'Google'
+function oauthErrorKey(code: string): string {
   switch (code) {
     case 'provider_cancelled':
-      return `Bạn đã hủy đăng nhập ${providerName}. Bạn có thể thử lại bất cứ lúc nào.`
+      return 'oauthCancelled'
     case 'account_exists':
-      return `Email ${providerName} này đã có tài khoản. Vui lòng đăng nhập bằng phương thức hiện tại.`
+      return 'oauthAccountExists'
     case 'account_disabled':
-      return 'Tài khoản UTH này hiện không hoạt động. Vui lòng liên hệ quản trị viên.'
+      return 'oauthAccountDisabled'
     case 'email_unverified':
-      return `${providerName} chưa cung cấp email đã xác minh. Hãy xác minh email trên ${providerName} rồi thử lại.`
+      return 'oauthEmailUnverified'
     case 'state_invalid':
-      return `Phiên xác thực ${providerName} không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.`
+      return 'oauthStateInvalid'
     case 'provider_unavailable':
-      return `Đăng nhập ${providerName} hiện chưa sẵn sàng. Vui lòng thử lại sau.`
+      return 'oauthUnavailable'
     default:
-      return `Không thể xác thực với ${providerName}. Vui lòng thử lại.`
+      return 'oauthFailed'
   }
 }
 
@@ -306,7 +284,14 @@ async function storeBrowserCredential(identifier: string, password: string) {
 }
 
 function AuthPage({ mode }: AuthPageProps) {
-  const copy = authCopy[mode]
+  const { t } = useTranslation('auth')
+  const copy = {
+    title: t(mode === 'register' ? 'registerTitle' : 'loginTitle'),
+    submitLabel: t(mode === 'register' ? 'submitRegister' : 'submitLogin'),
+    switchPrompt: t(mode === 'register' ? 'switchToLoginPrompt' : 'switchToRegisterPrompt'),
+    switchLabel: t(mode === 'register' ? 'switchToLogin' : 'switchToRegister'),
+    switchHref: mode === 'register' ? '/login' : '/register',
+  }
   const navigate = useNavigate()
   const { pathname, search } = useLocation()
   const initialOAuthParams = new URLSearchParams(search)
@@ -323,9 +308,11 @@ function AuthPage({ mode }: AuthPageProps) {
   } = useAuth()
   const [savedIdentifier] = useState(readSavedIdentifier)
   const [rememberMe, setRememberMe] = useState(readRememberPreference)
-  const [notice, setNotice] = useState(() =>
-    initialOAuthError ? oauthErrorMessage(initialOAuthError, initialOAuthProvider) : '',
-  )
+  const [notice, setNotice] = useState(() => initialOAuthError
+    ? t(oauthErrorKey(initialOAuthError), {
+      provider: initialOAuthProvider === 'github' ? 'GitHub' : 'Google',
+    })
+    : '')
   const [noticeType, setNoticeType] = useState<'error' | 'success' | ''>(() =>
     initialOAuthError ? 'error' : '',
   )
@@ -370,14 +357,14 @@ function AuthPage({ mode }: AuthPageProps) {
     try {
       if (mode === 'register') {
         await register(username, email, password)
-        setNotice('Đăng ký thành công! Đang chuyển về trang chủ…')
+        setNotice(t('registerSuccess'))
         setNoticeType('success')
       } else {
         await login(username, password, rememberMe)
         saveRememberPreference(rememberMe, username)
         if (rememberMe) await storeBrowserCredential(username, password)
         else void navigator.credentials?.preventSilentAccess?.()
-        setNotice('Đăng nhập thành công! Đang chuyển tiếp…')
+        setNotice(t('loginSuccess'))
         setNoticeType('success')
       }
 
@@ -387,15 +374,15 @@ function AuthPage({ mode }: AuthPageProps) {
       }, 650)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        setFieldErrors({ password: 'Tên đăng nhập/email hoặc mật khẩu không chính xác.' })
+        setFieldErrors({ password: t('invalidCredentials') })
       } else if (error instanceof ApiError && error.status === 409) {
-        setNotice('Tên đăng nhập hoặc email đã được sử dụng. Vui lòng thử thông tin khác.')
+        setNotice(t('accountAlreadyExists'))
         setNoticeType('error')
       } else if (error instanceof ApiError && error.status === 400) {
         setNotice(error.message)
         setNoticeType('error')
       } else {
-        setNotice(error instanceof Error ? error.message : 'Không thể hoàn tất yêu cầu. Vui lòng thử lại.')
+        setNotice(error instanceof Error ? error.message : t('requestFailed'))
         setNoticeType('error')
       }
     } finally {
@@ -411,7 +398,7 @@ function AuthPage({ mode }: AuthPageProps) {
       startGoogleOAuth(mode, mode === 'register' || rememberMe)
     } catch {
       setIsSubmitting(false)
-      setNotice('Không thể bắt đầu đăng nhập Google. Vui lòng thử lại.')
+      setNotice(t('googleStartError'))
       setNoticeType('error')
     }
   }
@@ -424,7 +411,7 @@ function AuthPage({ mode }: AuthPageProps) {
       startGitHubOAuth(mode, mode === 'register' || rememberMe)
     } catch {
       setIsSubmitting(false)
-      setNotice('Không thể bắt đầu đăng nhập GitHub. Vui lòng thử lại.')
+      setNotice(t('githubStartError'))
       setNoticeType('error')
     }
   }
@@ -433,28 +420,26 @@ function AuthPage({ mode }: AuthPageProps) {
     <div className={styles.page}>
       <main className={styles.main} id="main-content">
         <section className={styles.card} aria-labelledby="auth-title">
-          <Link className={styles.logoLink} to="/" aria-label="Về trang chủ UTH Online Judge">
-            <img src={uthLogo} alt="Đại học Giao thông vận tải Thành phố Hồ Chí Minh" />
+          <Link className={styles.logoLink} to="/" aria-label={t('homeLabel', { ns: 'common' })}>
+            <img src={uthLogo} alt={t('university', { ns: 'common' })} />
           </Link>
           <h1 className={styles.title} id="auth-title">
             {copy.title}
           </h1>
           <p className={styles.intro}>
-            {mode === 'register'
-              ? 'Bắt đầu hành trình chinh phục lập trình'
-              : 'Chào mừng bạn quay trở lại'}
+            {t(mode === 'register' ? 'registerIntro' : 'welcomeBack')}
           </p>
 
           <form className={styles.form} onSubmit={handleSubmit}>
             <FormField
               id="username"
-              label={mode === 'login' ? 'Tên đăng nhập hoặc email' : 'Tên đăng nhập'}
+              label={t(mode === 'login' ? 'identifier' : 'username')}
               icon="user"
               autoComplete="username"
               minLength={mode === 'register' ? 3 : undefined}
               maxLength={mode === 'login' ? 254 : 32}
               pattern={mode === 'register' ? '[A-Za-z0-9._-]+' : undefined}
-              placeholder={mode === 'login' ? 'Nhập tên đăng nhập hoặc email' : undefined}
+              placeholder={mode === 'login' ? t('enterIdentifier') : undefined}
               defaultValue={mode === 'login' ? savedIdentifier : undefined}
               error={fieldErrors.username}
               floatingLabel
@@ -462,7 +447,7 @@ function AuthPage({ mode }: AuthPageProps) {
             {mode === 'register' && (
               <FormField
                 id="email"
-                label="Email"
+                label={t('email')}
                 icon="mail"
                 type="email"
                 autoComplete="email"
@@ -487,10 +472,10 @@ function AuthPage({ mode }: AuthPageProps) {
                     checked={rememberMe}
                     onChange={(event) => setRememberMe(event.target.checked)}
                   />
-                  <span>Ghi nhớ đăng nhập</span>
+                  <span>{t('rememberLogin')}</span>
                 </label>
                 <Link className={styles.forgotLink} to="/forgot-password">
-                  Quên mật khẩu?
+                  {t('forgotPasswordLink')}
                 </Link>
               </div>
             )}
@@ -500,31 +485,31 @@ function AuthPage({ mode }: AuthPageProps) {
               type="submit"
               disabled={isSubmitting || restoringSession}
             >
-              {isSubmitting ? 'Đang xử lý…' : copy.submitLabel}
+              {isSubmitting ? t('processing') : copy.submitLabel}
             </button>
             <div className={styles.oauthDivider} aria-hidden="true">
-              <span>Hoặc</span>
+              <span>{t('or')}</span>
             </div>
             <div className={styles.oauthButtons}>
               <button
                 className={`${styles.oauthButton} ${styles.googleButton}`}
                 type="button"
                 disabled={isSubmitting || restoringSession}
-                aria-label={`${copy.submitLabel} qua Google`}
+                aria-label={`${copy.submitLabel} ${t('viaGoogle')}`}
                 onClick={handleGoogleOAuth}
               >
                 <ProviderIcon provider="google" />
-                <span>{copy.submitLabel} qua Google</span>
+                <span>{copy.submitLabel} {t('viaGoogle')}</span>
               </button>
               <button
                 className={`${styles.oauthButton} ${styles.githubButton}`}
                 type="button"
                 disabled={isSubmitting || restoringSession}
-                aria-label={`${copy.submitLabel} qua GitHub`}
+                aria-label={`${copy.submitLabel} ${t('viaGithub')}`}
                 onClick={handleGitHubOAuth}
               >
                 <ProviderIcon provider="github" />
-                <span>{copy.submitLabel} qua GitHub</span>
+                <span>{copy.submitLabel} {t('viaGithub')}</span>
               </button>
             </div>
           </form>

@@ -33,7 +33,7 @@
 .message {
   margin: 0;
   padding: 18px 20px;
-  color: #5f7376;
+  color: var(--color-muted);
   font-size: 13px;
 }
 
@@ -48,7 +48,7 @@
 
 .description {
   margin: 4px 0 0;
-  color: #5f7376;
+  color: var(--color-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -100,11 +100,11 @@
 
 .top1 {
   margin-bottom: 14px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .top1:hover {
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .top1 .rank {
@@ -140,12 +140,12 @@
 }
 
 .top1 .avatar {
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
 }
 
 .person:hover .avatar {
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
 }
 
@@ -165,7 +165,7 @@
 
 .handle {
   overflow: hidden;
-  color: #5f7376;
+  color: var(--color-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -185,6 +185,52 @@
 }
 
 .score span {
-  color: #5f7376;
+  color: var(--color-muted);
   font-size: 11px;
+}
+
+:global([data-theme='dark']) .person:hover,
+:global([data-theme='dark']) .top1,
+:global([data-theme='dark']) .top1:hover {
+  background: #213b3d;
+}
+
+:global([data-theme='dark']) .top1 .personLink:hover {
+  background: #2a4140;
+}
+
+:global([data-theme='dark']) .message,
+:global([data-theme='dark']) .description,
+:global([data-theme='dark']) .handle,
+:global([data-theme='dark']) .score span {
+  color: #a7b9ba;
+}
+
+:global([data-theme='dark']) .rank {
+  color: #b5c5c6;
+}
+
+:global([data-theme='dark']) .avatar {
+  background: #254446;
+  color: #a7e4dc;
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .person:hover,
+:global(:where([data-theme='dark'])) .top1 .personLink:hover {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .rank,
+:global(:where([data-theme='dark'])) .top2 .rank {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .top1 .rank,
+:global(:where([data-theme='dark'])) .top3 .rank {
+  color: #f5c76a;
+}
+
+:global(:where([data-theme='dark'])) .avatar {
+  background: var(--color-surface-subtle);
 }

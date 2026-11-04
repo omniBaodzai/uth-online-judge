@@ -34,7 +34,7 @@
   align-items: center;
   padding: 8px 10px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .brand img {
@@ -101,6 +101,14 @@
 
 .footerBottom p {
   margin: 0;
+}
+
+:global([data-theme='dark']) .footer {
+  background: #123e40;
+}
+
+:global([data-theme='dark']) .footerBottom {
+  border-top-color: rgba(230, 240, 239, 0.2);
 }
 
 @media (max-width: 900px) {

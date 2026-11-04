@@ -55,3 +55,8 @@
     font-size: 11px;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .stats {
+  border-top-color: var(--color-border);
+}

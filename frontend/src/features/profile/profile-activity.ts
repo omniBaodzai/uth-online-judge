@@ -44,9 +44,9 @@ export function getActivityDateKey(
   return `${part('year')}-${part('month')}-${part('day')}`
 }
 
-export function formatActivityDate(date: string): string {
+export function formatActivityDate(date: string, locale = 'vi-VN'): string {
   const [year, month, day] = date.split('-').map(Number)
-  return new Intl.DateTimeFormat('vi-VN', {
+  return new Intl.DateTimeFormat(locale, {
     timeZone: PROFILE_ACTIVITY_TIME_ZONE,
     weekday: 'long',
     day: 'numeric',

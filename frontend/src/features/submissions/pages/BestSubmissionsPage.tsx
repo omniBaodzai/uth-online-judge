@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ApiError, request as publicRequest } from '../../auth/api'
 import { getBestSubmissions, type BestSubmissionPage as BestSubmissionsData } from '../../problems/submit/submission-service'
 import FilterDropdown from '../../problems/components/FilterDropdown'
@@ -7,6 +8,7 @@ import SubmissionPagination from '../components/SubmissionPagination'
 import SubmissionStatsChart from '../components/SubmissionStatsChart'
 import SubmissionTable from '../components/SubmissionTable'
 import { submissionPageSizes } from '../data'
+import '../i18n'
 import styles from './SubmissionsPage.module.css'
 import pageStyles from './BestSubmissionsPage.module.css'
 
@@ -18,6 +20,7 @@ function BestSubmissionsPage() {
 }
 
 function BestSubmissionsContent({ code }: { code: string }) {
+  const { t } = useTranslation('pages')
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [language, setLanguage] = useState('')
@@ -67,24 +70,24 @@ function BestSubmissionsContent({ code }: { code: string }) {
           key: requestKey,
           error: requestError instanceof ApiError
             ? requestError.message
-            : 'Không thể tải bảng xếp hạng. Vui lòng thử lại.',
+            : t('submissionsBestLoadError'),
         })
       })
     return () => controller.abort()
-  }, [code, language, page, pageSize, debouncedQuery, requestKey, retryKey])
+  }, [code, language, page, pageSize, debouncedQuery, requestKey, retryKey, t])
 
   const paginationProps = useMemo(() => ({
     currentPage: page,
     pageSize,
     totalItems: data?.total ?? 0,
     pageSizes: submissionPageSizes,
-    label: 'bài giải tốt',
+    label: t('bestSolutions', { ns: 'common' }),
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
       setPageSize(size)
       setPage(1)
     },
-  }), [data?.total, page, pageSize])
+  }), [data?.total, page, pageSize, t])
   const languageOptions = useMemo(
     () => (data?.languages ?? []).map((value) => ({ value, label: value })),
     [data?.languages],
@@ -95,15 +98,15 @@ function BestSubmissionsContent({ code }: { code: string }) {
   const title = data?.problem.title ?? code
   const problemCode = data?.problem.code ?? code
   const emptyTitle = data?.languages.length === 0
-    ? 'Chưa có bài nộp Accepted'
+    ? t('submissionsNoAcceptedTitle')
     : hasFilters
-      ? 'Không tìm thấy coder phù hợp'
-      : 'Ngôn ngữ này chưa có bài giải tốt'
+      ? t('submissionsNoCoderMatch')
+      : t('submissionsLanguageNoBest')
   const emptyDescription = data?.languages.length === 0
-    ? 'Khi có bài nộp được chấm Accepted, bảng xếp hạng sẽ xuất hiện tại đây.'
+    ? t('submissionsNoAcceptedHint')
     : hasFilters
-      ? 'Hãy thử tên coder khác hoặc xóa nội dung tìm kiếm.'
-      : 'Chọn một ngôn ngữ có bài Accepted để xem bảng xếp hạng.'
+      ? t('submissionsTryAnotherCoder')
+      : t('submissionsChooseLanguage')
 
   function resetSearch() {
     setQuery('')
@@ -116,7 +119,7 @@ function BestSubmissionsContent({ code }: { code: string }) {
       <div className={styles.grid}>
         <header className={styles.header}>
           <h1>
-            Các bài giải tốt của bài{' '}
+            {t('submissionsBestForProblem')}{' '}
             <Link
               to={`/problems/${encodeURIComponent(problemCode)}`}
               className={`${styles.problemLink} ${pageStyles.problemLink}`}
@@ -138,8 +141,8 @@ function BestSubmissionsContent({ code }: { code: string }) {
             </svg>
             <input
               type="search"
-              aria-label="Tìm coder"
-              placeholder="Tìm theo tên coder..."
+              aria-label={t('submissionsSearchCoderLabel')}
+              placeholder={t('submissionsSearchCoderPlaceholder')}
               maxLength={100}
               value={query}
               onChange={(event) => {
@@ -149,7 +152,7 @@ function BestSubmissionsContent({ code }: { code: string }) {
             />
           </div>
           <FilterDropdown
-            label="Ngôn ngữ"
+            label={t('language', { ns: 'common' })}
             options={languageOptions}
             selected={language ? [language] : []}
             onChange={(selected) => {
@@ -158,7 +161,7 @@ function BestSubmissionsContent({ code }: { code: string }) {
             }}
           />
           <button type="button" className={styles.reset} onClick={resetSearch} disabled={!query}>
-            Đặt lại
+            {t('resetFilters')}
           </button>
         </form>
 
@@ -169,7 +172,7 @@ function BestSubmissionsContent({ code }: { code: string }) {
           {error && (
             <div className={styles.error} role="alert">
               <span>{error}</span>
-              <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Thử lại</button>
+              <button type="button" onClick={() => setRetryKey((key) => key + 1)}>{t('retry')}</button>
             </div>
           )}
           <SubmissionTable
@@ -191,7 +194,12 @@ function BestSubmissionsContent({ code }: { code: string }) {
             total={statistics?.total ?? 0}
             accepted={statistics?.accepted ?? 0}
             verdictCounts={statistics?.verdictCounts ?? {}}
-            subtitle={language ? `Ngôn ngữ: ${language}${debouncedQuery ? ` · Coder: ${debouncedQuery}` : ''}` : undefined}
+            subtitle={language
+              ? t(debouncedQuery ? 'submissionsSearchByCoder' : 'submissionsSearchByLanguage', {
+                  language,
+                  query: debouncedQuery,
+                })
+              : undefined}
           />
         </aside>
       </div>

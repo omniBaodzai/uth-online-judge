@@ -2,64 +2,53 @@ import { Link } from 'react-router-dom'
 import styles from './SiteFooter.module.css'
 import uthLogo from '../../assets/uth_logo.png'
 import { CONTACT_EMAIL } from '../../config/contact'
+import { useTranslation } from 'react-i18next'
 
 function SiteFooter() {
+  const { t } = useTranslation('common')
   return (
     <footer className={styles.footer} id="contact">
       <div className={styles.footerInner}>
         <div className={styles.brandColumn}>
-          <h2>Thông tin chung</h2>
-          <Link className={styles.brand} to="/" aria-label="UTH Online Judge - Trang chủ">
+          <h2>{t('footerGeneral')}</h2>
+          <Link className={styles.brand} to="/" aria-label={t('homeLabel')}>
             <img src={uthLogo} alt="" />
           </Link>
           <div className={styles.descriptionList}>
-            <p>
-              UTH Online Judge là nền tảng luyện tập lập trình, hỗ trợ sinh viên
-              rèn luyện tư duy thuật toán và kỹ năng giải quyết vấn đề.
-            </p>
-            <p>
-              Với sứ mệnh tạo môi trường học tập thực hành, chúng tôi kết nối
-              người học với bài tập, kỳ thi và cộng đồng lập trình UTH.
-            </p>
-            <p>
-              Tầm nhìn của nền tảng là trở thành không gian học lập trình hữu
-              ích, nơi mỗi sinh viên có thể tự tin tiến bộ qua từng thử thách.
-            </p>
+            <p>{t('footerDescription1')}</p>
+            <p>{t('footerDescription2')}</p>
+            <p>{t('footerDescription3')}</p>
           </div>
         </div>
         <div className={styles.footerColumn}>
-          <h2>Thông tin liên hệ</h2>
+          <h2>{t('footerContact')}</h2>
           <a href={`mailto:${CONTACT_EMAIL}`}>Email: {CONTACT_EMAIL}</a>
-          <span>Đơn vị: UTH Online Judge</span>
-          <span>
-            Trường Đại học Giao thông Vận tải Thành phố Hồ Chí Minh
-          </span>
+          <span>{t('institution')}</span>
+          <span>{t('university')}</span>
           <a href={`mailto:${CONTACT_EMAIL}?subject=Ho%20tro%20UTH%20Online%20Judge`}>
-            Gửi yêu cầu hỗ trợ
+            {t('sendSupport')}
           </a>
         </div>
         <div className={styles.footerColumn}>
-          <h2>Chính sách</h2>
-          <span>Sử dụng nền tảng đúng mục đích học tập và rèn luyện.</span>
-          <span>Tôn trọng quyền riêng tư và thông tin tài khoản cá nhân.</span>
-          <span>
-            Không chia sẻ lời giải hoặc nội dung vi phạm quy định học thuật.
-          </span>
-          <span>Bài đóng góp cần chính xác, rõ ràng và phù hợp cộng đồng.</span>
+          <h2>{t('footerPolicies')}</h2>
+          <span>{t('policyStudy')}</span>
+          <span>{t('policyPrivacy')}</span>
+          <span>{t('policyAcademic')}</span>
+          <span>{t('policyCommunity')}</span>
         </div>
         <div className={styles.footerColumn}>
-          <h2>Hướng dẫn</h2>
-          <Link to="/problems">Tìm và luyện tập bài tập</Link>
-          <Link to="/contests">Tham gia kỳ thi</Link>
-          <Link to="/submissions">Xem trạng thái bài nộp</Link>
-          <a href="#community">Đọc tin tức và thảo luận</a>
+          <h2>{t('footerGuide')}</h2>
+          <Link to="/problems">{t('guideProblems')}</Link>
+          <Link to="/contests">{t('guideContests')}</Link>
+          <Link to="/submissions">{t('guideSubmissions')}</Link>
+          <a href="#community">{t('guideCommunity')}</a>
           <a href={`mailto:${CONTACT_EMAIL}?subject=Bao%20loi%20UTH%20Online%20Judge`}>
-            Báo lỗi hoặc cần trợ giúp
+            {t('guideReport')}
           </a>
         </div>
       </div>
       <div className={styles.footerBottom}>
-        <p>&copy; 2026 UTH Online Judge. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} UTH Online Judge. {t('copyright')}</p>
       </div>
     </footer>
   )

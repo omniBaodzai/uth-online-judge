@@ -8,6 +8,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { RequireAuth } from '../../auth/components/RequireAuth'
@@ -24,6 +25,7 @@ import styles from './ProfilePage.module.css'
 type AvatarSourceTab = 'url' | 'upload'
 
 function ProfileEditPage() {
+  const { t } = useTranslation('pages')
   const { user, updateProfile, uploadAvatar } = useAuth()
   const { profile: result, loading, error } = usePublicProfile(
     user ? { userId: user.id } : {},
@@ -33,7 +35,7 @@ function ProfileEditPage() {
   return (
     <RequireAuth>
       <main className={styles.main} id="main-content">
-        {loading ? <p className={styles.status} aria-live="polite"></p> : null}
+        {loading ? <p className={styles.status} aria-live="polite">{t('loadingProfile')}</p> : null}
         {error ? <p className={styles.feedback} role="alert">{error}</p> : null}
         {profile && user ? (
           <ProfileEditForm
@@ -64,6 +66,7 @@ function ProfileEditForm({
   }) => Promise<AuthUser>
   onUploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
 }) {
+  const { t } = useTranslation('pages')
   const navigate = useNavigate()
   const initialFullName = user.full_name ?? ''
   const initialBio = profile.bio
@@ -96,11 +99,11 @@ function ProfileEditForm({
   function chooseAvatar(file: File | undefined) {
     if (!file) return
     if (!AVATAR_ACCEPTED_TYPES.includes(file.type)) {
-      setError('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.')
+      setError(t('profileAvatarTypeError'))
       return
     }
     if (file.size > AVATAR_MAX_BYTES) {
-      setError('Ảnh đại diện vượt quá 2 MB.')
+      setError(t('profileAvatarSizeError'))
       return
     }
     setError('')
@@ -130,7 +133,7 @@ function ProfileEditForm({
   async function loadUrlForCropping() {
     const value = sourceUrl.trim()
     if (!isSupportedAvatarUrl(value)) {
-      setError('Vui lòng nhập URL ảnh hợp lệ bắt đầu bằng http:// hoặc https://.')
+      setError(t('profileAvatarUrlError'))
       return
     }
 
@@ -159,7 +162,7 @@ function ProfileEditForm({
       setCropUsesRemoteUrl(true)
       setAvatarCropUrl(value)
     } catch {
-      setError('Không thể tải ảnh từ URL. Hãy kiểm tra địa chỉ, kết nối và quyền CORS của máy chủ ảnh.')
+      setError(t('profileAvatarUrlLoadError'))
     } finally {
       setIsLoadingUrl(false)
     }
@@ -169,7 +172,7 @@ function ProfileEditForm({
     setAvatarUrl(URL.createObjectURL(file))
     setStagedAvatar(file)
     setAvatarCropUrl('')
-    setSuccess('Ảnh đã được cắt. Nhấn “Lưu thay đổi” để lưu vào tài khoản.')
+    setSuccess(t('profileAvatarCropped'))
     setError('')
   }
 
@@ -195,18 +198,18 @@ function ProfileEditForm({
           setStagedAvatar(null)
         } catch (uploadError) {
           setError(
-            `Thông tin hồ sơ đã được lưu, nhưng ảnh đại diện chưa được cập nhật. ${
-              uploadError instanceof Error ? uploadError.message : 'Vui lòng thử lại.'
-            }`,
+            t('profileSavedAvatarFailed', {
+              error: uploadError instanceof Error ? uploadError.message : t('retry'),
+            }),
           )
           return
         }
       }
-      setSuccess('Đã lưu thay đổi hồ sơ thành công.')
+      setSuccess(t('profileSaved'))
       await new Promise((resolve) => window.setTimeout(resolve, 700))
       navigate('/profile', { replace: true })
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Không thể lưu hồ sơ. Vui lòng thử lại.')
+      setError(saveError instanceof Error ? saveError.message : t('profileSaveError'))
     } finally {
       setIsSaving(false)
     }
@@ -218,14 +221,14 @@ function ProfileEditForm({
       </header>
 
       <div className={styles.editLayout}>
-        <aside className={styles.editSidebar} aria-label="Ảnh đại diện và tài khoản">
+        <aside className={styles.editSidebar} aria-label={t('profileAvatarAndAccount')}>
           <section className={styles.editCard}>
             <div className={styles.avatarIdentity}>
               <UserAvatar
                 source={avatarUrl}
                 username={profile.username}
                 size="large"
-                label={`Ảnh đại diện của ${profile.username}`}
+                label={t('profileAvatarOf', { name: profile.username })}
               />
               <div>
                 <h2>{profile.displayName || profile.username}</h2>
@@ -234,8 +237,8 @@ function ProfileEditForm({
             </div>
 
             <fieldset className={styles.avatarPicker}>
-              <legend>Ảnh đại diện</legend>
-              <div className={styles.avatarTabs} role="tablist" aria-label="Cách chọn ảnh đại diện">
+              <legend>{t('profileAvatar')}</legend>
+              <div className={styles.avatarTabs} role="tablist" aria-label={t('profileAvatarSource')}>
                 <button
                   type="button"
                   role="tab"
@@ -243,7 +246,7 @@ function ProfileEditForm({
                   className={avatarTab === 'upload' ? styles.avatarTabActive : ''}
                   onClick={() => { setAvatarTab('upload'); setError('') }}
                 >
-                  Tải ảnh lên
+                  {t('profileUploadAvatar')}
                 </button>
                 <button
                   type="button"
@@ -252,19 +255,19 @@ function ProfileEditForm({
                   className={avatarTab === 'url' ? styles.avatarTabActive : ''}
                   onClick={() => { setAvatarTab('url'); setError('') }}
                 >
-                  Dán URL
+                  {t('profileUseAvatarUrl')}
                 </button>
               </div>
 
               {avatarTab === 'url' ? (
                 <div className={styles.avatarTabPanel} role="tabpanel">
-                  <label htmlFor="avatar-source-url">URL hình ảnh</label>
+                  <label htmlFor="avatar-source-url">{t('imageUrl')}</label>
                   <input
                     id="avatar-source-url"
                     type="url"
                     inputMode="url"
                     autoComplete="url"
-                    placeholder="https://example.com/avatar.jpg"
+                    placeholder={t('profileAvatarUrlPlaceholder')}
                     value={sourceUrl}
                     onChange={(event) => setSourceUrl(event.target.value)}
                     onKeyDown={(event) => {
@@ -277,7 +280,7 @@ function ProfileEditForm({
                     disabled={isLoadingUrl || isSaving}
                     onClick={() => void loadUrlForCropping()}
                   >
-                    {isLoadingUrl ? 'Đang tải ảnh…' : 'Tiếp tục'}
+                    {isLoadingUrl ? t('loadingImage') : t('continue')}
                   </button>
                 </div>
               ) : (
@@ -299,8 +302,8 @@ function ProfileEditForm({
                     onDrop={handleDrop}
                   >
                     <span className={styles.uploadIcon} aria-hidden="true">↑</span>
-                    <strong>Kéo ảnh vào đây hoặc chọn tệp</strong>
-                    <span>JPG, PNG hoặc WebP · tối đa 2 MB</span>
+                    <strong>{t('profileAvatarDropHint')}</strong>
+                    <span>{t('profileAvatarSizeHint')}</span>
                   </div>
                 </div>
               )}
@@ -311,21 +314,21 @@ function ProfileEditForm({
           </section>
 
           <section className={styles.editCard} aria-labelledby="account-info-title">
-            <h2 className={styles.accountInfoTitle} id="account-info-title">Thông tin tài khoản</h2>
+            <h2 className={styles.accountInfoTitle} id="account-info-title">{t('accountInformation')}</h2>
             <dl className={styles.accountInfo}>
-              <div><dt>Username</dt><dd>@{profile.username}</dd></div>
-              <div><dt>Email</dt><dd>{user.email}</dd></div>
+              <div><dt>{t('username')}</dt><dd>@{profile.username}</dd></div>
+              <div><dt>{t('contactEmail')}</dt><dd>{user.email}</dd></div>
             </dl>
           </section>
         </aside>
 
-        <section className={styles.editCard} aria-label="Thông tin hồ sơ">
+        <section className={styles.editCard} aria-label={t('profileInformation')}>
           <header className={styles.formHeading}>
-            <h2>Thông tin cá nhân</h2>
-            <p>Các thông tin này sẽ xuất hiện trên hồ sơ công khai của bạn.</p>
+            <h2>{t('profileInformation')}</h2>
+            <p>{t('profilePublicInformationHint')}</p>
           </header>
           <form className={styles.form} onSubmit={saveChanges}>
-            <label htmlFor="profile-name">Tên hiển thị</label>
+            <label htmlFor="profile-name">{t('displayName')}</label>
             <input
               id="profile-name"
               value={fullName}
@@ -334,32 +337,32 @@ function ProfileEditForm({
               disabled={isSaving}
             />
 
-            <label htmlFor="profile-organization">Trường / tổ chức</label>
+            <label htmlFor="profile-organization">{t('schoolOrOrganization')}</label>
             <input
               id="profile-organization"
               value={organization}
               maxLength={160}
-              placeholder="Ví dụ: Đại học ..."
+              placeholder={t('organizationPlaceholder')}
               onChange={(event) => setOrganization(event.target.value)}
               disabled={isSaving}
             />
 
-            <label htmlFor="profile-bio">Giới thiệu bản thân</label>
+            <label htmlFor="profile-bio">{t('profileBio')}</label>
             <textarea
               id="profile-bio"
               value={bio}
               maxLength={500}
               rows={7}
-              placeholder="Chia sẻ đôi điều về bạn..."
+              placeholder={t('profileBioPlaceholder')}
               onChange={(event) => setBio(event.target.value)}
               disabled={isSaving}
             />
-            <span className={styles.characterCount}>{bio.length}/500 ký tự</span>
+            <span className={styles.characterCount}>{t('characterCount', { count: bio.length, max: 500 })}</span>
 
             <div className={styles.actions}>
-              <Link className={styles.secondaryButton} to="/profile">Hủy</Link>
+              <Link className={styles.secondaryButton} to="/profile">{t('cancel')}</Link>
               <button className={styles.primaryButton} type="submit" disabled={isSaving || isLoadingUrl}>
-                {isSaving ? 'Đang lưu…' : 'Lưu thay đổi'}
+                {isSaving ? t('saving') : t('saveChanges')}
               </button>
             </div>
           </form>
@@ -371,9 +374,9 @@ function ProfileEditForm({
           key={avatarCropUrl}
           imageUrl={avatarCropUrl}
           crossOrigin={cropUsesRemoteUrl ? 'anonymous' : undefined}
-          title="Chỉnh sửa ảnh đại diện"
-          hint="Kéo ảnh để đổi vị trí, dùng thanh trượt để phóng to hoặc thu nhỏ. Ảnh sẽ được cắt thành hình vuông và hiển thị dạng tròn."
-          saveLabel="Dùng ảnh này"
+          title={t('profileEditAvatarTitle')}
+          hint={t('profileEditAvatarHint')}
+          saveLabel={t('profileUseThisImage')}
           onCancel={() => setAvatarCropUrl('')}
           onSave={stageCroppedAvatar}
         />

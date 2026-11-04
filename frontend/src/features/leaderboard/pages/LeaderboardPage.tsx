@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Crown } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { resolveAvatarUrl } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import UserAvatar from '../../profile/components/UserAvatar'
@@ -11,12 +12,20 @@ import styles from './LeaderboardPage.module.css'
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
 
-function formatPerformance(percentile: number | null, comparableProblems: number): string {
-  if (percentile === null || comparableProblems === 0) return 'Chưa đủ dữ liệu'
-  return `Top ${Math.max(1, Math.ceil(percentile * 100))}% · ${comparableProblems} bài so sánh`
+function formatPerformance(
+  percentile: number | null,
+  comparableProblems: number,
+  t: (key: 'notEnoughData' | 'topPercent', options?: Record<string, number>) => string,
+): string {
+  if (percentile === null || comparableProblems === 0) return t('notEnoughData')
+  return t('topPercent', {
+    percentile: Math.max(1, Math.ceil(percentile * 100)),
+    count: comparableProblems,
+  })
 }
 
 function LeaderboardPage() {
+  const { t } = useTranslation('pages')
   const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -35,9 +44,9 @@ function LeaderboardPage() {
     pageSize: PAGE_SIZE,
     totalItems: data?.total ?? 0,
     pageSizes: [PAGE_SIZE],
-    label: 'coder',
-    summaryLabel: 'coder',
-    additionalSummary: debouncedQuery && totalUsers !== null ? `${totalUsers} tổng coder` : undefined,
+    label: t('coderPaginationLabel'),
+    summaryLabel: t('coderPaginationLabel'),
+    additionalSummary: debouncedQuery && totalUsers !== null ? t('coderTotalSummary', { count: totalUsers }) : undefined,
     showPageSize: false,
     onPageChange: setPage,
     onPageSizeChange: () => undefined,
@@ -47,14 +56,14 @@ function LeaderboardPage() {
     <main className={styles.main} id="main-content">
       <div className={styles.grid}>
         <header className={styles.header}>
-          <h1>Bảng xếp hạng những coder chăm chỉ nhất</h1>
+          <h1>{t('leaderboardTitle')}</h1>
           <p></p>
         </header>
 
         {user && data?.viewerRank ? (
-          <p className={styles.viewerRank} role="status">Thứ hạng của bạn: <strong>#{data.viewerRank}</strong></p>
+          <p className={styles.viewerRank} role="status">{t('yourRank')} <strong>#{data.viewerRank}</strong></p>
         ) : user && data && !loading ? (
-          <p className={styles.viewerRank} role="status">Bạn chưa có thành tích trong bảng xếp hạng.</p>
+          <p className={styles.viewerRank} role="status">{t('noRankYet')}</p>
         ) : null}
 
         <form className={styles.filters} role="search" onSubmit={(event) => event.preventDefault()}>
@@ -65,34 +74,34 @@ function LeaderboardPage() {
             </svg>
             <input
               type="search"
-              aria-label="Tìm coder theo username"
+              aria-label={t('leaderboardSearch')}
               maxLength={100}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value)
                 setPage(1)
               }}
-              placeholder="Tìm theo username coder..."
+              placeholder={t('searchCoder')}
             />
           </div>
         </form>
 
-        <section className={styles.card} aria-label="Bảng xếp hạng coder">
+        <section className={styles.card} aria-label={t('leaderboardTitle')}>
           <div className={styles.topPagination}>
             <SubmissionPagination {...paginationProps} />
           </div>
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
-          {loading && !data ? <p className={styles.state} role="status">Đang tải bảng xếp hạng…</p> : null}
+          {loading && !data ? <p className={styles.state} role="status">{t('loadingLeaderboard')}</p> : null}
           {!loading && !error && data && pageItems.length === 0 ? (
-            <p className={styles.state}>{query ? 'Không tìm thấy coder phù hợp.' : 'Chưa có coder để xếp hạng.'}</p>
+            <p className={styles.state}>{query ? t('noMatchingCoders') : t('noCoders')}</p>
           ) : null}
           {!error && pageItems.length > 0 ? (
-            <div className={styles.tableScroll} tabIndex={0} aria-label="Danh sách bảng xếp hạng">
+            <div className={styles.tableScroll} tabIndex={0} aria-label={t('rankingList')}>
               <div className={styles.listHeader} aria-hidden="true">
-                <span>THỨ HẠNG</span>
-                <span>ĐIỂM</span>
-                <span>CODER</span>
-                <span>SỐ BÀI AC</span>
+                <span>{t('rankHeading')}</span>
+                <span>{t('pointsHeading')}</span>
+                <span>{t('coderHeading')}</span>
+                <span>{t('solvedHeading')}</span>
               </div>
               <ol className={styles.list}>
                 {pageItems.map((entry) => {
@@ -100,7 +109,7 @@ function LeaderboardPage() {
                   const isTopThree = entry.rank >= 1 && entry.rank <= 3
                   const rowContent = (
                     <>
-                      <span className={styles.rank} aria-label={`Hạng ${entry.rank}`}>
+                      <span className={styles.rank} aria-label={t('coderRank', { rank: entry.rank })}>
                         {entry.rank === 1 ? <Crown className={styles.crown} size={16} aria-hidden="true" /> : null}
                         <span className={styles.rankNumber}>{entry.rank}</span>
                       </span>
@@ -109,13 +118,13 @@ function LeaderboardPage() {
                         <UserAvatar
                           source={resolveAvatarUrl(entry.avatarUrl)}
                           username={entry.username ?? entry.displayName}
-                          label={`Ảnh đại diện ${entry.displayName}`}
+                          label={t('userAvatar', { name: entry.displayName })}
                         />
                         <span className={styles.identity}>
                           <strong>{entry.displayName}</strong>
                           <span>@{entry.username ?? entry.userId.slice(0, 8)}</span>
                           {entry.comparableProblems > 0 ? (
-                            <span className={styles.performance}>{formatPerformance(entry.performancePercentile, entry.comparableProblems)}</span>
+                            <span className={styles.performance}>{formatPerformance(entry.performancePercentile, entry.comparableProblems, t)}</span>
                           ) : null}
                         </span>
                       </span>
@@ -132,7 +141,7 @@ function LeaderboardPage() {
                         <Link
                           className={`${styles.row} ${styles.rowLink}`}
                           to={`/users/${encodeURIComponent(entry.username)}`}
-                          aria-label={`Mở hồ sơ của ${entry.displayName}, hạng ${entry.rank}`}
+                          aria-label={t('profileRank', { name: entry.displayName, rank: entry.rank })}
                         >
                           {rowContent}
                         </Link>

@@ -24,8 +24,8 @@ export type ProblemDetail = {
   illustrationAlignment: 'left' | 'center' | 'right'
   examples: ProblemExample[]
   points: number
-  timeLimit: string
-  memoryLimit: string
+  timeLimitMs: number
+  memoryLimitMb: number
   author: string | null
   topics: string[]
   languages: string[]
@@ -39,8 +39,11 @@ export const reportTypes = [
   'Vấn đề khác',
 ]
 
-export function formatTimeLimit(ms: number): string {
-  return ms % 1000 === 0 ? `${ms / 1000} giây` : `${ms} ms`
+export function formatTimeLimit(ms: number, locale = 'vi-VN', secondsLabel = 'giây'): string {
+  const format = new Intl.NumberFormat(locale)
+  return ms % 1000 === 0
+    ? `${format.format(ms / 1000)} ${secondsLabel}`
+    : `${format.format(ms)} ms`
 }
 
 export function toProblemDetail(data: ProblemDetailResponse): ProblemDetail {
@@ -60,8 +63,8 @@ export function toProblemDetail(data: ProblemDetailResponse): ProblemDetail {
     illustrationAlignment: data.illustrationAlignment ?? 'center',
     examples: data.examples,
     points: data.points,
-    timeLimit: formatTimeLimit(data.timeLimitMs),
-    memoryLimit: `${data.memoryLimitMb} MB`,
+    timeLimitMs: data.timeLimitMs,
+    memoryLimitMb: data.memoryLimitMb,
     author: data.author,
     topics: data.tags.map((tag) => tag.name),
     languages: data.languages.map((language) => language.name),

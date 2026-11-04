@@ -15,7 +15,7 @@
   padding: 4px 18px;
   border: 1px solid #008689;
   border-radius: 30px;
-  background: rgba(255, 255, 255, 0.97);
+  background: color-mix(in srgb, var(--color-surface) 97%, transparent);
   box-shadow: 0 8px 24px rgba(4, 34, 42, 0.14);
   animation: header-enter 1080ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
@@ -127,7 +127,7 @@
 
 .navigationLink:hover,
 .navigationLink:focus-visible {
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
   color: #006d70;
 }
 
@@ -154,6 +154,45 @@
   min-width: 0;
   align-items: center;
   gap: 8px;
+}
+
+.appearanceControls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.appearanceButton,
+.languageButton {
+  display: inline-flex;
+  min-width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 134, 137, 0.2);
+  border-radius: 999px;
+  background: var(--color-surface-subtle);
+  color: #006d70;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.appearanceButton:hover,
+.languageButton:hover {
+  border-color: #008689;
+  background: var(--color-surface-hover);
+}
+
+.appearanceButton:focus-visible,
+.languageButton:focus-visible {
+  outline: 3px solid rgba(0, 134, 137, 0.32);
+  outline-offset: 2px;
 }
 
 .accountMenu {
@@ -192,7 +231,7 @@
   padding: 0 12px;
   border: 1px solid rgba(0, 134, 137, 0.25);
   border-radius: 999px;
-  background: #f5fbfa;
+  background: var(--color-surface-subtle);
   color: #174b4e;
   cursor: pointer;
   font: inherit;
@@ -206,7 +245,7 @@
 .accountButton:hover,
 .accountButton[aria-expanded='true'] {
   border-color: #008689;
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
 }
 
 .accountChevron {
@@ -239,7 +278,7 @@
   padding: 7px;
   border: 1px solid rgba(0, 134, 137, 0.16);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 12px 30px rgba(4, 28, 35, 0.16);
   animation: dropdown-enter 140ms ease-out both;
 }
@@ -270,7 +309,7 @@
 
 .accountDropdown a:hover,
 .accountDropdown button:hover {
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
   color: #006d70;
 }
 
@@ -461,12 +500,12 @@
 }
 
 .loginLink {
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .loginLink:hover {
   transform: translateY(-2px);
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
 }
 
 .loginLink:disabled {
@@ -482,6 +521,60 @@
 
 .menuToggle {
   display: none;
+}
+
+:global([data-theme='dark']) .header {
+  border-color: #247e7d;
+  background: rgba(20, 39, 41, 0.97);
+}
+
+:global([data-theme='dark']) .navigationLink,
+:global([data-theme='dark']) .accountButton,
+:global([data-theme='dark']) .userGreeting,
+:global([data-theme='dark']) .username,
+:global([data-theme='dark']) .accountDropdown a,
+:global([data-theme='dark']) .accountDropdown button {
+  color: #d7e8e6;
+}
+
+:global([data-theme='dark']) .navigationLink:hover,
+:global([data-theme='dark']) .navigationLink:focus-visible,
+:global([data-theme='dark']) .accountButton,
+:global([data-theme='dark']) .accountButton:hover,
+:global([data-theme='dark']) .accountButton[aria-expanded='true'],
+:global([data-theme='dark']) .appearanceButton,
+:global([data-theme='dark']) .languageButton {
+  border-color: rgba(76, 182, 175, 0.4);
+  background: #1b3839;
+  color: #a7e4dc;
+}
+
+:global([data-theme='dark']) .accountDropdown {
+  border-color: #344a4c;
+  background: #1b3032;
+}
+
+:global([data-theme='dark']) .accountDropdown a:hover,
+:global([data-theme='dark']) .accountDropdown button:hover {
+  background: #254446;
+  color: #b9eee7;
+}
+
+:global([data-theme='dark']) .menuPanel {
+  border-color: #344a4c;
+  background: #162a2c;
+}
+
+:global([data-theme='dark']) .registerLink {
+  border-color: #36b9b5;
+  background: #008689;
+  color: #fff;
+}
+
+:global([data-theme='dark']) .loginLink {
+  border-color: #4abbb4;
+  background: #1b3032;
+  color: #b9eee7;
 }
 
 @keyframes dropdown-enter {
@@ -536,14 +629,14 @@
     gap: 5px;
     border: 1px solid rgba(0, 134, 137, 0.28);
     border-radius: 12px;
-    background: #f2f9f8;
+    background: var(--color-surface-subtle);
     color: #006d70;
     cursor: pointer;
     transition: background-color 180ms ease;
   }
 
   .menuToggle:hover {
-    background: #e4f3f2;
+    background: var(--color-surface-hover);
   }
 
   .menuToggle span {
@@ -580,7 +673,7 @@
     padding: 14px;
     border: 1px solid rgba(0, 134, 137, 0.16);
     border-radius: 18px;
-    background: #fff;
+    background: var(--color-surface);
     box-shadow: 0 18px 42px rgba(4, 28, 35, 0.16);
   }
 
@@ -618,6 +711,12 @@
     justify-content: flex-start;
     padding-top: 12px;
     border-top: 1px solid rgba(0, 134, 137, 0.16);
+  }
+
+  .appearanceControls {
+    width: 100%;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 134, 137, 0.16);
   }
 
   .accountControls {
@@ -726,4 +825,76 @@
   .logoutSuccess::after {
     animation: none;
   }
+}
+
+@media (max-width: 1200px) {
+  .appearanceControls {
+    order: 0;
+  }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .navigationLink,
+:global(:where([data-theme='dark'])) .navigationLink:hover,
+:global(:where([data-theme='dark'])) .navigationLink:focus-visible,
+:global(:where([data-theme='dark'])) .appearanceButton,
+:global(:where([data-theme='dark'])) .languageButton,
+:global(:where([data-theme='dark'])) .accountDropdown a svg,
+:global(:where([data-theme='dark'])) .accountDropdown button svg,
+:global(:where([data-theme='dark'])) .accountDropdown a:hover,
+:global(:where([data-theme='dark'])) .accountDropdown button:hover,
+:global(:where([data-theme='dark'])) .loginLink {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .accountSkeleton span {
+  background: linear-gradient(90deg, var(--color-surface-hover) 25%, var(--color-surface) 50%, var(--color-surface-hover) 75%);
+}
+
+:global(:where([data-theme='dark'])) .accountButton,
+:global(:where([data-theme='dark'])) .accountDropdown a,
+:global(:where([data-theme='dark'])) .accountDropdown button,
+:global(:where([data-theme='dark'])) .userGreeting,
+:global(:where([data-theme='dark'])) .username {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .sessionStatus {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .logoutError {
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .logoutSuccess {
+  border-color: #2f6b4f;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .successIcon {
+  background: var(--color-surface-hover);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .logoutSuccess > span:nth-child(2) > span,
+:global(:where([data-theme='dark'])) .logoutSuccess button {
+  color: #7fdca8;
+}
+
+:global(:where([data-theme='dark'])) .logoutSuccess button:hover {
+  background: var(--color-surface-hover);
+}
+
+
+@media (max-width: 1200px) {
+  :global(:where([data-theme='dark'])) .menuToggle {
+    color: var(--color-primary-dark);
+  }
+
+  :global(:where([data-theme='dark'])) .navigationLink {
+    color: var(--color-ink);
+  }
+
 }

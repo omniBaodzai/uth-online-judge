@@ -77,7 +77,7 @@
   padding: 12px;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -105,9 +105,9 @@
   width: 100%;
   height: 44px;
   padding: 0 14px 0 40px;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
   font-size: 14px;
@@ -162,7 +162,7 @@
   overflow: hidden;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -242,4 +242,33 @@
   .grid {
     width: calc(100% - 32px);
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .problemLink {
+  color: var(--color-primary, #a5b8ff);
+}
+
+:global(:where([data-theme='dark'])) .filters,
+:global(:where([data-theme='dark'])) .search input:hover,
+:global(:where([data-theme='dark'])) .card {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .reset:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .error {
+  border-bottom-color: #6b3a3d;
+  background: var(--color-surface-hover);
+  color: #ff9d9d;
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
 }

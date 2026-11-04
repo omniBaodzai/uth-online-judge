@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Mail,
   MapPin,
@@ -28,34 +29,34 @@ const initialValues: ContactFormValues = {
 }
 
 type ContactMethod = {
-  label: string
+  label: 'supportEmail' | 'hotline' | 'officeAddress' | 'fanpage' | 'supportGroup'
   value: string
   icon: ReactNode
   href?: string
   external?: boolean
-  note?: string
+  note?: 'officialLinkNotConfigured' | 'supportLinkNotConfigured'
 }
 
 const contactMethods: ContactMethod[] = [
   {
-    label: 'Email hỗ trợ',
+    label: 'supportEmail',
     value: CONTACT_EMAIL,
     icon: <Mail size={20} strokeWidth={1.8} />,
     href: `mailto:${CONTACT_EMAIL}`,
   },
   {
-    label: 'Hotline',
+    label: 'hotline',
     value: CONTACT_PHONE,
     icon: <Phone size={20} strokeWidth={1.8} />,
     href: `tel:${CONTACT_PHONE_LINK}`,
   },
   {
-    label: 'Địa chỉ cơ sở',
+    label: 'officeAddress',
     value: CONTACT_ORGANIZATION,
     icon: <MapPin size={20} strokeWidth={1.8} />,
   },
   {
-    label: 'Facebook Fanpage',
+    label: 'fanpage',
     value: 'UTH Online Judge',
     icon: (
       <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
@@ -64,33 +65,34 @@ const contactMethods: ContactMethod[] = [
     ),
     href: CONTACT_FANPAGE_URL ?? undefined,
     external: true,
-    note: CONTACT_FANPAGE_URL ? undefined : 'Liên kết chính thức chưa được cấu hình.',
+    note: CONTACT_FANPAGE_URL ? undefined : 'officialLinkNotConfigured',
   },
   {
-    label: 'Nhóm Zalo / Telegram hỗ trợ',
-    value: 'Tham gia nhóm học tập',
+    label: 'supportGroup',
+    value: 'joinStudyGroup',
     icon: <Users size={20} strokeWidth={1.8} />,
     href: CONTACT_SUPPORT_GROUP_URL ?? undefined,
     external: true,
-    note: CONTACT_SUPPORT_GROUP_URL ? undefined : 'Liên kết nhóm hỗ trợ chưa được cấu hình.',
+    note: CONTACT_SUPPORT_GROUP_URL ? undefined : 'supportLinkNotConfigured',
   },
 ]
 
 const formFields: Array<{
   name: keyof ContactFormValues
-  label: string
-  placeholder: string
+  label: 'contactName' | 'contactSubject' | 'contactMessage' | 'contactEmail'
+  placeholder: 'enterContactName' | 'enterContactSubject' | 'enterContactMessage' | 'emailPlaceholder'
   type: 'text' | 'email' | 'textarea'
   maxLength: number
   autoComplete?: string
 }> = [
-  { name: 'name', label: 'Họ và tên', placeholder: 'Nhập họ và tên của bạn', type: 'text', maxLength: 100, autoComplete: 'name' },
-  { name: 'email', label: 'Email', placeholder: 'ban@example.com', type: 'email', maxLength: 254, autoComplete: 'email' },
-  { name: 'subject', label: 'Tiêu đề', placeholder: 'Bạn cần hỗ trợ vấn đề gì?', type: 'text', maxLength: 120 },
-  { name: 'message', label: 'Nội dung cần hỗ trợ', placeholder: 'Mô tả chi tiết vấn đề bạn đang gặp phải...', type: 'textarea', maxLength: 2000 },
+  { name: 'name', label: 'contactName', placeholder: 'enterContactName', type: 'text', maxLength: 100, autoComplete: 'name' },
+  { name: 'email', label: 'contactEmail', placeholder: 'emailPlaceholder', type: 'email', maxLength: 254, autoComplete: 'email' },
+  { name: 'subject', label: 'contactSubject', placeholder: 'enterContactSubject', type: 'text', maxLength: 120 },
+  { name: 'message', label: 'contactMessage', placeholder: 'enterContactMessage', type: 'textarea', maxLength: 2000 },
 ]
 
 function ContactPage() {
+  const { t } = useTranslation('pages')
   const [values, setValues] = useState(initialValues)
   const [touched, setTouched] = useState<Partial<Record<keyof ContactFormValues, boolean>>>({})
   const [submitted, setSubmitted] = useState(false)
@@ -151,11 +153,11 @@ function ContactPage() {
       setTouched({})
       setSubmitted(false)
       setNotice(response.trackingAvailable
-        ? 'Yêu cầu của bạn đã được tiếp nhận thành công.'
-        : 'Yêu cầu đã được tiếp nhận. Hiện tại khách chưa hỗ trợ theo dõi phản hồi trực tuyến.')
+        ? t('contactSuccess')
+        : t('contactSuccessUntracked'))
     } catch (error) {
       if (mountedRef.current) {
-        setNotice(getContactApiErrorMessage(error, 'Không thể gửi yêu cầu lúc này. Vui lòng thử lại sau.'))
+        setNotice(getContactApiErrorMessage(error, t('contactSubmitError')))
         setNoticeIsError(true)
       }
     } finally {
@@ -171,7 +173,7 @@ function ContactPage() {
   return (
     <main className={styles.main} id="main-content">
       <div className={styles.container}>
-        <h1 className={styles.visuallyHidden}>Liên hệ</h1>
+        <h1 className={styles.visuallyHidden}>{t('contactPage')}</h1>
         <div className={styles.layout}>
           <div className={styles.sidebar}>
             <section className={`${styles.card} ${styles.aboutCard}`} aria-labelledby="contact-about-title">
@@ -179,22 +181,22 @@ function ContactPage() {
                 <span className={styles.brandMark} aria-hidden="true">UTH</span>
                 <div>
                   <h2 id="contact-about-title">UTH Online Judge</h2>
-                  <p>Fanpage chính thức · Cộng đồng lập trình UTH</p>
+                  <p>{t('contactCommunitySubtitle')}</p>
                 </div>
               </div>
               <p className={styles.aboutDescription}>
-                Theo dõi fanpage để cập nhật kỳ thi, bài tập mới và thông báo bảo trì hệ thống.
+                {t('contactCommunityDescription')}
               </p>
             </section>
 
             <section className={`${styles.card} ${styles.contactCard}`} aria-labelledby="contact-details-title">
-              <h2 id="contact-details-title">Thông tin liên hệ</h2>
+              <h2 id="contact-details-title">{t('contactDetails')}</h2>
               <ul className={styles.contactList}>
                 {contactMethods.map(({ label, value, icon, href, external, note }) => (
                   <li className={styles.contactItem} key={label}>
                     <span className={styles.contactIcon} aria-hidden="true">{icon}</span>
                     <div className={styles.contactText}>
-                      <span className={styles.contactLabel}>{label}</span>
+                      <span className={styles.contactLabel}>{t(label)}</span>
                       {href ? (
                         <a
                           className={styles.contactValue}
@@ -202,12 +204,12 @@ function ContactPage() {
                           target={external ? '_blank' : undefined}
                           rel={external ? 'noopener noreferrer' : undefined}
                         >
-                          {value}
+                          {label === 'supportGroup' ? t('joinStudyGroup') : value}
                         </a>
                       ) : (
                         <span className={styles.contactValue}>{value}</span>
                       )}
-                      {note && <span className={styles.contactNote}>{note}</span>}
+                        {note && <span className={styles.contactNote}>{t(note)}</span>}
                     </div>
                   </li>
                 ))}
@@ -221,14 +223,15 @@ function ContactPage() {
                 <Send size={20} />
               </span>
               <div>
-                <h2 id="contact-form-title">Gửi tin nhắn cho chúng tôi</h2>
-                <p>Để lại thông tin, đội ngũ sẽ tiếp nhận yêu cầu của bạn.</p>
+                <h2 id="contact-form-title">{t('contactMessageTitle')}</h2>
+                <p>{t('contactMessageDescription')}</p>
               </div>
             </div>
 
             <form className={styles.form} noValidate onSubmit={handleSubmit} aria-busy={isSubmitting}>
               {formFields.map(({ name, label, placeholder, type, maxLength, autoComplete }) => {
-                const error = getVisibleError(name)
+                const errorKey = getVisibleError(name)
+                const error = errorKey ? t(errorKey) : undefined
                 const fieldId = `contact-${name}`
                 const errorId = `${fieldId}-error`
                 const describedBy = error ? errorId : undefined
@@ -236,14 +239,14 @@ function ContactPage() {
                 return (
                   <div className={styles.field} key={name}>
                     <label htmlFor={fieldId}>
-                      {label} <span aria-hidden="true">*</span>
+                      {t(label)} <span aria-hidden="true">*</span>
                     </label>
                     {type === 'textarea' ? (
                       <textarea
                         id={fieldId}
                         name={name}
                         value={values[name]}
-                        placeholder={placeholder}
+                        placeholder={t(placeholder)}
                         maxLength={maxLength}
                         rows={5}
                         required
@@ -258,7 +261,7 @@ function ContactPage() {
                         name={name}
                         type={type}
                         value={values[name]}
-                        placeholder={placeholder}
+                        placeholder={t(placeholder)}
                         maxLength={maxLength}
                         autoComplete={autoComplete}
                         required
@@ -273,7 +276,7 @@ function ContactPage() {
                         <span className={styles.fieldError} id={errorId} role="alert">{error}</span>
                       ) : <span aria-hidden="true" />}
                       {name === 'message' && (
-                        <span className={styles.counter}>{values.message.length}/2000</span>
+                        <span className={styles.counter}>{t('characterCount', { count: values.message.length, max: 2000 })}</span>
                       )}
                     </div>
                   </div>
@@ -282,7 +285,7 @@ function ContactPage() {
 
               <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
                 <Send size={17} aria-hidden="true" />
-                {isSubmitting ? 'Đang gửi...' : 'Gửi liên hệ'}
+                {isSubmitting ? t('sending') : t('sendContact')}
               </button>
               {notice && (
                 <p className={styles.notice} role={noticeIsError ? 'alert' : 'status'} aria-live={noticeIsError ? 'assertive' : 'polite'}>

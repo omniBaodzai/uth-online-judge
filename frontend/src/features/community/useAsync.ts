@@ -24,7 +24,7 @@ export function useAsync<T>(
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setState({ status: 'error', data: null, error: error instanceof Error ? error : new Error('Lỗi không xác định') })
+          setState({ status: 'error', data: null, error: error instanceof Error ? error : new Error() })
         }
       })
     return () => {

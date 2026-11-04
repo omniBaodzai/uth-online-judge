@@ -91,7 +91,7 @@
   padding: 18px;
   border: 1px solid #dce9e8;
   border-radius: 12px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 16px 42px rgba(10, 43, 46, 0.24);
   color: #193f40;
 }
@@ -125,7 +125,7 @@
   place-items: center;
   border: 1px solid #dce9e8;
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   color: #536b6c;
   cursor: pointer;
 }
@@ -265,16 +265,16 @@
   justify-content: space-between;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid #e8eeee;
+  border-top: 1px solid var(--color-border);
 }
 
 .removeCover,
 .closeCover {
   min-height: 38px;
   padding: 0 11px;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 7px;
-  background: #fff;
+  background: var(--color-surface);
   color: #536b6c;
   cursor: pointer;
   font: inherit;
@@ -330,7 +330,7 @@
 .section {
   border: 1px solid #e0ebeb;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.97);
+  background: color-mix(in srgb, var(--color-surface) 97%, transparent);
   box-shadow: 0 5px 18px rgba(24, 51, 55, 0.05);
 }
 
@@ -484,7 +484,7 @@
   padding: 6px 10px;
   border: 1px solid #b8d7d4;
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   color: #006d70;
   cursor: pointer;
   font: inherit;
@@ -772,4 +772,138 @@
   .bioCard {
     padding: 14px;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .coverEdit,
+:global(:where([data-theme='dark'])) .identityCard,
+:global(:where([data-theme='dark'])) .sidebarSection,
+:global(:where([data-theme='dark'])) .bioCard,
+:global(:where([data-theme='dark'])) .section {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .coverPopover,
+:global(:where([data-theme='dark'])) .coverUrlRow input {
+  border-color: var(--color-border);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .coverPopoverHeader h2,
+:global(:where([data-theme='dark'])) .coverUrlForm > label,
+:global(:where([data-theme='dark'])) .coverUploadChoice strong,
+:global(:where([data-theme='dark'])) .identityCard h1,
+:global(:where([data-theme='dark'])) .sideStats dd,
+:global(:where([data-theme='dark'])) .sidebarSection h2,
+:global(:where([data-theme='dark'])) .sectionHeader h2,
+:global(:where([data-theme='dark'])) .bioCard h2,
+:global(:where([data-theme='dark'])) .sidebarSection dd,
+:global(:where([data-theme='dark'])) .bioCard p {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .coverPopoverHeader p,
+:global(:where([data-theme='dark'])) .coverPopoverHint,
+:global(:where([data-theme='dark'])) .coverUploadChoice small,
+:global(:where([data-theme='dark'])) .username,
+:global(:where([data-theme='dark'])) .joined,
+:global(:where([data-theme='dark'])) .privateEmail,
+:global(:where([data-theme='dark'])) .sideStats dt,
+:global(:where([data-theme='dark'])) .sidebarSection dt,
+:global(:where([data-theme='dark'])) .bioCard .education,
+:global(:where([data-theme='dark'])) .sectionHeader p,
+:global(:where([data-theme='dark'])) .weekdayLabels,
+:global(:where([data-theme='dark'])) .monthLabels,
+:global(:where([data-theme='dark'])) .heatmapLegend,
+:global(:where([data-theme='dark'])) .emptyState {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .popoverClose {
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .popoverClose:hover,
+:global(:where([data-theme='dark'])) .closeCover:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .coverUploadChoice {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+:global(:where([data-theme='dark'])) .coverUploadChoice:hover,
+:global(:where([data-theme='dark'])) .coverUploadChoice:focus-visible,
+:global(:where([data-theme='dark'])) .removeCover:hover:not(:disabled),
+:global(:where([data-theme='dark'])) .secondaryAction:hover,
+:global(:where([data-theme='dark'])) .activityDay {
+  background: #2a4244;
+}
+
+:global(:where([data-theme='dark'])) .uploadMark {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .coverPopoverError {
+  background: var(--color-surface-subtle);
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .removeCover {
+  border-color: #6b3a3d;
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .closeCover,
+:global(:where([data-theme='dark'])) .secondaryAction {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .sideStats div,
+:global(:where([data-theme='dark'])) .activityFutureDay {
+  background: #1b3032;
+  opacity: 0.6;
+}
+
+:global(:where([data-theme='dark'])) .activityDay[data-level='1'] {
+  background: #1f5f5c;
+}
+
+:global(:where([data-theme='dark'])) .activityDay[data-level='2'] {
+  background: #2b8a84;
+}
+
+:global(:where([data-theme='dark'])) .activityDay[data-level='3'] {
+  background: #3fb8b0;
+}
+
+:global(:where([data-theme='dark'])) .activityDay[data-level='4'] {
+  background: #79d4cb;
+}
+
+:global(:where([data-theme='dark'])) .sidebarSection dl div {
+  border-bottom-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .bioCard header a,
+:global(:where([data-theme='dark'])) .bioCard header button {
+  border-color: var(--color-border);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .achievementList li {
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.92)),
+    url('../../../assets/uth_background.jpg');
 }

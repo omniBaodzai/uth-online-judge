@@ -1,7 +1,7 @@
 .printDocument {
   display: none;
   color: #111;
-  background: #fff;
+  background: var(--color-surface);
   font-family: Arial, "Segoe UI", sans-serif;
   font-size: 10.5pt;
   line-height: 1.55;
@@ -144,7 +144,7 @@
   overflow-wrap: anywhere;
   border: 1px solid #cbd4d4;
   border-top: 0;
-  background: #fff;
+  background: var(--color-surface);
   color: #111;
   font-family: Consolas, "Courier New", monospace;
   font-size: 9pt;
@@ -167,7 +167,7 @@
     min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;
+    background: var(--color-surface) !important;
     color: #111 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -184,7 +184,7 @@
     margin: 0 !important;
     padding: 0 !important;
     color: #111 !important;
-    background: #fff !important;
+    background: var(--color-surface) !important;
     font-family: Arial, "Segoe UI", sans-serif !important;
     font-size: 10.5pt !important;
     line-height: 1.55 !important;

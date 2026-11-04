@@ -1,10 +1,12 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import type { CodeEditor } from './MonacoEditor'
 import { describeLanguage } from './languages'
 import { useAuth } from '../../auth/useAuth'
 import { describeSubmissionFailure } from './submission-failure'
 import { submitContestSolution, submitSolution } from './submission-service'
+import '../i18n'
 import styles from './CodeEditorPanel.module.css'
 
 const MonacoEditor = lazy(() => import('./MonacoEditor'))
@@ -24,7 +26,7 @@ type CodeEditorPanelProps = {
   contestProblemTitle?: string
 }
 
-class EditorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class EditorBoundary extends Component<{ children: ReactNode; errorMessage: string; retryLabel: string }, { failed: boolean }> {
   state = { failed: false }
 
   static getDerivedStateFromError() {
@@ -35,8 +37,8 @@ class EditorBoundary extends Component<{ children: ReactNode }, { failed: boolea
     if (!this.state.failed) return this.props.children
     return (
       <div className={styles.editorState} role="alert">
-        <p>Không thể tải trình soạn thảo code.</p>
-        <button type="button" onClick={() => window.location.reload()}>Tải lại trang</button>
+        <p>{this.props.errorMessage}</p>
+        <button type="button" onClick={() => window.location.reload()}>{this.props.retryLabel}</button>
       </div>
     )
   }
@@ -72,6 +74,7 @@ function CodeEditorPanel({
   contestTitle,
   contestProblemTitle,
 }: CodeEditorPanelProps) {
+  const { t } = useTranslation('pages')
   const key = draftKey(userId, problemCode)
   const [initialDraft] = useState(() => loadDraft(key, languages))
   const [language, setLanguage] = useState<string>(initialDraft?.language ?? languages[0]?.slug ?? '')
@@ -165,7 +168,7 @@ function CodeEditorPanel({
         ? await submitContestSolution(request, contestIdentifier, payload)
         : await submitSolution(request, payload)
       if (!result || typeof result.id !== 'string' || !result.id.trim()) {
-        throw new Error('Máy chủ không trả về mã bài nộp hợp lệ.')
+        throw new Error(t('problemSubmissionServerInvalidId'))
       }
       navigate(`/submissions/${encodeURIComponent(result.id)}`, {
         state: contestIdentifier
@@ -181,7 +184,7 @@ function CodeEditorPanel({
           : undefined,
       })
     } catch (error) {
-      const failure = describeSubmissionFailure(error)
+      const failure = describeSubmissionFailure(error, (key) => t(key))
       setNotice(failure.message)
       setUncertainSubmissionId(failure.submissionId)
       setSubmissionOutcomeUnknown(failure.outcomeUnknown)
@@ -194,11 +197,11 @@ function CodeEditorPanel({
   return (
     <section
       className={`${styles.panel} ${fullscreen ? styles.fullscreen : ''}`}
-      aria-label="Trình soạn thảo code"
+      aria-label={t('problemEditorLabel')}
     >
       <div className={styles.toolbar}>
         <div className={styles.langGroup}>
-          <label htmlFor="language-select">Ngôn ngữ</label>
+          <label htmlFor="language-select">{t('problemLanguage')}</label>
           <div className={styles.selectWrap}>
             <select
               id="language-select"
@@ -206,7 +209,7 @@ function CodeEditorPanel({
               onChange={(event) => changeLanguage(event.target.value)}
               disabled={languages.length === 0}
             >
-              {languages.length === 0 && <option value="">Chưa có ngôn ngữ</option>}
+              {languages.length === 0 && <option value="">{t('problemNoLanguageAvailable')}</option>}
               {languages.map((item) => (
                 <option key={item.slug} value={item.slug}>{item.name}</option>
               ))}
@@ -218,23 +221,23 @@ function CodeEditorPanel({
             type="button"
             onClick={formatCode}
             disabled={!canFormat}
-            title={canFormat ? 'Định dạng code' : 'Định dạng tự động hiện chỉ hỗ trợ JavaScript'}
+            title={t(canFormat ? 'problemFormatCode' : 'problemFormatUnsupported')}
           >
-            Định dạng
+            {t('problemFormatCode')}
           </button>
           <button
             type="button"
             onClick={() => setFullscreen((value) => !value)}
             aria-pressed={fullscreen}
           >
-            {fullscreen ? 'Thu nhỏ' : 'Phóng to'}
+            {fullscreen ? t('problemFullscreenExit') : t('problemFullscreenEnter')}
           </button>
         </div>
       </div>
 
       <div className={styles.editorArea}>
-        <EditorBoundary>
-          <Suspense fallback={<div className={styles.editorState} role="status">Đang tải trình soạn thảo…</div>}>
+        <EditorBoundary errorMessage={t('problemEditorLoadError')} retryLabel={t('problemReloadPage')}>
+          <Suspense fallback={<div className={styles.editorState} role="status">{t('problemEditorLoading')}</div>}>
             <MonacoEditor
               value={code}
               language={current.monacoId}
@@ -247,13 +250,13 @@ function CodeEditorPanel({
       </div>
 
       {languages.length === 0 && (
-        <p className={styles.notice} role="alert">Bài tập này chưa được cấu hình ngôn ngữ nộp bài. Vui lòng liên hệ quản trị viên.</p>
+        <p className={styles.notice} role="alert">{t('problemLanguagesNotConfigured')}</p>
       )}
       {notice && (
         <div className={styles.notice} role={submissionOutcomeUnknown ? 'alert' : 'status'}>
           <p>{notice}</p>
           {submissionOutcomeUnknown && (
-            <p>Không gửi lại ngay để tránh tạo bài nộp trùng.</p>
+            <p>{t('problemDoNotResubmit')}</p>
           )}
           {uncertainSubmissionId && (
             <Link
@@ -270,26 +273,26 @@ function CodeEditorPanel({
                   }
                 : undefined}
             >
-              Kiểm tra bài nộp đã lưu
+              {t('problemCheckSavedSubmission')}
             </Link>
           )}
           {submissionOutcomeUnknown && !uncertainSubmissionId && (
-            <Link to="/submissions">Kiểm tra danh sách bài nộp</Link>
+            <Link to="/submissions">{t('problemCheckSubmissionList')}</Link>
           )}
         </div>
       )}
 
       <div className={styles.actions}>
-        <span className={styles.currentLang}>Đang chọn: <strong>{selected ? current.label : '—'}</strong></span>
+        <span className={styles.currentLang}>{t('problemCurrentlySelected')} <strong>{selected ? current.label : '—'}</strong></span>
         {confirmReset ? (
           <div className={styles.confirm} role="alert">
-            <span>Đặt lại sẽ xóa code bạn đã viết. Tiếp tục?</span>
-            <button type="button" className={styles.danger} onClick={resetCode}>Đặt lại</button>
-            <button type="button" onClick={() => setConfirmReset(false)}>Giữ code</button>
+            <span>{t('problemResetWarning')}</span>
+            <button type="button" className={styles.danger} onClick={resetCode}>{t('problemReset')}</button>
+            <button type="button" onClick={() => setConfirmReset(false)}>{t('problemKeepCode')}</button>
           </div>
         ) : (
           <div className={styles.actionButtons}>
-            <button type="button" onClick={requestReset} disabled={submitting}>Đặt lại code</button>
+            <button type="button" onClick={requestReset} disabled={submitting}>{t('problemResetCode')}</button>
             <button
               type="button"
               className={styles.primary}
@@ -297,12 +300,12 @@ function CodeEditorPanel({
               disabled={submitting || submissionOutcomeUnknown || !selected || !code.trim()}
             >
               {submitting
-                ? 'Đang gửi…'
+                ? t('problemSubmitting')
                 : submissionOutcomeUnknown
-                  ? 'Cần kiểm tra trạng thái'
+                  ? t('problemCheckSubmissionStatus')
                   : contestIdentifier
-                    ? 'Nộp bài thi'
-                    : 'Gửi bài giải'}
+                    ? t('problemSubmitContest')
+                    : t('problemSubmitSolution')}
             </button>
           </div>
         )}

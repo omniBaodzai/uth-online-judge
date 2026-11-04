@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import '../i18n'
 import styles from './FilterDropdown.module.css'
 
 type Option = { value: string; label: string }
@@ -12,6 +14,7 @@ type FilterDropdownProps = {
 }
 
 function FilterDropdown({ label, options, selected, multiple = false, onChange }: FilterDropdownProps) {
+  const { t } = useTranslation('pages')
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
@@ -47,7 +50,7 @@ function FilterDropdown({ label, options, selected, multiple = false, onChange }
       ? ''
       : selectedLabels.length === 1
         ? selectedLabels[0]
-        : `${selectedLabels.length} đã chọn`
+        : t('problemSelectedCount', { count: selectedLabels.length })
 
   return (
     <div className={styles.root} ref={rootRef}>
@@ -91,7 +94,7 @@ function FilterDropdown({ label, options, selected, multiple = false, onChange }
           {selected.length > 0 && (
             <li role="presentation">
               <button type="button" className={styles.clear} onClick={() => onChange([])}>
-                Bỏ chọn
+                {t('problemClearSelection')}
               </button>
             </li>
           )}

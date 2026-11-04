@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import uthLogo from '../../../assets/uth_logo.png'
 import {
   ApiError,
@@ -31,6 +32,7 @@ function PasswordInput({
   const [visible, setVisible] = useState(false)
   const [meterVisible, setMeterVisible] = useState(false)
   const [inputFocused, setInputFocused] = useState(false)
+  const { t } = useTranslation('auth')
   const strengthId = `${id}-strength`
   const shouldShowMeter = showStrength
     && meterVisible
@@ -73,7 +75,10 @@ function PasswordInput({
         <button
           className={styles.passwordToggle}
           type="button"
-          aria-label={visible ? `Ẩn ${label.toLocaleLowerCase('vi')}` : `Hiện ${label.toLocaleLowerCase('vi')}`}
+          aria-label={t('passwordVisibilityLabel', {
+            action: t(visible ? 'hidePasswordAction' : 'showPasswordAction'),
+            label,
+          })}
           aria-pressed={visible}
           onClick={() => setVisible((current) => !current)}
         >
@@ -97,6 +102,7 @@ function PasswordInput({
 
 function ForgotPasswordPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation('auth')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''))
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -138,7 +144,7 @@ function ForgotPasswordPage() {
       if (requestError instanceof ApiError && requestError.retryAfterSeconds) {
         setCooldownSeconds(requestError.retryAfterSeconds)
       }
-      setError(getErrorMessage(requestError, 'Không thể gửi mã xác nhận. Vui lòng thử lại.'))
+      setError(getErrorMessage(requestError, t('sendCodeError')))
     } finally {
       setBusy(false)
     }
@@ -147,7 +153,7 @@ function ForgotPasswordPage() {
   async function handleVerifyOtp() {
     const otp = code.join('')
     if (otp.length !== CODE_LENGTH) {
-      setError('Vui lòng nhập đủ 6 chữ số của mã xác nhận.')
+      setError(t('enterFullCode'))
       return
     }
     setBusy(true)
@@ -157,9 +163,9 @@ function ForgotPasswordPage() {
       const response = await verifyPasswordResetOtp(email, otp)
       setResetToken(response.resetToken)
       setStep(3)
-      setNotice('Mã xác nhận hợp lệ. Hãy tạo mật khẩu mới.')
+      setNotice(t('validCodeCreatePassword'))
     } catch (verifyError) {
-      setError(getErrorMessage(verifyError, 'Không thể xác minh mã. Vui lòng thử lại.'))
+      setError(getErrorMessage(verifyError, t('verifyCodeError')))
     } finally {
       setBusy(false)
     }
@@ -167,11 +173,11 @@ function ForgotPasswordPage() {
 
   async function handleResetPassword() {
     if (newPassword !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.')
+      setError(t('passwordMismatch'))
       return
     }
     if (!resetToken) {
-      setError('Phiên xác minh không hợp lệ. Vui lòng yêu cầu mã mới.')
+      setError(t('invalidResetSession'))
       return
     }
     setBusy(true)
@@ -184,13 +190,13 @@ function ForgotPasswordPage() {
       setCode(Array(CODE_LENGTH).fill(''))
       setNewPassword('')
       setConfirmPassword('')
-      setNotice('Đổi mật khẩu thành công. Đang chuyển về trang đăng nhập.')
+      setNotice(t('passwordResetSuccess'))
       redirectTimer.current = window.setTimeout(
         () => navigate('/login', { replace: true }),
         1200,
       )
     } catch (resetError) {
-      setError(getErrorMessage(resetError, 'Không thể đổi mật khẩu. Vui lòng thử lại.'))
+      setError(getErrorMessage(resetError, t('passwordResetError')))
     } finally {
       setBusy(false)
     }
@@ -237,22 +243,22 @@ function ForgotPasswordPage() {
     <div className={styles.page}>
       <main className={`${styles.main} ${pageStyles.main}`} id="main-content">
         <section className={`${styles.card} ${pageStyles.card}`} aria-labelledby="forgot-password-title">
-          <Link className={styles.logoLink} to="/" aria-label="Về trang chủ UTH Online Judge">
-            <img src={uthLogo} alt="Đại học Giao thông vận tải Thành phố Hồ Chí Minh" />
+          <Link className={styles.logoLink} to="/" aria-label={t('homeLabel', { ns: 'common' })}>
+            <img src={uthLogo} alt={t('university', { ns: 'common' })} />
           </Link>
-          <h1 className={styles.title} id="forgot-password-title">Lấy lại mật khẩu</h1>
+          <h1 className={styles.title} id="forgot-password-title">{t('forgotTitle')}</h1>
           <p className={styles.intro}>
-            Khôi phục mật khẩu qua email, mã sẽ gửi qua email bạn đã đăng ký tài khoản để thay đổi mật khẩu
+            {t('forgotDescription')}
           </p>
 
           <form className={`${styles.form} ${pageStyles.form}`} onSubmit={handleRequestOtp}>
             <section className={pageStyles.step} aria-labelledby="email-step-title">
               <h2 className={pageStyles.stepTitle} id="email-step-title">
                 <span>1</span>
-                Xác nhận email
+                {t('confirmEmail')}
               </h2>
               <div className={styles.field}>
-                <label className={styles.label} htmlFor="recovery-email">Email</label>
+                <label className={styles.label} htmlFor="recovery-email">{t('email')}</label>
                 <div className={styles.inputWrap}>
                   <span className={styles.fieldIcon} aria-hidden="true">
                     <svg viewBox="0 0 24 24">
@@ -268,7 +274,7 @@ function ForgotPasswordPage() {
                     autoComplete="email"
                     maxLength={254}
                     required
-                    placeholder="Nhập email đã đăng ký"
+                    placeholder={t('registeredEmail')}
                     value={email}
                     disabled={step > 1 || busy}
                     onChange={(event) => setEmail(event.target.value)}
@@ -276,7 +282,7 @@ function ForgotPasswordPage() {
                 </div>
               </div>
               <button className={styles.submitButton} type="submit" disabled={busy || step > 1}>
-                {busy && step === 1 ? 'Đang gửi mã…' : 'Gửi mã xác nhận'}
+                {busy && step === 1 ? t('sendingCode') : t('sendCode')}
               </button>
               {step === 1 && error ? <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{error}</p> : null}
             </section>
@@ -284,9 +290,9 @@ function ForgotPasswordPage() {
             <section className={pageStyles.step} aria-labelledby="code-step-title">
               <h2 className={pageStyles.stepTitle} id="code-step-title">
                 <span>2</span>
-                Nhập mã xác nhận
+                {t('enterCode')}
               </h2>
-              <div className={pageStyles.codeInputs} role="group" aria-label="Mã xác nhận gồm 6 chữ số">
+              <div className={pageStyles.codeInputs} role="group" aria-label={t('codeGroupLabel')}>
                 {code.map((digit, index) => (
                   <input
                     key={index}
@@ -296,7 +302,7 @@ function ForgotPasswordPage() {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                    aria-label={`Chữ số ${index + 1}`}
+                    aria-label={t('digitLabel', { index: index + 1 })}
                     maxLength={CODE_LENGTH}
                     value={digit}
                     disabled={step !== 2 || busy}
@@ -309,8 +315,8 @@ function ForgotPasswordPage() {
               <div className={pageStyles.resendRow}>
                 <span>
                   {cooldownSeconds > 0
-                    ? `Bạn có thể gửi lại mã sau ${formatCountdown(cooldownSeconds)}.`
-                    : 'Chưa nhận được mã?'}
+                    ? t('resendAvailableIn', { time: formatCountdown(cooldownSeconds) })
+                    : t('codeNotReceived')}
                 </span>
                 <button
                   className={pageStyles.resendButton}
@@ -318,7 +324,7 @@ function ForgotPasswordPage() {
                   disabled={busy || cooldownSeconds > 0 || step !== 2}
                   onClick={() => void handleRequestOtp()}
                 >
-                  Gửi lại mã xác nhận
+                  {t('resendCode')}
                 </button>
               </div>
               {step === 2 ? (
@@ -328,7 +334,7 @@ function ForgotPasswordPage() {
                   disabled={busy}
                   onClick={() => void handleVerifyOtp()}
                 >
-                  {busy ? 'Đang xác minh…' : 'Xác minh mã'}
+                  {busy ? t('verifyingCode') : t('verifyCode')}
                 </button>
               ) : null}
               {step === 2 && error ? <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{error}</p> : null}
@@ -338,11 +344,11 @@ function ForgotPasswordPage() {
             <section className={pageStyles.step} aria-labelledby="password-step-title">
               <h2 className={pageStyles.stepTitle} id="password-step-title">
                 <span>3</span>
-                Tạo mật khẩu mới
+                {t('createNewPassword')}
               </h2>
               <PasswordInput
                 id="new-password"
-                label="Mật khẩu mới"
+                label={t('newPassword')}
                 value={newPassword}
                 disabled={step !== 3 || busy}
                 onChange={setNewPassword}
@@ -350,7 +356,7 @@ function ForgotPasswordPage() {
               />
               <PasswordInput
                 id="confirm-password"
-                label="Nhập lại mật khẩu mới"
+                label={t('confirmNewPassword')}
                 value={confirmPassword}
                 disabled={step !== 3 || busy}
                 onChange={setConfirmPassword}
@@ -361,7 +367,7 @@ function ForgotPasswordPage() {
                 disabled={busy || step !== 3}
                 onClick={() => void handleResetPassword()}
               >
-                {busy && step === 3 ? 'Đang cập nhật…' : 'Xác nhận'}
+                {busy && step === 3 ? t('updatingPassword') : t('confirm')}
               </button>
               {step === 3 && error ? <p className={`${styles.notice} ${styles.noticeError}`} role="alert">{error}</p> : null}
               {step === 3 && notice ? <p className={styles.notice} role="status">{notice}</p> : null}
@@ -369,7 +375,7 @@ function ForgotPasswordPage() {
           </form>
 
           <p className={`${styles.switchPrompt} ${pageStyles.backLink}`}>
-            <Link to="/login">← Quay lại đăng nhập</Link>
+            <Link to="/login">{t('backToLogin')}</Link>
           </p>
         </section>
       </main>

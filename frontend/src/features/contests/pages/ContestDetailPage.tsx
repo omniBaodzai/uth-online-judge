@@ -29,30 +29,20 @@ import {
 import ContestLeaderboardTab from './ContestLeaderboardTab'
 import ContestParticipantsTab from './ContestParticipantsTab'
 import ContestStatisticsTab from './ContestStatisticsTab'
+import { useContestText } from '../translate'
 import styles from './ContestDetailPage.module.css'
 
 const DEFAULT_PAGE_SIZE = submissionPageSizes[0]
 const tabs = [
-  { id: 'info', label: 'Thông tin', Icon: Info },
-  { id: 'stats', label: 'Thống kê', Icon: ChartColumn },
-  { id: 'ranking', label: 'Bảng xếp hạng', Icon: Trophy },
-  { id: 'participants', label: 'Tham gia', Icon: Users },
-  { id: 'submissions', label: 'Các bài nộp', Icon: FileCode },
+  { id: 'info', labelKey: 'tabInfo', Icon: Info },
+  { id: 'stats', labelKey: 'tabStatistics', Icon: ChartColumn },
+  { id: 'ranking', labelKey: 'tabLeaderboard', Icon: Trophy },
+  { id: 'participants', labelKey: 'tabParticipants', Icon: Users },
+  { id: 'submissions', labelKey: 'tabSubmissions', Icon: FileCode },
 ] as const
 
 type ContestTabId = (typeof tabs)[number]['id']
 type ContestPhase = 'ongoing' | 'upcoming' | 'past'
-
-const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
-  timeZone: 'Asia/Ho_Chi_Minh',
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hourCycle: 'h23',
-})
 
 function useCurrentTime(): number {
   const [now, setNow] = useState(() => Date.now())
@@ -71,15 +61,21 @@ function getPhaseFromStatus(status: StudentContestTimeStatus): ContestPhase {
   return 'past'
 }
 
-function padTime(value: number): string {
-  return String(value).padStart(2, '0')
+function padTime(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { minimumIntegerDigits: 2, useGrouping: false }).format(value)
 }
 
-function formatLocalDateTime(value: string): string {
-  const parts = Object.fromEntries(
-    dateFormatter.formatToParts(new Date(value)).map(({ type, value: partValue }) => [type, partValue]),
-  )
-  return `${parts.hour}:${parts.minute}:${parts.second} ngày ${parts.day}/${parts.month}/${parts.year}`
+function formatLocalDateTime(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(value))
 }
 
 function getContestDurationMinutes(contest: StudentContestDetail): number {
@@ -89,37 +85,40 @@ function getContestDurationMinutes(contest: StudentContestDetail): number {
 }
 
 function ContestCountdown({ contest, now }: { contest: StudentContestDetail; now: number }) {
+  const { text, locale } = useContestText()
   const phase = getPhaseFromStatus(contest.timeStatus)
   const targetTime = phase === 'upcoming' ? contest.startsAt : contest.endsAt
   const targetTimestamp = new Date(targetTime).getTime()
   const remainingSeconds = Number.isFinite(targetTimestamp)
     ? Math.max(0, Math.floor((targetTimestamp - now) / 1000))
     : 0
-  const countdownText = `${Math.floor(remainingSeconds / 86_400)} ngày ${padTime(Math.floor((remainingSeconds % 86_400) / 3_600))}:${padTime(Math.floor((remainingSeconds % 3_600) / 60))}:${padTime(remainingSeconds % 60)}`
+  const countdownText = `${Math.floor(remainingSeconds / 86_400).toLocaleString(locale)} ${text('days', 'ngày', 'days')} ${padTime(Math.floor((remainingSeconds % 86_400) / 3_600), locale)}:${padTime(Math.floor((remainingSeconds % 3_600) / 60), locale)}:${padTime(remainingSeconds % 60, locale)}`
 
   return (
     <section className={styles.statusCard} aria-labelledby="contest-status-title">
       <span className={`${styles.statusBadge} ${styles[phase]}`}>
         <span className={styles.statusDot} aria-hidden="true" />
-        {phase === 'ongoing' ? 'Đang diễn ra' : phase === 'upcoming' ? 'Sắp diễn ra' : 'Đã kết thúc'}
+        {phase === 'ongoing' ? text('ongoing', 'Đang diễn ra', 'Ongoing') : phase === 'upcoming' ? text('upcoming', 'Sắp diễn ra', 'Upcoming') : text('ended', 'Đã kết thúc', 'Ended')}
       </span>
       <h2 id="contest-status-title">
         {phase === 'ongoing'
-          ? <>Kỳ thi sẽ kết thúc sau <span className={styles.countdown}>{countdownText}</span></>
+          ? <>{text('contestEndsIn', 'Kỳ thi sẽ kết thúc sau', 'Contest ends in')} <span className={styles.countdown}>{countdownText}</span></>
           : phase === 'upcoming'
-            ? <>Bắt đầu trong <span className={styles.countdown}>{countdownText}</span></>
-            : 'Cuộc thi đã kết thúc'}
+            ? <>{text('startsIn', 'Bắt đầu trong', 'Starts in')} <span className={styles.countdown}>{countdownText}</span></>
+            : text('contestEnded', 'Cuộc thi đã kết thúc', 'The contest has ended')}
       </h2>
       <p className={styles.statusDescription}>
         {phase === 'past'
-          ? <>Kết thúc lúc {formatLocalDateTime(contest.endsAt)} <span aria-hidden="true">•</span> Thời gian thi: {getContestDurationMinutes(contest)} phút</>
-          : <>Thời gian thi: {getContestDurationMinutes(contest)} phút <span aria-hidden="true">•</span> Bắt đầu lúc {formatLocalDateTime(contest.startsAt)}</>}
-        <span aria-hidden="true">•</span> {contest.participantCount.toLocaleString('vi-VN')} thành viên đã đăng ký
+          ? <>{text('endsAt', 'Kết thúc lúc', 'Ended at')} {formatLocalDateTime(contest.endsAt, locale)} <span aria-hidden="true">•</span> {text('durationLabel', 'Thời gian thi:', 'Duration:')} {getContestDurationMinutes(contest).toLocaleString(locale)} {text('minutes', 'phút', 'minutes')}</>
+          : <>{text('durationLabel', 'Thời gian thi:', 'Duration:')} {getContestDurationMinutes(contest).toLocaleString(locale)} {text('minutes', 'phút', 'minutes')} <span aria-hidden="true">•</span> {text('startsAt', 'Bắt đầu lúc', 'Starts at')} {formatLocalDateTime(contest.startsAt, locale)}</>}
+        <span aria-hidden="true">•</span> {text('registeredMembersCount', '{{count}} thành viên đã đăng ký', '{{count}} members registered', {
+          count: contest.participantCount.toLocaleString(locale),
+        })}
       </p>
       {contest.description ? <p className={styles.contestDescription}>{contest.description}</p> : null}
       {contest.rules ? (
         <section className={styles.rules} aria-labelledby="contest-rules-title">
-          <h3 id="contest-rules-title">Thể lệ</h3>
+          <h3 id="contest-rules-title">{text('contestRules', 'Thể lệ', 'Rules')}</h3>
           <p>{contest.rules}</p>
         </section>
       ) : null}
@@ -128,6 +127,7 @@ function ContestCountdown({ contest, now }: { contest: StudentContestDetail; now
 }
 
 function ContestProblemsTable({ contest }: { contest: StudentContestDetail }) {
+  const { text, locale } = useContestText()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const pageProblems = contest.problems.slice((page - 1) * pageSize, page * pageSize)
@@ -137,8 +137,8 @@ function ContestProblemsTable({ contest }: { contest: StudentContestDetail }) {
     pageSize,
     totalItems: contest.problems.length,
     pageSizes: submissionPageSizes,
-    label: 'bài tập cuộc thi',
-    summaryLabel: 'bài tập',
+    label: text('contestProblems', 'bài tập cuộc thi', 'contest problems'),
+    summaryLabel: text('problems', 'bài tập', 'problems'),
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
       setPageSize(size)
@@ -149,8 +149,8 @@ function ContestProblemsTable({ contest }: { contest: StudentContestDetail }) {
   return (
     <section className={styles.problemsCard} aria-labelledby="contest-problems-title">
       <header className={styles.problemsHeader}>
-        <h2 id="contest-problems-title">Danh sách bài tập</h2>
-        <span>{contest.problems.length} bài</span>
+        <h2 id="contest-problems-title">{text('problemListTitle', 'Danh sách bài tập', 'Problem list')}</h2>
+        <span>{contest.problems.length.toLocaleString(locale)} {text('problemsShort', 'bài', 'problems')}</span>
       </header>
       {hasProblemAccess ? (
         <>
@@ -159,25 +159,25 @@ function ContestProblemsTable({ contest }: { contest: StudentContestDetail }) {
           </div>
           {pageProblems.length === 0 ? (
             <div className={styles.empty}>
-              <strong>Chưa có bài tập trong cuộc thi</strong>
-              <p>Hiện chưa có bài tập nào được cung cấp.</p>
+              <strong>{text('noContestProblems', 'Chưa có bài tập trong cuộc thi', 'No problems in this contest yet')}</strong>
+              <p>{text('noContestProblemsHint', 'Hiện chưa có bài tập nào được cung cấp.', 'No problems have been added yet.')}</p>
             </div>
           ) : (
-            <div className={styles.tableWrap} role="region" aria-label="Danh sách bài tập cuộc thi" tabIndex={0}>
+            <div className={styles.tableWrap} role="region" aria-label={text('contestProblemTableLabel', 'Danh sách bài tập cuộc thi', 'Contest problem list')} tabIndex={0}>
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th scope="col" className={styles.numberColumn}>STT</th>
-                    <th scope="col" className={styles.lockColumn}>TRẠNG THÁI</th>
-                    <th scope="col" className={styles.problemColumn}>TÊN BÀI TẬP</th>
-                    <th scope="col" className={styles.scoreColumn}>ĐIỂM</th>
+                    <th scope="col" className={styles.numberColumn}>{text('number', 'STT', 'NO.')}</th>
+                    <th scope="col" className={styles.lockColumn}>{text('status', 'TRẠNG THÁI', 'STATUS')}</th>
+                    <th scope="col" className={styles.problemColumn}>{text('problemName', 'TÊN BÀI TẬP', 'PROBLEM')}</th>
+                    <th scope="col" className={styles.scoreColumn}>{text('score', 'ĐIỂM', 'SCORE')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageProblems.map((problem: StudentContestProblem, index) => (
                     <tr key={problem.problemId}>
-                      <td className={styles.numberCell}>{(page - 1) * pageSize + index + 1}</td>
-                      <td className={styles.lockCell}>Đã mở</td>
+                      <td className={styles.numberCell}>{((page - 1) * pageSize + index + 1).toLocaleString(locale)}</td>
+                      <td className={styles.lockCell}>{text('unlocked', 'Đã mở', 'Unlocked')}</td>
                       <td className={styles.problemCell}>
                         <Link
                           className={styles.problemLink}
@@ -187,7 +187,7 @@ function ContestProblemsTable({ contest }: { contest: StudentContestDetail }) {
                         </Link>
                         <span className={styles.problemCode}>{problem.problemCode}</span>
                       </td>
-                      <td className={styles.scoreCell}>{problem.maxScore}</td>
+                      <td className={styles.scoreCell}>{problem.maxScore.toLocaleString(locale)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -200,8 +200,8 @@ function ContestProblemsTable({ contest }: { contest: StudentContestDetail }) {
         </>
       ) : (
         <div className={styles.empty}>
-          <strong>Danh sách bài chưa được mở</strong>
-          <p>Chỉ thí sinh đã đăng ký mới xem được bài trong thời gian diễn ra cuộc thi.</p>
+          <strong>{text('problemsLocked', 'Danh sách bài chưa được mở', 'Problems are not available yet')}</strong>
+          <p>{text('problemsLockedHint', 'Chỉ thí sinh đã đăng ký mới xem được bài trong thời gian diễn ra cuộc thi.', 'Only registered contestants can view problems while the contest is ongoing.')}</p>
         </div>
       )}
     </section>
@@ -209,6 +209,7 @@ function ContestProblemsTable({ contest }: { contest: StudentContestDetail }) {
 }
 
 function UnsupportedContestTab({ tabId }: { tabId: ContestTabId }) {
+  const { text } = useContestText()
   const tab = tabs.find(({ id }) => id === tabId)!
   const Icon = tab.Icon
   return (
@@ -216,13 +217,14 @@ function UnsupportedContestTab({ tabId }: { tabId: ContestTabId }) {
       <span className={styles.placeholderIcon} aria-hidden="true">
         <Icon size={24} />
       </span>
-      <h2>{tab.label}</h2>
-      <p>Dữ liệu cho mục này chưa được hỗ trợ.</p>
+      <h2>{text(tab.labelKey, tab.id === 'info' ? 'Thông tin' : tab.id === 'stats' ? 'Thống kê' : tab.id === 'ranking' ? 'Bảng xếp hạng' : tab.id === 'participants' ? 'Tham gia' : 'Các bài nộp', tab.id === 'info' ? 'Information' : tab.id === 'stats' ? 'Statistics' : tab.id === 'ranking' ? 'Leaderboard' : tab.id === 'participants' ? 'Participants' : 'Submissions')}</h2>
+      <p>{text('unsupportedTabData', 'Dữ liệu cho mục này chưa được hỗ trợ.', 'Data for this section is not available yet.')}</p>
     </section>
   )
 }
 
 function ContestDetailPage() {
+  const { text, locale } = useContestText()
   const { contestId } = useParams()
   const { accessToken, user, request: authRequest, isLoading: isAuthLoading } = useAuth()
   const { showToast } = useToast()
@@ -266,12 +268,12 @@ function ContestDetailPage() {
           key: requestKey,
           error: requestError instanceof ApiError
             ? requestError.message
-            : 'Không thể tải thông tin cuộc thi. Vui lòng thử lại.',
+            : text('contestRequestError', 'Không thể tải thông tin cuộc thi. Vui lòng thử lại.', 'Could not load contest information. Please try again.'),
           notFound: requestError instanceof ApiError && requestError.status === 404,
         })
       })
     return () => controller.abort()
-  }, [accessToken, contestId, isAuthLoading, requestKey, requester])
+  }, [accessToken, contestId, isAuthLoading, requestKey, requester, text])
 
   async function handleRegistrationAction() {
     if (!contest || registrationPending) return
@@ -280,7 +282,7 @@ function ContestDetailPage() {
     if (!canCancel && !canRegister) return
 
     if (!user || !accessToken) {
-      showToast('Vui lòng đăng nhập để đăng ký cuộc thi.')
+      showToast(text('signInToRegister', 'Vui lòng đăng nhập để đăng ký cuộc thi.', 'Sign in to register for the contest.'))
       navigate(buildLoginPath(`${location.pathname}${location.search}${location.hash}`))
       return
     }
@@ -310,19 +312,19 @@ function ContestDetailPage() {
       }
       showToast(refreshFailed
         ? isRegistered
-          ? 'Đã đăng ký; số thành viên có thể chưa được làm mới.'
-          : 'Đã hủy đăng ký; số thành viên có thể chưa được làm mới.'
+          ? text('registeredCountMayBeStale', 'Đã đăng ký; số thành viên có thể chưa được làm mới.', 'You are registered; the participant count may not be up to date.')
+          : text('cancelledCountMayBeStale', 'Đã hủy đăng ký; số thành viên có thể chưa được làm mới.', 'Registration cancelled; the participant count may not be up to date.')
         : isRegistered
-          ? 'Đăng ký cuộc thi thành công.'
-          : 'Đã hủy đăng ký cuộc thi.')
+          ? text('registrationSuccess', 'Đăng ký cuộc thi thành công.', 'Successfully registered for the contest.')
+          : text('registrationCancelled', 'Đã hủy đăng ký cuộc thi.', 'Contest registration cancelled.'))
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 401) {
-        showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+        showToast(text('sessionExpired', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'Your session has expired. Please sign in again.'))
         navigate(buildLoginPath(`${location.pathname}${location.search}${location.hash}`))
       } else if (requestError instanceof ApiError) {
         showToast(requestError.message)
       } else {
-        showToast('Không thể cập nhật đăng ký cuộc thi. Vui lòng thử lại.')
+        showToast(text('registrationUpdateError', 'Không thể cập nhật đăng ký cuộc thi. Vui lòng thử lại.', 'Could not update your contest registration. Please try again.'))
       }
     } finally {
       setRegistrationPending(false)
@@ -357,7 +359,7 @@ function ContestDetailPage() {
       <main className={styles.main} id="main-content">
         <div className={styles.container}>
           <section className={styles.placeholder} role="status" aria-live="polite">
-            <h1>Đang tải cuộc thi…</h1>
+            <h1>{text('contestLoading', 'Đang tải cuộc thi…', 'Loading contest…')}</h1>
           </section>
         </div>
       </main>
@@ -369,18 +371,18 @@ function ContestDetailPage() {
       <main className={styles.main} id="main-content">
         <div className={styles.container}>
           <section className={styles.notFound} role={notFound ? undefined : 'alert'}>
-            <h1>{notFound ? 'Không tìm thấy cuộc thi' : 'Không thể tải cuộc thi'}</h1>
+            <h1>{notFound ? text('contestNotFound', 'Không tìm thấy cuộc thi', 'Contest not found') : text('contestLoadError', 'Không thể tải cuộc thi', 'Could not load contest')}</h1>
             <p>
               {notFound
-                ? 'Cuộc thi không tồn tại hoặc không được công khai.'
-                : error || 'Vui lòng thử lại sau.'}
+                ? text('contestUnavailable', 'Cuộc thi không tồn tại hoặc không được công khai.', 'This contest does not exist or is not public.')
+                : error || text('tryAgainLater', 'Vui lòng thử lại sau.', 'Please try again later.')}
             </p>
             {!notFound ? (
               <button type="button" onClick={() => setRetryKey((key) => key + 1)}>
-                Thử lại
+                {text('retry', 'Thử lại', 'Retry')}
               </button>
             ) : null}
-            <Link to="/contests">Quay lại danh sách cuộc thi</Link>
+            <Link to="/contests">{text('backToContests', 'Quay lại danh sách cuộc thi', 'Back to contests')}</Link>
           </section>
         </div>
       </main>
@@ -391,16 +393,16 @@ function ContestDetailPage() {
   const canCancel = contest.isRegistered && contest.timeStatus === 'UPCOMING'
   const canRegister = contest.canRegister
   const actionLabel = canRegister
-    ? 'Đăng ký'
+    ? text('register', 'Đăng ký', 'Register')
     : canCancel
-      ? 'Hủy đăng ký'
+      ? text('cancelRegistration', 'Hủy đăng ký', 'Cancel registration')
       : contest.isRegistered
-        ? 'Đã đăng ký'
+        ? text('registered', 'Đã đăng ký', 'Registered')
         : contest.timeStatus === 'UPCOMING'
-          ? 'Đăng ký đã đóng'
+          ? text('registrationClosed', 'Đăng ký đã đóng', 'Registration closed')
           : phase === 'past'
-            ? 'Đã kết thúc'
-            : 'Cuộc thi đang diễn ra'
+            ? text('ended', 'Đã kết thúc', 'Ended')
+            : text('contestOngoing', 'Cuộc thi đang diễn ra', 'Contest is ongoing')
   const isActionEnabled = canRegister || canCancel
 
   return (
@@ -410,8 +412,8 @@ function ContestDetailPage() {
           <h1 className={styles.title}>{contest.title}</h1>
           <div className={styles.navigationRow}>
             <div className={styles.tabsViewport}>
-              <div className={styles.tabs} role="tablist" aria-label="Thông tin cuộc thi">
-                {tabs.map(({ id, label, Icon }, index) => (
+              <div className={styles.tabs} role="tablist" aria-label={text('contestTabsLabel', 'Thông tin cuộc thi', 'Contest information')}>
+                {tabs.map(({ id, labelKey, Icon }, index) => (
                   <button
                     key={id}
                     ref={(element) => { tabRefs.current[index] = element }}
@@ -426,7 +428,7 @@ function ContestDetailPage() {
                     onKeyDown={(event) => handleTabKeyDown(event, index)}
                   >
                     <Icon size={17} aria-hidden="true" />
-                    <span>{label}{id === 'participants' ? ` (${contest.participantCount})` : ''}</span>
+                    <span>{text(labelKey, id === 'info' ? 'Thông tin' : id === 'stats' ? 'Thống kê' : id === 'ranking' ? 'Bảng xếp hạng' : id === 'participants' ? 'Tham gia' : 'Các bài nộp', id === 'info' ? 'Information' : id === 'stats' ? 'Statistics' : id === 'ranking' ? 'Leaderboard' : id === 'participants' ? 'Participants' : 'Submissions')}{id === 'participants' ? ` (${contest.participantCount.toLocaleString(locale)})` : ''}</span>
                   </button>
                 ))}
               </div>
@@ -445,7 +447,7 @@ function ContestDetailPage() {
                   : contest.timeStatus === 'UPCOMING'
                     ? <UserRoundPlus size={17} aria-hidden="true" />
                     : <LogIn size={17} aria-hidden="true" />}
-              <span>{registrationPending ? 'Đang cập nhật…' : actionLabel}</span>
+              <span>{registrationPending ? text('registrationUpdating', 'Đang cập nhật…', 'Updating registration…') : actionLabel}</span>
             </button>
           </div>
         </header>

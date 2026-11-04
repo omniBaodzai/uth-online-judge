@@ -2,7 +2,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  background-color: #f3f7f7;
+  background-color: var(--color-page);
   background-image:
     linear-gradient(rgba(239, 247, 247, 0.84), rgba(239, 247, 247, 0.88)),
     url('../../../assets/uth_background.jpg');
@@ -19,7 +19,7 @@
   transform: translateY(-160%);
   padding: 10px 14px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-primary-dark);
   font-size: 13px;
   font-weight: 700;
@@ -48,7 +48,7 @@
   padding: clamp(24px, 3vw, 32px);
   border: 1px solid rgba(228, 236, 236, 0.9);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.98);
+  background: color-mix(in srgb, var(--color-surface) 98%, transparent);
   box-shadow:
     0 24px 64px rgba(24, 51, 55, 0.12),
     0 3px 10px rgba(24, 51, 55, 0.04);
@@ -73,7 +73,7 @@
 
 .title {
   margin: 0;
-  color: #183337;
+  color: var(--color-ink);
   font-size: clamp(24px, 2.6vw, 28px);
   font-weight: 750;
   letter-spacing: -0.035em;
@@ -96,6 +96,43 @@
   gap: 12px;
 }
 
+:global([data-theme='dark']) .page,
+:global([data-theme='dark']) .main {
+  background-color: #102426;
+  background-image:
+    linear-gradient(rgba(16, 36, 38, 0.9), rgba(16, 36, 38, 0.94)),
+    url('../../../assets/uth_background.jpg');
+}
+
+:global([data-theme='dark']) .card {
+  border-color: var(--color-border);
+  background: rgba(27, 48, 50, 0.98);
+}
+
+:global([data-theme='dark']) .title,
+:global([data-theme='dark']) .label {
+  color: var(--color-ink);
+}
+
+:global([data-theme='dark']) .inputWrap {
+  border-color: var(--color-border);
+  background: #1b3032;
+}
+
+:global([data-theme='dark']) .input {
+  color: var(--color-ink);
+}
+
+:global([data-theme='dark']) .floatingLabel {
+  background: #1b3032;
+  color: #a7b9ba;
+}
+
+:global([data-theme='dark']) .rememberMe,
+:global([data-theme='dark']) .switchPrompt {
+  color: #b6c8c8;
+}
+
 .field {
   display: flex;
   min-width: 0;
@@ -104,7 +141,7 @@
 }
 
 .label {
-  color: #29484b;
+  color: var(--color-ink);
   font-size: 14px;
   font-weight: 650;
 }
@@ -122,9 +159,9 @@
   align-items: center;
   gap: 10px;
   padding: 0 12px;
-  border: 1px solid #d9e5e5;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -133,7 +170,7 @@
 
 .inputWrap:focus-within {
   border-color: #008689;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 0 0 3px rgba(0, 134, 137, 0.12);
 }
 
@@ -142,7 +179,7 @@
   width: 19px;
   height: 19px;
   flex: 0 0 auto;
-  color: #71888a;
+  color: var(--color-muted);
 }
 
 .fieldIcon svg,
@@ -164,7 +201,7 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: #183337;
+  color: var(--color-ink);
   font-size: 15px;
 }
 
@@ -190,8 +227,8 @@
   top: 0;
   left: 42px;
   padding: 0 4px;
-  background: #fff;
-  color: #71888a;
+  background: var(--color-surface);
+  color: var(--color-ink);
   font-size: 15px;
   font-weight: 500;
   line-height: 1;
@@ -221,7 +258,7 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #71888a;
+  color: var(--color-muted);
   cursor: pointer;
 }
 
@@ -243,7 +280,7 @@
   min-height: 44px;
   align-items: center;
   gap: 9px;
-  color: #29484b;
+  color: var(--color-ink);
   cursor: pointer;
 }
 
@@ -374,7 +411,7 @@
 
 .googleButton {
   border-color: #d9e0e0;
-  background: #fff;
+  background: var(--color-surface);
   color: #263638;
 }
 
@@ -433,7 +470,7 @@
 
 .switchPrompt {
   margin: 12px 0 0;
-  color: #64777a;
+  color: var(--color-muted);
   font-size: 14px;
   line-height: 1.6;
   text-align: center;
@@ -502,4 +539,64 @@
   .oauthButton {
     transition: none;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .intro,
+:global(:where([data-theme='dark'])) .floatingInputWrap .input:focus + .floatingLabel,
+:global(:where([data-theme='dark'])) .floatingInputWrap .input:not(:placeholder-shown) + .floatingLabel,
+:global(:where([data-theme='dark'])) .floatingInputWrap .input:-webkit-autofill + .floatingLabel,
+:global(:where([data-theme='dark'])) .forgotLink,
+:global(:where([data-theme='dark'])) .forgotLink:hover,
+:global(:where([data-theme='dark'])) .switchPrompt a:hover,
+:global(:where([data-theme='dark'])) .switchPrompt a {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .fieldError,
+:global(:where([data-theme='dark'])) .noticeError {
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .passwordToggle:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .oauthDivider::before,
+:global(:where([data-theme='dark'])) .oauthDivider::after {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .googleButton {
+  border-color: var(--color-border);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .googleButton:not(:disabled):hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .notice,
+:global(:where([data-theme='dark'])) .noticeSuccess {
+  color: var(--color-muted);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .page {
+  background-color: var(--color-page);
+  background-image:
+    linear-gradient(rgba(16, 36, 38, 0.84), rgba(16, 36, 38, 0.88)),
+    url('../../../assets/uth_background.jpg');
+}
+
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    linear-gradient(rgba(16, 36, 38, 0.84), rgba(16, 36, 38, 0.88)),
+    url('../../../assets/uth_background.jpg');
 }

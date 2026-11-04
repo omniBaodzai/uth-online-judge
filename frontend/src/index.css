@@ -10,12 +10,35 @@
 
   --color-primary: #008689;
   --color-primary-dark: #006d70;
+  --color-primary-solid: #008689;
+  --color-primary-solid-hover: #006d70;
   --color-ink: #183337;
   --color-muted: #64777a;
   --color-surface: #fff;
+  --color-surface-subtle: #f5fbfa;
+  --color-surface-hover: #eaf7f6;
   --color-page: #f3f7f7;
   --color-border: #e4ecec;
   --shadow-card: 0 12px 32px rgba(24, 51, 55, 0.06);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  color: #e6f0ef;
+  background: #102426;
+  --color-ink: #e6f0ef;
+  --color-muted: #a7b9ba;
+  --color-surface: #1b3032;
+  --color-surface-subtle: #213b3d;
+  --color-surface-hover: #254446;
+  --color-page: #102426;
+  --color-border: #344a4c;
+  --color-primary: #36b9b5;
+  --color-primary-dark: #79d4cb;
+  --color-primary-solid: #007a7d;
+  --color-primary-solid-hover: #006d70;
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.24);
 }
 
 * {
@@ -31,6 +54,64 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  color: var(--color-ink);
+  background: var(--color-page);
+}
+
+:root[data-theme='dark'] :is(input, textarea, select) {
+  border-color: var(--color-border);
+  background-color: #1b3032;
+  color: var(--color-ink);
+}
+
+:root[data-theme='dark'] :is(input, textarea, select)::placeholder {
+  color: var(--color-muted);
+}
+
+:root[data-theme='dark'] :is(table, th, td) {
+  border-color: var(--color-border);
+}
+
+:root[data-theme='dark'] :is(dialog, [role='dialog']) {
+  border-color: var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+}
+
+:root[data-theme='dark'] [data-admin-theme='light'] {
+  color-scheme: light;
+  color: #183337;
+  --color-ink: #183337;
+  --color-muted: #64777a;
+  --color-surface: #fff;
+  --color-surface-subtle: #f5fbfa;
+  --color-surface-hover: #eaf7f6;
+  --color-page: #f3f7f7;
+  --color-border: #e4ecec;
+  --color-primary: #008689;
+  --color-primary-dark: #006d70;
+  --color-primary-solid: #008689;
+  --color-primary-solid-hover: #006d70;
+}
+
+:root[data-theme='dark'] [data-admin-theme='light'] :is(input, textarea, select) {
+  border-color: #e4ecec;
+  background-color: #fff;
+  color: #183337;
+}
+
+:root[data-theme='dark'] [data-admin-theme='light'] :is(input, textarea, select)::placeholder {
+  color: #64777a;
+}
+
+:root[data-theme='dark'] [data-admin-theme='light'] :is(table, th, td) {
+  border-color: #e4ecec;
+}
+
+:root[data-theme='dark'] [data-admin-theme='light'] :is(dialog, [role='dialog']) {
+  border-color: #e4ecec;
+  background-color: #fff;
+  color: #183337;
 }
 
 main#main-content {
@@ -58,7 +139,7 @@ button {
 
 ::selection {
   color: #fff;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
 }
 
 :focus-visible {

@@ -29,7 +29,7 @@
 
 .messageTable th {
   padding: 12px 13px;
-  background: #f6f9f9;
+  background: var(--color-surface-subtle);
   color: #697b7e;
   font-size: 10px;
   font-weight: 750;
@@ -169,7 +169,7 @@
   padding: 6px 9px;
   border: 1px solid var(--admin-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--admin-ink);
   font: inherit;
 }
@@ -203,7 +203,7 @@
   overflow-y: auto;
   padding: clamp(20px, 3vw, 30px);
   border-left: 1px solid var(--admin-border);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: -16px 0 48px rgba(15, 40, 42, .16);
 }
 

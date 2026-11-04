@@ -1,5 +1,8 @@
-export function formatMemoryMiB(kb: number | null, fractionDigits = 1): string {
+export function formatMemoryMiB(kb: number | null, fractionDigits = 1, locale = 'vi-VN'): string {
   return kb === null || !Number.isFinite(kb)
     ? '—'
-    : `${(kb / 1024).toFixed(fractionDigits)} MiB`
+    : `${new Intl.NumberFormat(locale, {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+      }).format(kb / 1024)} MiB`
 }

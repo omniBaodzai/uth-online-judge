@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../auth/useAuth'
 import ProfileExperience from '../components/ProfileExperience'
 import { toProfileViewModel } from '../api'
@@ -6,6 +7,7 @@ import { usePublicProfile } from '../usePublicProfile'
 import styles from './PublicProfilePage.module.css'
 
 function PublicProfilePage() {
+  const { t } = useTranslation('pages')
   const { username, id } = useParams()
   const { user, uploadCover, updateProfile } = useAuth()
   const { profile: result, loading, error, notFound } = usePublicProfile({
@@ -17,7 +19,7 @@ function PublicProfilePage() {
   if (error || !result) {
     return (
       <main className={styles.page} id="main-content" role={notFound ? undefined : 'alert'}>
-        <p>{notFound ? 'Không tìm thấy hồ sơ hoặc tài khoản đã ngừng hoạt động.' : error || 'Không thể tải hồ sơ.'}</p>
+        <p>{notFound ? t('publicProfileNotFound') : error || t('publicProfileLoadError')}</p>
       </main>
     )
   }

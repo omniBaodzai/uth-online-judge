@@ -14,19 +14,19 @@ export function validateContactForm(values: ContactFormValues): ContactFormError
   const subject = values.subject.trim()
   const message = values.message.trim()
 
-  if (!name) errors.name = 'Vui lòng nhập họ và tên.'
-  else if (name.length > 100) errors.name = 'Họ và tên không được vượt quá 100 ký tự.'
+  if (!name) errors.name = 'contactNameRequired'
+  else if (name.length > 100) errors.name = 'contactNameTooLong'
 
-  if (!email) errors.email = 'Vui lòng nhập email.'
+  if (!email) errors.email = 'contactEmailRequired'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = 'Vui lòng nhập địa chỉ email hợp lệ.'
+    errors.email = 'contactEmailInvalid'
   }
 
-  if (!subject) errors.subject = 'Vui lòng nhập tiêu đề.'
-  else if (subject.length > 120) errors.subject = 'Tiêu đề không được vượt quá 120 ký tự.'
+  if (!subject) errors.subject = 'contactSubjectRequired'
+  else if (subject.length > 120) errors.subject = 'contactSubjectTooLong'
 
-  if (!message) errors.message = 'Vui lòng nhập nội dung cần hỗ trợ.'
-  else if (message.length > 2000) errors.message = 'Nội dung không được vượt quá 2000 ký tự.'
+  if (!message) errors.message = 'contactMessageRequired'
+  else if (message.length > 2000) errors.message = 'contactMessageTooLong'
 
   return errors
 }

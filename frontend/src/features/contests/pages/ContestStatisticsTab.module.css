@@ -9,7 +9,7 @@
   overflow: hidden;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -20,7 +20,7 @@
   justify-content: space-between;
   gap: 14px;
   padding: 14px 20px;
-  border-bottom: 1px solid #e8eeee;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .cardHeader h2,
@@ -323,4 +323,34 @@
   .donutWrap circle {
     transition: none;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card,
+:global(:where([data-theme='dark'])) .emptyState {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .totalBadge {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .legend li {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .axisTick,
+:global(:where([data-theme='dark'])) .axisLabel,
+:global(:where([data-theme='dark'])) .axisTitle {
+  fill: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .valueLabel {
+  fill: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .acceptanceBar {
+  fill: var(--color-primary-dark);
 }

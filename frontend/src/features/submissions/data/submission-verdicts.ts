@@ -11,6 +11,20 @@ export const submissionVerdicts = [
   { status: 'INTERNAL_ERROR', abbr: 'IE', label: 'Lỗi hệ thống', color: '#8d4b67' },
 ] as const
 
+export const submissionVerdictTranslationKeys: Record<string, string> = {
+  ACCEPTED: 'verdictAccepted',
+  WRONG_ANSWER: 'verdictWrongAnswer',
+  TIME_LIMIT_EXCEEDED: 'verdictTimeLimit',
+  MEMORY_LIMIT_EXCEEDED: 'verdictMemoryLimit',
+  RUNTIME_ERROR: 'verdictRuntime',
+  COMPILATION_ERROR: 'verdictCompile',
+  QUEUED: 'verdictQueued',
+  RUNNING: 'verdictRunning',
+  PENDING: 'verdictPending',
+  INTERNAL_ERROR: 'verdictInternal',
+  OTHER: 'submissionsOtherVerdict',
+}
+
 export type SubmissionVerdictDistributionItem = {
   status: string
   abbr: string

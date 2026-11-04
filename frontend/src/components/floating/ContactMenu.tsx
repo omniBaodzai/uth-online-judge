@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { CONTACT_ORGANIZATION, contactLinks } from '../../config/contact'
 import styles from './FloatingActions.module.css'
 
 function ContactMenu() {
+  const { t } = useTranslation('common')
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -30,25 +32,25 @@ function ContactMenu() {
   return (
     <div className={styles.contact} ref={rootRef}>
       {open && (
-        <div className={styles.contactMenu} id="floating-contact-menu" role="dialog" aria-label="Thông tin liên hệ">
+        <div className={styles.contactMenu} id="floating-contact-menu" role="dialog" aria-label={t('contactMenuTitle')}>
           <div className={styles.contactHead}>
-            <strong>Liên hệ</strong>
-            <button type="button" aria-label="Đóng menu liên hệ" onClick={() => { setOpen(false); buttonRef.current?.focus() }}>×</button>
+            <strong>{t('contactMenuTitle')}</strong>
+            <button type="button" aria-label={t('closeContactMenu')} onClick={() => { setOpen(false); buttonRef.current?.focus() }}>×</button>
           </div>
-          <p className={styles.contactOrg}>{CONTACT_ORGANIZATION}</p>
+          <p className={styles.contactOrg}>{t('university', { defaultValue: CONTACT_ORGANIZATION })}</p>
           <ul>
-            {contactLinks.map((link) => (
+            {contactLinks.map((link, index) => (
               <li key={link.label}>
                 <a href={link.href} onClick={() => setOpen(false)}>
-                  <span>{link.label}</span>
-                  <small>{link.description}</small>
+                  <span>{index === 0 ? t('sendSupport') : t('reportIssue')}</span>
+                  <small>{index === 0 ? link.description : t('emailDevelopmentTeam')}</small>
                 </a>
               </li>
             ))}
             <li>
               <Link to="/contact" onClick={() => setOpen(false)}>
-                <span>Trang liên hệ</span>
-                <small>Thông tin và biểu mẫu hỗ trợ</small>
+                <span>{t('contactPageLink')}</span>
+                <small>{t('contactPageDescription')}</small>
               </Link>
             </li>
           </ul>
@@ -66,7 +68,7 @@ function ContactMenu() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.5-4.8A8 8 0 1 1 21 12Z" />
         </svg>
-        Liên hệ
+        {t('contact')}
       </button>
     </div>
   )

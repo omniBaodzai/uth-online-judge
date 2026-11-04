@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import AvatarCropModal, { type CropSelection } from './AvatarCropModal'
 import ProfileShowcase from './ProfileShowcase'
 import { AVATAR_ACCEPTED_TYPES, isSupportedAvatarUrl } from '../avatar-constants'
@@ -24,6 +25,7 @@ function ProfileExperience({
   onUploadCover,
   onRemoveCover,
 }: ProfileExperienceProps) {
+  const { t } = useTranslation('pages')
   const [profile, setProfile] = useState(initialProfile)
   const [coverCropUrl, setCoverCropUrl] = useState('')
   const [coverEditorOpen, setCoverEditorOpen] = useState(false)
@@ -63,11 +65,11 @@ function ProfileExperience({
     if (isLoadingUrl || isRemovingCover) return
     if (!file) return
     if (!AVATAR_ACCEPTED_TYPES.includes(file.type)) {
-      setError('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.')
+      setError(t('acceptedImageTypesError'))
       return
     }
     if (file.size > COVER_MAX_BYTES) {
-      setError('Ảnh bìa vượt quá 5 MB.')
+      setError(t('coverTooLargeError'))
       return
     }
     setError('')
@@ -90,10 +92,10 @@ function ProfileExperience({
       setCoverEditorOpen(false)
       setCropUsesRemoteUrl(false)
       setCoverUrl('')
-      setNotice('Ảnh bìa đã được lưu.')
+      setNotice(t('coverSaved'))
       setError('')
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Không thể lưu ảnh bìa. Vui lòng thử lại.')
+      setError(uploadError instanceof Error ? uploadError.message : t('saveCoverError'))
       throw uploadError
     }
   }
@@ -101,7 +103,7 @@ function ProfileExperience({
   async function applyCoverUrl() {
     const url = coverUrl.trim()
     if (!isSupportedAvatarUrl(url)) {
-      setError('Vui lòng nhập URL ảnh hợp lệ bắt đầu bằng http:// hoặc https://.')
+      setError(t('validImageUrlError'))
       return
     }
 
@@ -146,7 +148,7 @@ function ProfileExperience({
       setCoverEditorOpen(false)
     } catch {
       if (!cancelled) {
-        setError('Không thể tải ảnh từ URL. Hãy kiểm tra địa chỉ, kết nối và quyền CORS của máy chủ ảnh.')
+        setError(t('loadImageError'))
       }
     } finally {
       if (requestId === urlLoadIdRef.current) {
@@ -165,7 +167,7 @@ function ProfileExperience({
 
   async function removeCover() {
     if (!onRemoveCover || !profile.coverImageUrl) return
-    const confirmed = window.confirm('Bạn có chắc muốn xóa ảnh bìa khỏi hồ sơ?')
+    const confirmed = window.confirm(t('confirmRemoveCover'))
     if (!confirmed) return
 
     setError('')
@@ -179,9 +181,9 @@ function ProfileExperience({
         coverCrop: saved.cover_crop,
       }))
       setCoverEditorOpen(false)
-      setNotice('Đã xóa ảnh bìa.')
+      setNotice(t('coverRemoved'))
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Không thể xóa ảnh bìa. Vui lòng thử lại.')
+      setError(removeError instanceof Error ? removeError.message : t('removeCoverError'))
     } finally {
       setIsRemovingCover(false)
     }
@@ -231,9 +233,9 @@ function ProfileExperience({
           outputWidth={1600}
           maxBytes={COVER_MAX_BYTES}
           fileBaseName="profile-cover"
-          title="Chỉnh sửa ảnh bìa"
-          hint="Kéo ảnh để căn banner, dùng thanh trượt để phóng to hoặc thu nhỏ."
-          saveLabel="Dùng ảnh bìa"
+          title={t('editCoverTitle')}
+          hint={t('editCoverHint')}
+          saveLabel={t('useCoverImage')}
           crossOrigin={cropUsesRemoteUrl ? 'anonymous' : undefined}
           onCancel={() => {
             if (coverCropUrl.startsWith('blob:')) revokeObjectUrl(coverCropUrl)

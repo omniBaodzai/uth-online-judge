@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation } from 'react-router-dom'
 import SiteFooter from './SiteFooter'
 import SiteHeader from './SiteHeader'
@@ -9,6 +10,7 @@ import styles from './AppLayout.module.css'
 
 function AppLayout() {
   const { pathname, hash } = useLocation()
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!hash) window.scrollTo(0, 0)
@@ -17,7 +19,7 @@ function AppLayout() {
   return (
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#main-content">
-        
+        {t('skipToContent')}
       </a>
       <SiteHeader />
       <BreadcrumbProvider>

@@ -9,6 +9,7 @@ import {
   type StudentContestLeaderboardPage,
 } from '../student-contests.api'
 import { formatContestDuration } from '../leaderboard'
+import { useContestText } from '../translate'
 import styles from './ContestLeaderboardTab.module.css'
 import sharedStyles from './ContestDataTable.module.css'
 
@@ -21,6 +22,7 @@ function ContestLeaderboardTab({
   contestId: string
   requester: StudentContestRequester
 }) {
+  const { text, locale } = useContestText()
   const [queryInput, setQueryInput] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<10 | 20 | 50>(DEFAULT_PAGE_SIZE)
@@ -52,12 +54,12 @@ function ContestLeaderboardTab({
           key: requestKey,
           message: requestError instanceof ApiError
             ? requestError.message
-            : 'Không thể tải bảng xếp hạng. Vui lòng thử lại.',
+            : text('leaderboardRequestError', 'Không thể tải bảng xếp hạng. Vui lòng thử lại.', 'Could not load the leaderboard. Please try again.'),
         })
       })
 
     return () => controller.abort()
-  }, [contestId, page, pageSize, queryInput, reloadKey, requestKey, requester])
+  }, [contestId, page, pageSize, queryInput, reloadKey, requestKey, requester, text])
 
   const pageEntries = leaderboard?.items ?? []
 
@@ -66,8 +68,8 @@ function ContestLeaderboardTab({
     pageSize,
     totalItems: leaderboard?.total ?? 0,
     pageSizes: submissionPageSizes,
-    label: 'bảng xếp hạng cuộc thi',
-    summaryLabel: 'thí sinh',
+    label: text('leaderboardLabel', 'bảng xếp hạng cuộc thi', 'contest leaderboard'),
+    summaryLabel: text('contestants', 'thí sinh', 'contestants'),
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
       if (size === 10 || size === 20 || size === 50) setPageSize(size)
@@ -78,8 +80,8 @@ function ContestLeaderboardTab({
   return (
     <section className={sharedStyles.card} aria-labelledby="contest-leaderboard-title">
       <header className={sharedStyles.header}>
-        <h2 id="contest-leaderboard-title">Bảng xếp hạng</h2>
-        <span className={sharedStyles.participantCount}>{leaderboard?.totalParticipants ?? 0} thí sinh</span>
+        <h2 id="contest-leaderboard-title">{text('leaderboardTitle', 'Bảng xếp hạng', 'Leaderboard')}</h2>
+        <span className={sharedStyles.participantCount}>{(leaderboard?.totalParticipants ?? 0).toLocaleString(locale)} {text('contestants', 'thí sinh', 'contestants')}</span>
       </header>
 
       <div className={sharedStyles.toolbar} role="search">
@@ -87,8 +89,8 @@ function ContestLeaderboardTab({
           <Search size={18} aria-hidden="true" />
           <input
             type="search"
-            aria-label="Tìm coder theo username"
-            placeholder="Tìm theo username..."
+            aria-label={text('searchCoderLabel', 'Tìm coder theo username', 'Search coders by username')}
+            placeholder={text('searchCoderPlaceholder', 'Tìm theo username...', 'Search by username...')}
             maxLength={100}
             value={queryInput}
             onChange={(event) => {
@@ -104,40 +106,40 @@ function ContestLeaderboardTab({
       </div>
 
       {isLoading ? (
-        <div className={sharedStyles.empty} role="status">Đang tải bảng xếp hạng…</div>
+        <div className={sharedStyles.empty} role="status">{text('leaderboardLoading', 'Đang tải bảng xếp hạng…', 'Loading leaderboard…')}</div>
       ) : error ? (
         <div className={sharedStyles.empty} role="alert">
-          <strong>Không thể tải bảng xếp hạng</strong>
+          <strong>{text('leaderboardLoadError', 'Không thể tải bảng xếp hạng', 'Could not load the leaderboard')}</strong>
           <p>{error}</p>
           <button
             className={styles.retryButton}
             type="button"
             onClick={() => setReloadKey((key) => key + 1)}
           >
-            Thử lại
+            {text('retry', 'Thử lại', 'Retry')}
           </button>
         </div>
       ) : pageEntries.length === 0 ? (
         <div className={sharedStyles.empty}>
-          <strong>{queryInput ? 'Không tìm thấy coder phù hợp' : 'Chưa có thí sinh trong bảng xếp hạng'}</strong>
-          <p>{queryInput ? 'Hãy thử username khác.' : 'Bảng xếp hạng sẽ hiển thị khi có thí sinh.'}</p>
+          <strong>{queryInput ? text('noMatchingCoders', 'Không tìm thấy coder phù hợp', 'No matching coders found') : text('noRankedContestants', 'Chưa có thí sinh trong bảng xếp hạng', 'No contestants on the leaderboard yet')}</strong>
+          <p>{queryInput ? text('tryAnotherUsername', 'Hãy thử username khác.', 'Try another username.') : text('leaderboardWillAppear', 'Bảng xếp hạng sẽ hiển thị khi có thí sinh.', 'The leaderboard will appear once contestants join.')}</p>
         </div>
       ) : (
-        <div className={sharedStyles.tableWrap} role="region" aria-label="Bảng xếp hạng thí sinh" tabIndex={0}>
+        <div className={sharedStyles.tableWrap} role="region" aria-label={text('leaderboardTableLabel', 'Bảng xếp hạng thí sinh', 'Contest leaderboard table')} tabIndex={0}>
           <table className={sharedStyles.table}>
             <thead>
               <tr>
-                <th scope="col">THỨ HẠNG</th>
-                <th scope="col">CODER</th>
-                <th scope="col">TỔNG ĐIỂM</th>
-                <th scope="col">SỐ BÀI AC</th>
-                <th scope="col">THỜI GIAN</th>
+                <th scope="col">{text('rank', 'THỨ HẠNG', 'RANK')}</th>
+                <th scope="col">{text('coder', 'THÍ SINH', 'CODER')}</th>
+                <th scope="col">{text('totalScore', 'TỔNG ĐIỂM', 'TOTAL SCORE')}</th>
+                <th scope="col">{text('acceptedProblems', 'SỐ BÀI AC', 'SOLVED')}</th>
+                <th scope="col">{text('time', 'THỜI GIAN', 'TIME')}</th>
               </tr>
             </thead>
             <tbody>
               {pageEntries.map((entry) => {
                 const avatarUrl = resolveAvatarUrl(entry.avatarUrl)
-                const username = entry.username ?? 'Ẩn danh'
+                const username = entry.username ?? text('anonymous', 'Ẩn danh', 'Anonymous')
                 return (
                   <tr key={entry.userId}>
                     <td className={styles.rankCell}>
@@ -146,10 +148,10 @@ function ContestLeaderboardTab({
                           <Medal
                             className={`${styles.medal} ${styles[`medal${entry.rank}`]}`}
                             size={18}
-                            aria-label={`Hạng ${entry.rank}`}
+                            aria-label={text('rankNumber', 'Hạng {{rank}}', 'Rank {{rank}}', { rank: entry.rank.toLocaleString(locale) })}
                           />
                         ) : null}
-                        {entry.rank}
+                        {entry.rank.toLocaleString(locale)}
                       </span>
                     </td>
                     <td className={styles.coderCell}>
@@ -157,15 +159,15 @@ function ContestLeaderboardTab({
                         {avatarUrl ? (
                           <img src={avatarUrl} alt="" />
                         ) : (
-                          username.slice(0, 1).toLocaleUpperCase('vi')
+                          username.slice(0, 1).toLocaleUpperCase(locale)
                         )}
                       </span>
                       <span className={styles.username}>{username}</span>
                     </td>
-                    <td className={styles.valueCell}>{entry.totalScore.toLocaleString('vi-VN')}</td>
-                    <td className={styles.valueCell}>{entry.acceptedProblems}/{entry.totalProblems}</td>
+                    <td className={styles.valueCell}>{entry.totalScore.toLocaleString(locale)}</td>
+                    <td className={styles.valueCell}>{entry.acceptedProblems.toLocaleString(locale)}/{entry.totalProblems.toLocaleString(locale)}</td>
                     <td className={styles.valueCell}>
-                      {formatContestDuration(entry.elapsedSeconds === null ? null : entry.elapsedSeconds * 1000)}
+                      {formatContestDuration(entry.elapsedSeconds === null ? null : entry.elapsedSeconds * 1000, locale)}
                     </td>
                   </tr>
                 )

@@ -1,4 +1,5 @@
 import { Headset, UserRound } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { formatDateTime } from '../../community/format'
 import type { ContactReply } from '../../admin/contact-messages/contact-messages.types'
 import styles from './ContactConversation.module.css'
@@ -10,6 +11,8 @@ type ContactConversationProps = {
 }
 
 export function ContactConversation({ replies, viewer, emptyMessage }: ContactConversationProps) {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const orderedReplies = [...replies].sort(
     (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
   )
@@ -19,12 +22,12 @@ export function ContactConversation({ replies, viewer, emptyMessage }: ContactCo
   }
 
   return (
-    <ol className={styles.timeline} aria-label="Danh sách tin nhắn trong cuộc hội thoại">
+    <ol className={styles.timeline} aria-label={t('contactConversationMessages')}>
       {orderedReplies.map((reply) => {
         const isAdmin = reply.senderType === 'ADMIN'
         const senderLabel = isAdmin
-          ? viewer === 'user' ? 'Đội ngũ hỗ trợ UTH' : 'Quản trị viên'
-          : viewer === 'user' ? 'Bạn' : reply.senderName
+          ? viewer === 'user' ? t('contactSupportTeam') : t('contactAdministrator')
+          : viewer === 'user' ? t('you') : reply.senderName
 
         return (
           <li
@@ -37,12 +40,12 @@ export function ContactConversation({ replies, viewer, emptyMessage }: ContactCo
                   {isAdmin
                     ? <Headset size={16} aria-hidden="true" />
                     : <UserRound size={16} aria-hidden="true" />}
-                  <strong>{senderLabel || 'Người dùng'}</strong>
+                  <strong>{senderLabel || t('contactUser')}</strong>
                 </span>
-                <span className={styles.senderType}>{isAdmin ? 'Quản trị viên' : 'Người dùng'}</span>
+                <span className={styles.senderType}>{isAdmin ? t('contactAdministrator') : t('contactUser')}</span>
               </header>
               <p>{reply.content}</p>
-              <time dateTime={reply.createdAt}>{formatDateTime(reply.createdAt)}</time>
+              <time dateTime={reply.createdAt}>{formatDateTime(reply.createdAt, locale)}</time>
             </article>
           </li>
         )

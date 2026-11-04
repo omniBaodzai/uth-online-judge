@@ -55,7 +55,7 @@
 
 .secondaryButton {
   border-color: #d3e2e1;
-  background: #fff;
+  background: var(--color-surface);
   color: #24595b;
 }
 
@@ -91,7 +91,7 @@
   padding: clamp(18px, 3vw, 26px);
   border: 1px solid rgba(224, 235, 235, .95);
   border-radius: 16px;
-  background: rgba(255, 255, 255, .97);
+  background: color-mix(in srgb, var(--color-surface) 97%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -145,8 +145,8 @@
   gap: 14px 18px;
   margin: 0;
   padding: 15px 0;
-  border-top: 1px solid #e8eeee;
-  border-bottom: 1px solid #e8eeee;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .senderDetails > div {
@@ -207,7 +207,7 @@
   padding: 12px 13px;
   border: 1px solid #d5e1e1;
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: #233d40;
   font: inherit;
   font-size: 16px;
@@ -298,4 +298,60 @@
   .primaryButton {
     transition: none;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .eyebrow {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .notFound h1,
+:global(:where([data-theme='dark'])) .sectionHeading h2,
+:global(:where([data-theme='dark'])) .subject,
+:global(:where([data-theme='dark'])) .senderDetails dd,
+:global(:where([data-theme='dark'])) .originalContent h3,
+:global(:where([data-theme='dark'])) .originalContent p,
+:global(:where([data-theme='dark'])) .replyForm label {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .secondaryButton,
+:global(:where([data-theme='dark'])) .replyForm textarea {
+  border-color: var(--color-border);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .secondaryButton:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .card,
+:global(:where([data-theme='dark'])) .notFound {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .headingIcon {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .sectionHeading p,
+:global(:where([data-theme='dark'])) .senderDetails dt,
+:global(:where([data-theme='dark'])) .replyMeta,
+:global(:where([data-theme='dark'])) .successMessage,
+:global(:where([data-theme='dark'])) .notFound p:not(.eyebrow) {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .errorMessage {
+  color: #ff9d9d;
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.9), rgba(16, 36, 38, 0.94)),
+    url('../../../assets/uth_background.jpg');
 }

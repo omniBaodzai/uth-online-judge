@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { request } from '../../auth/api'
 import styles from './PlatformStats.module.css'
 
@@ -8,13 +9,10 @@ type PlatformStatsData = {
   submissions: number
 }
 
-const statLabels: Array<{ key: keyof PlatformStatsData; label: string }> = [
-  { key: 'members', label: 'thành viên' },
-  { key: 'problems', label: 'bài tập' },
-  { key: 'submissions', label: 'bài nộp' },
-]
+const statKeys: Array<keyof PlatformStatsData> = ['members', 'problems', 'submissions']
 
 function PlatformStats() {
+  const { t, i18n } = useTranslation('home')
   const [stats, setStats] = useState<PlatformStatsData | null>(null)
   const [error, setError] = useState(false)
 
@@ -35,15 +33,15 @@ function PlatformStats() {
   return (
     <dl
       className={styles.stats}
-      aria-label={error ? 'Không thể tải thống kê nền tảng.' : 'Thống kê nền tảng'}
+      aria-label={error ? t('platformStatsError') : t('platformStats')}
       aria-busy={!stats && !error}
     >
-      {statLabels.map(({ key, label }) => (
-        <div className={styles.stat} key={label}>
+      {statKeys.map((key) => (
+        <div className={styles.stat} key={key}>
           <dt className={styles.value}>
-            {stats ? new Intl.NumberFormat('vi-VN').format(stats[key]) : '—'}
+            {stats ? new Intl.NumberFormat(i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN').format(stats[key]) : '—'}
           </dt>
-          <dd className={styles.label}>{label}</dd>
+          <dd className={styles.label}>{t(key)}</dd>
         </div>
       ))}
     </dl>

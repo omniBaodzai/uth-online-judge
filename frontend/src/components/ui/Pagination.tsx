@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import styles from './Pagination.module.css'
 
 type PaginationProps = {
@@ -15,17 +16,18 @@ function Pagination({
   label,
   className,
 }: PaginationProps) {
+  const { t } = useTranslation('common')
   if (totalPages <= 1) return null
 
   return (
     <nav
       className={`${styles.pagination} ${className ?? ''}`}
-      aria-label={`Phân trang ${label}`}
+      aria-label={t('pageNavigation', { label })}
     >
       <button
         className={styles.pageButton}
         type="button"
-        aria-label="Trang trước"
+        aria-label={t('previousPage')}
         disabled={currentPage === 1}
         onClick={() => onPageChange(currentPage - 1)}
       >
@@ -37,7 +39,7 @@ function Pagination({
           key={page}
           type="button"
           aria-current={page === currentPage ? 'page' : undefined}
-          aria-label={`Trang ${page}`}
+          aria-label={t('pageNumber', { page })}
           onClick={() => onPageChange(page)}
         >
           {page}
@@ -46,7 +48,7 @@ function Pagination({
       <button
         className={styles.pageButton}
         type="button"
-        aria-label="Trang sau"
+        aria-label={t('nextPage')}
         disabled={currentPage === totalPages}
         onClick={() => onPageChange(currentPage + 1)}
       >

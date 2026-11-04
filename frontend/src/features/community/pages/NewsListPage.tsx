@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Pagination from '../../../components/ui/Pagination'
 import { request } from '../../auth/api'
 import { buildQuery, type NewsListItem, type PageResult } from '../api'
 import { formatDate, totalPages } from '../format'
 import { errorMessage, useAsync } from '../useAsync'
+import { communityText } from '../translate'
 import styles from '../community.module.css'
 
 const PAGE_SIZE = 10
 
 function NewsListPage() {
+  const { t, i18n } = useTranslation('pages')
+  const text = (key: string, vi: string, en: string) => communityText(t, i18n.resolvedLanguage ?? i18n.language, key, vi, en)
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const [input, setInput] = useState('')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
@@ -35,7 +40,7 @@ function NewsListPage() {
       <div className={styles.container}>
         <header className={styles.header}>
           <div>
-            <h1>Tin tức</h1>
+            <h1>{text('newsTitle', 'Tin tức', 'News')}</h1>
             <p></p>
           </div>
         </header>
@@ -47,24 +52,24 @@ function NewsListPage() {
             value={input}
             maxLength={100}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Tìm theo tiêu đề hoặc tóm tắt"
-            aria-label="Tìm tin tức"
+            placeholder={text('newsSearchPlaceholder', 'Tìm theo tiêu đề hoặc tóm tắt', 'Search by title or summary')}
+            aria-label={text('newsSearchLabel', 'Tìm tin tức', 'Search news')}
           />
         </div>
 
-        <section className={styles.card} aria-label="Danh sách tin tức" aria-busy={result.status === 'loading'}>
+        <section className={styles.card} aria-label={text('newsListLabel', 'Danh sách tin tức', 'News list')} aria-busy={result.status === 'loading'}>
           {result.status === 'error' ? (
             <div className={`${styles.state} ${styles.stateError}`} role="alert">
-              <strong>Không thể tải tin tức</strong>
-              <span>{errorMessage(result.error)}</span>
-              <button className={styles.secondaryButton} type="button" onClick={result.reload}>Thử lại</button>
+              <strong>{text('newsLoadError', 'Không thể tải tin tức', 'Could not load news')}</strong>
+              <span>{errorMessage(result.error, text('genericError', 'Đã xảy ra lỗi. Vui lòng thử lại.', 'An error occurred. Please try again.'))}</span>
+              <button className={styles.secondaryButton} type="button" onClick={result.reload}>{text('retry', 'Thử lại', 'Retry')}</button>
             </div>
           ) : result.status === 'loading' ? (
-            <div className={styles.state}>Đang tải tin tức…</div>
+            <div className={styles.state}>{text('newsLoading', 'Đang tải tin tức…', 'Loading news…')}</div>
           ) : result.data.items.length === 0 ? (
             <div className={styles.state}>
-              <strong>{q ? 'Không tìm thấy tin tức phù hợp' : 'Chưa có tin tức nào'}</strong>
-              <span>{q ? 'Hãy thử từ khóa khác.' : 'Tin tức mới sẽ xuất hiện tại đây.'}</span>
+              <strong>{q ? text('noMatchingNews', 'Không tìm thấy tin tức phù hợp', 'No matching news found') : text('noNews', 'Chưa có tin tức nào', 'No news yet')}</strong>
+              <span>{q ? text('changeSearch', 'Hãy thử từ khóa khác.', 'Try a different search term.') : text('newsWillAppear', 'Tin tức mới sẽ xuất hiện tại đây.', 'New updates will appear here.')}</span>
             </div>
           ) : (
             result.data.items.map((item) => (
@@ -74,7 +79,7 @@ function NewsListPage() {
                 <p className={styles.meta}>
                   <span className={styles.category}>{item.category}</span>
                   <span>{item.authorName}</span>
-                  <time dateTime={item.publishedAt ?? undefined}>{formatDate(item.publishedAt)}</time>
+                  <time dateTime={item.publishedAt ?? undefined}>{formatDate(item.publishedAt, locale)}</time>
                 </p>
               </Link>
             ))
@@ -87,7 +92,7 @@ function NewsListPage() {
             currentPage={page}
             totalPages={totalPages(result.data.total, PAGE_SIZE)}
             onPageChange={setPage}
-            label="tin tức"
+            label={text('newsLabel', 'tin tức', 'news')}
           />
         ) : null}
       </div>

@@ -4,7 +4,7 @@
   align-content: start;
   justify-items: center;
   padding: 118px 24px 56px;
-  background: #f3f7f7;
+  background: var(--color-page);
 }
 
 .card {
@@ -12,7 +12,7 @@
   padding: 32px;
   border: 1px solid rgba(0, 134, 137, 0.16);
   border-radius: 16px;
-  background: #fff;
+  background: var(--color-surface);
   text-align: center;
 }
 
@@ -24,4 +24,13 @@
 .card p {
   margin: 0;
   color: #4b6667;
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card h1 {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .card p {
+  color: var(--color-muted);
 }

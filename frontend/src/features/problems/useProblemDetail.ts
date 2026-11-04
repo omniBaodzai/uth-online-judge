@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ApiError } from '../auth/api'
 import { fetchProblemDetail } from './api'
 import { toProblemDetail, type ProblemDetail } from './detail-data'
 import { useProblemsFetcher } from './useProblemsFetcher'
+import './i18n'
 
 export type ProblemDetailState =
   | { phase: 'loading' }
@@ -14,6 +16,7 @@ export function useProblemDetail(
   code: string,
   enabled = true,
 ): { state: ProblemDetailState; retry: () => void } {
+  const { t } = useTranslation('pages')
   const { fetcher, ready } = useProblemsFetcher()
   const [result, setResult] = useState<{ key: string; state: ProblemDetailState }>()
   const [reloadKey, setReloadKey] = useState(0)
@@ -37,7 +40,7 @@ export function useProblemDetail(
             key,
             state: {
               phase: 'error',
-              message: error instanceof ApiError ? error.message : 'Không thể tải bài tập. Vui lòng thử lại.',
+              message: error instanceof ApiError ? error.message : t('problemCannotLoad'),
             },
           })
         }
@@ -45,7 +48,7 @@ export function useProblemDetail(
     return () => {
       cancelled = true
     }
-  }, [fetcher, ready, enabled, code, key])
+  }, [fetcher, ready, enabled, code, key, t])
 
   return { state, retry: () => setReloadKey((key) => key + 1) }
 }

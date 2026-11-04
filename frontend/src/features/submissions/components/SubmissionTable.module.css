@@ -24,7 +24,7 @@
 
 .table th {
   padding: 13px 14px;
-  border-bottom: 1px solid #d5e2e2;
+  border-bottom: 1px solid var(--color-border);
   background: #008689;
   color: #ffffff;
   font-size: 12px;
@@ -50,7 +50,7 @@
 }
 
 .table tbody tr:hover {
-  background: #f1f8f7;
+  background: var(--color-surface-hover);
 }
 
 .table .num {
@@ -163,4 +163,22 @@
   to {
     background-position: -200% 0;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .rank {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .time span,
+:global(:where([data-theme='dark'])) .lang {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .problem {
+  color: #a5b8ff;
+}
+
+:global(:where([data-theme='dark'])) .skeleton {
+  background: linear-gradient(90deg, var(--color-surface-subtle) 25%, var(--color-surface) 50%, var(--color-surface-subtle) 75%);
 }

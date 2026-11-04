@@ -63,7 +63,7 @@
 .markdown code {
   padding: 1px 5px;
   border-radius: 4px;
-  background: #eef3f3;
+  background: var(--color-surface-subtle);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 0.9em;
 }
@@ -99,4 +99,14 @@
   padding: 0;
   background: none;
   color: inherit;
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .markdown {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .markdown blockquote {
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
 }

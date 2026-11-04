@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../auth/useAuth'
 import { RequireAuth } from '../../auth/components/RequireAuth'
 import ProfileExperience from '../components/ProfileExperience'
@@ -7,6 +8,7 @@ import { usePublicProfile } from '../usePublicProfile'
 import styles from './ProfilePage.module.css'
 
 function ProfilePage() {
+  const { t } = useTranslation('pages')
   const { user, uploadCover, updateProfile } = useAuth()
   const { profile: result, loading, error } = usePublicProfile(
     user ? { userId: user.id } : {},
@@ -16,7 +18,7 @@ function ProfilePage() {
   return (
     <div className={styles.page}>
       <RequireAuth>
-        {loading ? <p className={styles.feedback} aria-live="polite"></p> : null}
+        {loading ? <p className={styles.feedback} aria-live="polite">{t('loadingProfile')}</p> : null}
         {error ? <p className={styles.feedback} role="alert">{error}</p> : null}
         {profile && user ? (
           <ProfileExperience

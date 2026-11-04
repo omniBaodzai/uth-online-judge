@@ -13,7 +13,7 @@
   width: min(560px, 100%);
   padding: 24px;
   border-radius: 16px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 24px 60px rgba(4, 28, 35, 0.3);
   outline: none;
 }
@@ -162,17 +162,17 @@
 
 .primary {
   border: 0;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .secondary {
-  border: 1px solid #d5e2e2;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   color: var(--color-primary-dark);
 }
 
@@ -204,4 +204,19 @@
   .actions button {
     flex: 1;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .mask {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .preview {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .error {
+  background: var(--color-surface-hover);
+  color: #ff9d9d;
 }

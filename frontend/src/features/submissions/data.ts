@@ -45,11 +45,11 @@ export const verdictFilterOptions = submissionVerdicts.map(({ status, abbr, labe
   label: `${abbr} — ${label}`,
 }))
 
-export function formatExecutionTime(ms: number | null): string {
-  return ms === null || !Number.isFinite(ms) ? '—' : `${ms} ms`
+export function formatExecutionTime(ms: number | null, locale = 'vi-VN'): string {
+  return ms === null || !Number.isFinite(ms) ? '—' : `${new Intl.NumberFormat(locale).format(ms)} ms`
 }
 
 // Backend lưu bộ nhớ theo KB.
-export function formatMemory(kb: number | null): string {
-  return formatMemoryMiB(kb)
+export function formatMemory(kb: number | null, locale = 'vi-VN'): string {
+  return formatMemoryMiB(kb, 1, locale)
 }

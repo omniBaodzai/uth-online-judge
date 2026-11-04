@@ -3,8 +3,10 @@ import styles from './HeroBanner.module.css'
 import FloatingCodeParticles from './FloatingCodeParticles'
 import PlatformStats from './PlatformStats'
 import heroBackground from '../../../assets/uth_banner.jpg'
+import { useTranslation } from 'react-i18next'
 
 function HeroBanner() {
+  const { t } = useTranslation('home')
   return (
     <section
       className={styles.hero}
@@ -14,19 +16,17 @@ function HeroBanner() {
       <FloatingCodeParticles />
       <div className={styles.heroContent}>
         <h1 className={styles.title} id="hero-title">
-          Viết code hôm nay,
-          <span>tự tin bứt phá ngày mai</span>
+          {t('heroTitle')}
         </h1>
         <p className={styles.description}>
-          UTH Online Judge là nền tảng luyện tập viết mã từ Zero đến Hero, giúp sinh viên từng bước rèn luyện tư duy thuật toán, nâng cao kỹ năng giải quyết vấn đề và chinh phục những thử thách lập trình. 
+          {t('heroDescription')}
         </p>
         <div className={styles.actions}>
           <Link className={styles.primaryAction} to="/problems">
-            Khám phá bài tập
-            
+            {t('exploreProblems')}
           </Link>
           <Link className={styles.secondaryAction} to="/contests">
-            Tham gia kỳ thi
+            {t('joinContest')}
           </Link>
         </div>
       </div>

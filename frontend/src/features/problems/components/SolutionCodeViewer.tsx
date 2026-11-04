@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { monaco } from '../submit/monaco-setup'
+import { useMonacoTheme } from '../submit/monaco-theme'
 import { monacoLanguageId } from '../submit/languages'
+import '../i18n'
 
 type SolutionCodeViewerProps = {
   sourceCode: string
@@ -9,7 +12,9 @@ type SolutionCodeViewerProps = {
 }
 
 function SolutionCodeViewer({ sourceCode, language, title }: SolutionCodeViewerProps) {
+  const { t } = useTranslation('pages')
   const containerRef = useRef<HTMLDivElement>(null)
+  useMonacoTheme()
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
   const initial = useRef({ sourceCode, language, title })
   const lineCount = sourceCode.split('\n').length
@@ -22,7 +27,6 @@ function SolutionCodeViewer({ sourceCode, language, title }: SolutionCodeViewerP
     const editor = monaco.editor.create(container, {
       value: initial.current.sourceCode,
       language: monacoLanguageId(initial.current.language),
-      theme: 'uth-light',
       automaticLayout: true,
       readOnly: true,
       domReadOnly: true,
@@ -38,7 +42,7 @@ function SolutionCodeViewer({ sourceCode, language, title }: SolutionCodeViewerP
       overviewRulerLanes: 0,
       padding: { top: 16, bottom: 16 },
       scrollbar: { horizontal: 'auto', vertical: 'auto', horizontalScrollbarSize: 10 },
-      ariaLabel: `Mã nguồn ${initial.current.title}`,
+      ariaLabel: `${t('problemSourceCode')} ${initial.current.title}`,
     })
     editorRef.current = editor
 
@@ -46,7 +50,7 @@ function SolutionCodeViewer({ sourceCode, language, title }: SolutionCodeViewerP
       editor.dispose()
       editorRef.current = null
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     const editor = editorRef.current

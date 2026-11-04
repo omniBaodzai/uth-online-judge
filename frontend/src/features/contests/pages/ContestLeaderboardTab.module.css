@@ -99,3 +99,17 @@
   outline: 3px solid rgba(0, 134, 137, 0.35);
   outline-offset: 2px;
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .medal3 {
+  color: #f5c76a;
+}
+
+:global(:where([data-theme='dark'])) .avatar {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .username {
+  color: var(--color-ink);
+}
