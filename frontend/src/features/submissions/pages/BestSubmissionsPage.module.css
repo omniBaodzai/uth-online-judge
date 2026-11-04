@@ -71,3 +71,8 @@
     font-size: 13px;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .problemLink {
+  color: var(--color-primary-dark);
+}

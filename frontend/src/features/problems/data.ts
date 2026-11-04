@@ -12,12 +12,6 @@ export type Problem = {
   hasSolution: boolean
 }
 
-export const statusLabels: Record<ProblemStatus, string> = {
-  solved: 'Đã làm',
-  unsolved: 'Chưa làm',
-  wrong: 'Chưa đúng',
-}
-
 export const statusOptions: ProblemStatus[] = ['solved', 'unsolved', 'wrong']
 
 // Dữ liệu mẫu chỉ còn được dùng bởi trang Bài nộp (chưa tích hợp API danh sách bài nộp).

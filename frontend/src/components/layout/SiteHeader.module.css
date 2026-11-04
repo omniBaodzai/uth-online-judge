@@ -832,3 +832,69 @@
     order: 0;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .navigationLink,
+:global(:where([data-theme='dark'])) .navigationLink:hover,
+:global(:where([data-theme='dark'])) .navigationLink:focus-visible,
+:global(:where([data-theme='dark'])) .appearanceButton,
+:global(:where([data-theme='dark'])) .languageButton,
+:global(:where([data-theme='dark'])) .accountDropdown a svg,
+:global(:where([data-theme='dark'])) .accountDropdown button svg,
+:global(:where([data-theme='dark'])) .accountDropdown a:hover,
+:global(:where([data-theme='dark'])) .accountDropdown button:hover,
+:global(:where([data-theme='dark'])) .loginLink {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .accountSkeleton span {
+  background: linear-gradient(90deg, var(--color-surface-hover) 25%, var(--color-surface) 50%, var(--color-surface-hover) 75%);
+}
+
+:global(:where([data-theme='dark'])) .accountButton,
+:global(:where([data-theme='dark'])) .accountDropdown a,
+:global(:where([data-theme='dark'])) .accountDropdown button,
+:global(:where([data-theme='dark'])) .userGreeting,
+:global(:where([data-theme='dark'])) .username {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .sessionStatus {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .logoutError {
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .logoutSuccess {
+  border-color: #2f6b4f;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .successIcon {
+  background: var(--color-surface-hover);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .logoutSuccess > span:nth-child(2) > span,
+:global(:where([data-theme='dark'])) .logoutSuccess button {
+  color: #7fdca8;
+}
+
+:global(:where([data-theme='dark'])) .logoutSuccess button:hover {
+  background: var(--color-surface-hover);
+}
+
+
+@media (max-width: 1200px) {
+  :global(:where([data-theme='dark'])) .menuToggle {
+    color: var(--color-primary-dark);
+  }
+
+  :global(:where([data-theme='dark'])) .navigationLink {
+    color: var(--color-ink);
+  }
+
+}

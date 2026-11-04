@@ -201,13 +201,13 @@
   min-height: 40px;
   padding: 0 22px;
   border-color: var(--color-primary);
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   font-size: 14px;
 }
 
 .panel .primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .panel .danger {
@@ -233,4 +233,39 @@
   .actionButtons {
     justify-content: flex-end;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .panel,
+:global(:where([data-theme='dark'])) .selectWrap select,
+:global(:where([data-theme='dark'])) .panel button {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .toolbar {
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .langGroup label {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .notice {
+  border-top-color: #6b5a2a;
+  background: var(--color-surface);
+  color: #f5c76a;
+}
+
+:global(:where([data-theme='dark'])) .successNotice {
+  border-top-color: #2f6b4f;
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .notice a {
+  color: #f5c76a;
+}
+
+:global(:where([data-theme='dark'])) .confirm {
+  color: #ff9d9d;
 }

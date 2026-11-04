@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import {
@@ -9,60 +10,52 @@ import {
   type ProblemSubmissionPage,
 } from '../../problems/submit/submission-service'
 import SubmissionPagination from '../components/SubmissionPagination'
-import { getSubmissionVerdictDistribution, submissionVerdicts } from '../data/submission-verdicts'
+import {
+  getSubmissionVerdictDistribution,
+  submissionVerdictTranslationKeys,
+  submissionVerdicts,
+} from '../data/submission-verdicts'
 import { formatMemoryMiB } from '../submission-metrics'
+import '../i18n'
 import styles from './MyProblemSubmissionsPage.module.css'
 
 const PAGE_SIZES = [10, 20, 50]
 const POLL_INTERVAL_MS = 2200
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Chờ xử lý',
-  QUEUED: 'Đang chờ',
-  RUNNING: 'Đang chấm',
-  ACCEPTED: 'Accepted',
-  WRONG_ANSWER: 'Wrong Answer',
-  TIME_LIMIT_EXCEEDED: 'Time Limit Exceeded',
-  MEMORY_LIMIT_EXCEEDED: 'Memory Limit Exceeded',
-  RUNTIME_ERROR: 'Runtime Error',
-  COMPILATION_ERROR: 'Compilation Error',
-  INTERNAL_ERROR: 'Lỗi hệ thống',
-}
-
 const STATUS_OPTIONS = [
-  ['PENDING', 'Chờ xử lý'],
-  ['QUEUED', 'Đang chờ'],
-  ['RUNNING', 'Đang chấm'],
-  ['ACCEPTED', 'Accepted'],
-  ['WRONG_ANSWER', 'Wrong Answer'],
-  ['TIME_LIMIT_EXCEEDED', 'Time Limit Exceeded'],
-  ['MEMORY_LIMIT_EXCEEDED', 'Memory Limit Exceeded'],
-  ['RUNTIME_ERROR', 'Runtime Error'],
-  ['COMPILATION_ERROR', 'Compilation Error'],
-  ['INTERNAL_ERROR', 'Lỗi hệ thống'],
+  ['PENDING', 'verdictPending'],
+  ['QUEUED', 'verdictQueued'],
+  ['RUNNING', 'verdictRunning'],
+  ['ACCEPTED', 'verdictAccepted'],
+  ['WRONG_ANSWER', 'verdictWrongAnswer'],
+  ['TIME_LIMIT_EXCEEDED', 'verdictTimeLimit'],
+  ['MEMORY_LIMIT_EXCEEDED', 'verdictMemoryLimit'],
+  ['RUNTIME_ERROR', 'verdictRuntime'],
+  ['COMPILATION_ERROR', 'verdictCompile'],
+  ['INTERNAL_ERROR', 'verdictInternal'],
 ] as const
 
 function isActive(item: ProblemSubmissionListItem): boolean {
   return ['PENDING', 'QUEUED', 'RUNNING'].includes(item.status)
 }
 
-function formatDate(value: string): string {
+function formatDate(value: string, locale: string, unknownDate: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime())
-    ? 'Không xác định'
-    : new Intl.DateTimeFormat('vi-VN', {
+    ? unknownDate
+    : new Intl.DateTimeFormat(locale, {
         dateStyle: 'medium',
         timeStyle: 'short',
       }).format(date)
 }
 
-function formatExecutionTime(value: number | null): string {
+function formatExecutionTime(value: number | null, locale: string): string {
   if (value === null || !Number.isFinite(value)) return '—'
-  return `${(value / 1000).toFixed(2).replace('.', ',')}s`
+  return `${new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value / 1000)} s`
 }
 
-function formatMemory(value: number | null): string {
-  return formatMemoryMiB(value)
+function formatMemory(value: number | null, locale: string): string {
+  return formatMemoryMiB(value, 1, locale)
 }
 
 function verdictAbbr(status: string): string {
@@ -93,20 +86,30 @@ function submissionStatusClass(status: string): string {
 }
 
 function SubmissionCard({ item, username }: { item: ProblemSubmissionListItem; username: string }) {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const numberFormat = new Intl.NumberFormat(locale)
   const detailsPath = `/submissions/${encodeURIComponent(item.id)}?from=my-submissions`
   const showScore = item.scoringEnabled && item.score !== null && item.maxScore !== null
   const active = isActive(item)
-  const statusLabel = STATUS_LABELS[item.status] ?? item.status.replaceAll('_', ' ')
+  const statusKey = submissionVerdictTranslationKeys[item.status]
+  const statusLabel = statusKey ? t(statusKey) : item.status
 
   return (
     <li className={styles.submission}>
       <div
         className={`${styles.verdictBlock} ${submissionStatusClass(item.status)}`}
         role="status"
-        aria-label={`${statusLabel}${showScore ? `, điểm lần nộp ${item.score}/${item.maxScore}` : ''}`}
+        aria-label={showScore
+          ? t('submissionsScoreStatusLabel', {
+              status: statusLabel,
+              score: numberFormat.format(item.score!),
+              maxScore: numberFormat.format(item.maxScore!),
+            })
+          : statusLabel}
       >
         <strong>
-          {showScore ? `${item.score} / ${item.maxScore}` : active ? statusLabel : verdictAbbr(item.status)}
+          {showScore ? `${numberFormat.format(item.score!)} / ${numberFormat.format(item.maxScore!)}` : active ? statusLabel : verdictAbbr(item.status)}
         </strong>
         <span>
           {active && <i className={styles.statusDot} aria-hidden="true" />}
@@ -115,29 +118,32 @@ function SubmissionCard({ item, username }: { item: ProblemSubmissionListItem; u
       </div>
       <div className={styles.submissionMain}>
         <span className={styles.submissionUser}>{username}</span>
-        <time dateTime={item.submittedAt}>{formatDate(item.submittedAt)}</time>
+        <time dateTime={item.submittedAt}>{formatDate(item.submittedAt, locale, t('submissionsUnknownDate'))}</time>
         <code className={styles.submissionId} title={item.id}>#{item.id.slice(0, 8)}</code>
       </div>
       <div className={styles.submissionLinks}>
-        <Link className={styles.rowLink} to={detailsPath} aria-label={`Xem bài nộp ${item.id.slice(0, 8)}, ${statusLabel}`}>
-          xem
+        <Link className={styles.rowLink} to={detailsPath} aria-label={`${t('submissionsViewItem')} #${item.id.slice(0, 8)}, ${statusLabel}`}>
+          {t('submissionsViewItem')}
         </Link>
         <span aria-hidden="true">·</span>
         <Link className={styles.sourceLink} to={`${detailsPath}#source-heading`}>
-          mã nguồn
+          {t('submissionsViewSource')}
         </Link>
       </div>
       <div className={styles.submissionMetrics}>
-        <strong>{formatExecutionTime(item.executionTimeMs)}</strong>
-        <span>{formatMemory(item.memoryUsedKb)}</span>
+        <strong>{formatExecutionTime(item.executionTimeMs, locale)}</strong>
+        <span>{formatMemory(item.memoryUsedKb, locale)}</span>
       </div>
     </li>
   )
 }
 
 function ProblemSubmissionsContent({ code }: { code: string }) {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const numberFormat = new Intl.NumberFormat(locale)
   const { request, user } = useAuth()
-  const username = user?.username ?? user?.full_name ?? user?.email ?? 'Tôi'
+  const username = user?.username ?? user?.full_name ?? user?.email ?? t('submissionsYou')
   const [data, setData] = useState<ProblemSubmissionPage | null>(null)
   const dataRef = useRef<ProblemSubmissionPage | null>(null)
   const [loading, setLoading] = useState(true)
@@ -181,7 +187,7 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
         setError(
           requestError instanceof ApiError
             ? requestError.message
-            : 'Không thể tải bài nộp do lỗi kết nối. Vui lòng thử lại.',
+            : t('submissionsLoadNetworkError'),
         )
         if (dataRef.current?.items.some(isActive)) {
           timer = window.setTimeout(() => void fetchPage(), 4000)
@@ -196,20 +202,20 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
       active = false
       if (timer !== undefined) window.clearTimeout(timer)
     }
-  }, [load, retryKey])
+  }, [load, retryKey, t])
 
   const pagination = useMemo(() => ({
     currentPage: page,
     pageSize,
     totalItems: data?.total ?? 0,
     pageSizes: PAGE_SIZES,
-    label: 'bài nộp của tôi',
+    label: t('mySubmissionItems', { ns: 'common' }),
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
       setPageSize(size)
       setPage(1)
     },
-  }), [data?.total, page, pageSize])
+  }), [data?.total, page, pageSize, t])
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -240,42 +246,42 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
         <div className={styles.content}>
           <section className={styles.listColumn} aria-labelledby="submissions-title">
             <div className={styles.panelHeading}>
-              <h2 id="submissions-title">Danh sách bài nộp</h2>
-              <span>{data?.total ?? 0} bài</span>
+              <h2 id="submissions-title">{t('submissionsListTitle')}</h2>
+              <span>{t('submissionsCount', { count: numberFormat.format(data?.total ?? 0) })}</span>
             </div>
             {data && (
               <div className={styles.progressSummary} role="status" aria-live="polite">
-                <span>Điểm tích lũy hiện tại</span>
-                <strong>{data.problem.cumulativeScore} / {data.problem.totalTestCases}</strong>
+                <span>{t('submissionsCurrentScore')}</span>
+                <strong>{numberFormat.format(data.problem.cumulativeScore)} / {numberFormat.format(data.problem.totalTestCases)}</strong>
               </div>
             )}
 
             <form className={styles.filters} onSubmit={applyFilters}>
               <label>
-                <span>Kết quả</span>
+                <span>{t('results')}</span>
                 <select value={draftStatus} onChange={(event) => setDraftStatus(event.target.value)}>
-                  <option value="">Tất cả trạng thái</option>
-                  {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  <option value="">{t('submissionsAllStatuses')}</option>
+                  {STATUS_OPTIONS.map(([value, labelKey]) => <option key={value} value={value}>{t(labelKey)}</option>)}
                 </select>
               </label>
               <label>
-                <span>Ngôn ngữ</span>
+                <span>{t('language', { ns: 'common' })}</span>
                 <select value={draftLanguage} onChange={(event) => setDraftLanguage(event.target.value)}>
-                  <option value="">Tất cả ngôn ngữ</option>
+                  <option value="">{t('submissionsAllLanguages')}</option>
                   {(data?.statistics.languages ?? []).map((language) => (
                     <option key={language} value={language}>{language}</option>
                   ))}
                 </select>
               </label>
               <div className={styles.filterActions}>
-                <button type="submit" className={styles.applyButton}>Áp dụng</button>
+                <button type="submit" className={styles.applyButton}>{t('submissionsApplyFilters')}</button>
                 <button
                   type="button"
                   className={styles.resetButton}
                   onClick={resetFilters}
                   disabled={!hasFilters && !draftStatus && !draftLanguage}
                 >
-                  Đặt lại
+                  {t('resetFilters')}
                 </button>
               </div>
             </form>
@@ -284,19 +290,19 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
               {loading && !data ? (
                 <div className={styles.state} role="status" aria-live="polite" aria-busy="true">
                   <span className={styles.spinner} aria-hidden="true" />
-                  Đang tải bài nộp...
+                  {t('submissionsLoading')}
                 </div>
               ) : error && !data ? (
                 <div className={styles.state} role="alert">
-                  <strong>Chưa thể tải bài nộp</strong>
+                  <strong>{t('submissionsCannotLoad')}</strong>
                   <p>{error}</p>
-                  <button type="button" onClick={() => setRetryKey((value) => value + 1)}>Thử lại</button>
+                  <button type="button" onClick={() => setRetryKey((value) => value + 1)}>{t('retry')}</button>
                 </div>
               ) : data && data.items.length === 0 ? (
                 <div className={styles.state}>
-                  <strong>{hasFilters ? 'Không tìm thấy bài nộp phù hợp' : 'Bạn chưa có bài nộp nào'}</strong>
-                  <p>{hasFilters ? 'Thử thay đổi bộ lọc hoặc đặt lại để xem toàn bộ.' : 'Gửi bài giải để bắt đầu theo dõi kết quả tại đây.'}</p>
-                  {!hasFilters && <Link to={`/problems/${encodeURIComponent(code)}/submit`}>Gửi bài giải đầu tiên</Link>}
+                  <strong>{hasFilters ? t('submissionsEmptyFilteredTitle') : t('submissionsEmptyTitle')}</strong>
+                  <p>{hasFilters ? t('submissionsEmptyFilteredHint') : t('submissionsEmptyHint')}</p>
+                  {!hasFilters && <Link to={`/problems/${encodeURIComponent(code)}/submit`}>{t('submissionsSubmitFirst')}</Link>}
                 </div>
               ) : data ? (
                 <>
@@ -307,7 +313,7 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
                   ) : null}
                   {error && (
                     <p className={styles.refreshError} role="status">
-                      {error} <button type="button" onClick={() => setRetryKey((value) => value + 1)}>Thử cập nhật</button>
+                      {error} <button type="button" onClick={() => setRetryKey((value) => value + 1)}>{t('submissionsRetryUpdate')}</button>
                     </p>
                   )}
                   <ul className={styles.submissionList}>
@@ -321,17 +327,17 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
             </div>
           </section>
 
-          <aside className={styles.sidebar} aria-label="Thống kê bài nộp">
+          <aside className={styles.sidebar} aria-label={t('submissionsStatsLabel')}>
             <section className={styles.statsCard} aria-labelledby="stats-title">
               <div className={styles.panelHeading}>
-                <h2 id="stats-title">THỐNG KÊ KẾT QUẢ CHẤM</h2>
+                <h2 id="stats-title">{t('submissionsStatsHeading')}</h2>
               </div>
               <div className={styles.statsBody} aria-busy={loading}>
                 <p className={styles.statsSubtitle}></p>
                 <div
                   className={styles.donutChart}
                   role="img"
-                  aria-label={`Phân bố ${stats?.total ?? 0} bài nộp theo kết quả chấm`}
+                  aria-label={t('submissionsVerdictDistribution', { count: numberFormat.format(stats?.total ?? 0) })}
                 >
                   <svg viewBox="0 0 100 100" aria-hidden="true">
                     <circle className={styles.donutTrack} cx="50" cy="50" r="40" pathLength="100" />
@@ -354,40 +360,40 @@ function ProblemSubmissionsContent({ code }: { code: string }) {
                     })}
                   </svg>
                   <div className={styles.donutCenter}>
-                    <strong>{stats?.total ?? 0}</strong>
-                    <span>bài nộp</span>
+                    <strong>{numberFormat.format(stats?.total ?? 0)}</strong>
+                    <span>{t('submissionsCountUnit')}</span>
                   </div>
                 </div>
                 <dl className={styles.statsSummary}>
-                  <div><dt>Tổng</dt><dd>{stats?.total ?? 0}</dd></div>
-                  <div><dt>AC</dt><dd>{stats?.accepted ?? 0}</dd></div>
-                  <div><dt>Tỷ lệ AC</dt><dd>{(stats?.acceptanceRate ?? 0).toFixed(1)}%</dd></div>
+                  <div><dt>{t('submissionsTotal')}</dt><dd>{numberFormat.format(stats?.total ?? 0)}</dd></div>
+                  <div><dt>AC</dt><dd>{numberFormat.format(stats?.accepted ?? 0)}</dd></div>
+                  <div><dt>{t('submissionsAcceptedRate')}</dt><dd>{new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(stats?.acceptanceRate ?? 0)}%</dd></div>
                 </dl>
                 {verdictDistribution.length > 0 ? (
-                  <ul className={styles.verdictLegend} aria-label="Chú giải kết quả chấm">
+                  <ul className={styles.verdictLegend} aria-label={t('submissionsVerdictLegend')}>
                     {verdictDistribution.map((item) => (
                       <li key={item.status}>
                         <span className={styles.verdictName}>
                           <i style={{ backgroundColor: item.color }} aria-hidden="true" />
                           <b>{item.abbr}</b>
-                          <span>{item.label}</span>
+                          <span>{submissionVerdictTranslationKeys[item.status] ? t(submissionVerdictTranslationKeys[item.status]) : item.label}</span>
                         </span>
                         <span className={styles.verdictValue}>
-                          {item.count} · {item.percentage.toFixed(1)}%
+                          {numberFormat.format(item.count)} · {new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(item.percentage)}%
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className={styles.chartEmpty}>
-                    {loading && !stats ? 'Đang tải thống kê...' : 'Chưa có dữ liệu thống kê.'}
+                    {loading && !stats ? t('submissionsLoadingStats') : t('submissionsNoStats')}
                   </p>
                 )}
               </div>
             </section>
             <section className={styles.tipCard}>
-              <strong>Thông tin bài nộp</strong>
-              <p>Chọn một bài nộp để xem chi tiết kết quả chấm, mã nguồn và trạng thái từng test.</p>
+              <strong>{t('submissionsInfoTitle')}</strong>
+              <p>{t('submissionsInfoDescription')}</p>
             </section>
           </aside>
         </div>

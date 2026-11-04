@@ -134,3 +134,25 @@
     font-size: 19px;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .avatar {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .username {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .registered {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .participated {
+  border-color: #2f6b4f;
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}

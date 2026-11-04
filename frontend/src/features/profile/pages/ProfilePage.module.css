@@ -697,3 +697,122 @@
     transition: none;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .form textarea,
+:global(:where([data-theme='dark'])) .form input,
+:global(:where([data-theme='dark'])) .avatarTabPanel input:not([type='file']) {
+  border-color: var(--color-border);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .skipLink,
+:global(:where([data-theme='dark'])) .eyebrow,
+:global(:where([data-theme='dark'])) .secondaryButton,
+:global(:where([data-theme='dark'])) .avatarTabs button:hover,
+:global(:where([data-theme='dark'])) .avatarTabs .avatarTabActive {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .heading h1,
+:global(:where([data-theme='dark'])) .profileIdentity strong,
+:global(:where([data-theme='dark'])) .details dd,
+:global(:where([data-theme='dark'])) .form label,
+:global(:where([data-theme='dark'])) .avatarFieldset legend,
+:global(:where([data-theme='dark'])) .previewStatus strong,
+:global(:where([data-theme='dark'])) .editHeading h1,
+:global(:where([data-theme='dark'])) .avatarIdentity h2,
+:global(:where([data-theme='dark'])) .avatarPicker legend,
+:global(:where([data-theme='dark'])) .avatarTabPanel > label,
+:global(:where([data-theme='dark'])) .avatarDropzone strong,
+:global(:where([data-theme='dark'])) .accountInfoTitle,
+:global(:where([data-theme='dark'])) .accountInfo dd,
+:global(:where([data-theme='dark'])) .formHeading h2 {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .heading > p:last-child,
+:global(:where([data-theme='dark'])) .profileIdentity > div > span,
+:global(:where([data-theme='dark'])) .details dt,
+:global(:where([data-theme='dark'])) .form input:disabled,
+:global(:where([data-theme='dark'])) .helperText,
+:global(:where([data-theme='dark'])) .previewStatus,
+:global(:where([data-theme='dark'])) .status,
+:global(:where([data-theme='dark'])) .editHeading > p:last-child,
+:global(:where([data-theme='dark'])) .avatarIdentity span,
+:global(:where([data-theme='dark'])) .avatarTabs button,
+:global(:where([data-theme='dark'])) .avatarHint,
+:global(:where([data-theme='dark'])) .accountInfo dt,
+:global(:where([data-theme='dark'])) .formHeading p,
+:global(:where([data-theme='dark'])) .characterCount {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .profileIdentity {
+  border-color: var(--color-border);
+  background: linear-gradient(115deg, var(--color-surface), var(--color-surface-subtle));
+}
+
+:global(:where([data-theme='dark'])) .avatarFieldset {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .form input[type='file'] {
+  background: var(--color-surface);
+}
+
+:global(:where([data-theme='dark'])) .avatarPreview {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+:global(:where([data-theme='dark'])) .previewError {
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .resetButton {
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .resetButton:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .feedback {
+  background: var(--color-surface-subtle);
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .success {
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .avatarTabs {
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .avatarDropzone {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .avatarDropzone:hover,
+:global(:where([data-theme='dark'])) .avatarDropzone:focus-visible {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .uploadIcon {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    linear-gradient(rgba(16, 36, 38, 0.9), rgba(16, 36, 38, 0.94)),
+    url('../../../assets/uth_background.jpg');
+}

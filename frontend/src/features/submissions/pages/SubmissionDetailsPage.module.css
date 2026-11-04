@@ -369,13 +369,13 @@
 
 .primaryLink {
   border-color: var(--color-primary);
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
 }
 
 .primaryLink:hover {
   border-color: var(--color-primary-dark);
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .copyMessage {
@@ -521,4 +521,75 @@
   .networkNotice button {
     transition: none;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .main {
+  background: linear-gradient(rgba(33, 59, 61, 0.88), rgba(33, 59, 61, 0.93)),
+    url('../../../assets/uth_background.jpg') center top / cover no-repeat;
+}
+
+:global(:where([data-theme='dark'])) .accepted {
+  border-color: #2f6b4f;
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .wrongAnswer,
+:global(:where([data-theme='dark'])) .internalError {
+  border-color: #6b3a3d;
+  background: var(--color-surface-subtle);
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .timeLimit,
+:global(:where([data-theme='dark'])) .networkNotice {
+  border-color: #6b5a2a;
+  background: var(--color-surface);
+  color: #f5c76a;
+}
+
+:global(:where([data-theme='dark'])) .memoryLimit {
+  border-color: #35557f;
+  background: var(--color-surface-subtle);
+  color: #a5b8ff;
+}
+
+:global(:where([data-theme='dark'])) .runtimeError {
+  border-color: #6b5a2a;
+  background: var(--color-surface-subtle);
+  color: #f5c76a;
+}
+
+:global(:where([data-theme='dark'])) .compilationError,
+:global(:where([data-theme='dark'])) .running {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .pending {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .scoreCard {
+  background: rgba(33, 59, 61, 0.82);
+}
+
+:global(:where([data-theme='dark'])) .resultsTable th,
+:global(:where([data-theme='dark'])) .resultsTable td {
+  border-bottom-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .resultsTable tbody tr:hover {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .secondaryButton,
+:global(:where([data-theme='dark'])) .primaryLink,
+:global(:where([data-theme='dark'])) .secondaryLink,
+:global(:where([data-theme='dark'])) .networkNotice button {
+  border-color: var(--color-border);
 }

@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from 'react'
 import { monaco } from './monaco-setup'
+import { useMonacoTheme } from './monaco-theme'
 import { areMonacoEditorRenderPropsEqual } from './monaco-editor-render'
 import styles from './CodeEditorPanel.module.css'
 
@@ -19,6 +20,7 @@ function MonacoEditorView({ value, language, revision, onChange, onReady, ariaLa
   const editorRef = useRef<CodeEditor | null>(null)
   const onChangeRef = useRef(onChange)
   const initial = useRef({ value, language, onReady, ariaLabel })
+  useMonacoTheme()
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -30,7 +32,6 @@ function MonacoEditorView({ value, language, revision, onChange, onReady, ariaLa
     const editor = monaco.editor.create(container, {
       value: initial.current.value,
       language: initial.current.language,
-      theme: 'uth-light',
       automaticLayout: true,
       minimap: { enabled: false },
       fontSize: 14,

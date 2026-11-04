@@ -466,3 +466,46 @@
     padding: 12px;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .viewerRank {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .card,
+:global(:where([data-theme='dark'])) .filters,
+:global(:where([data-theme='dark'])) .search input:hover {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .top1 {
+  background: var(--color-surface);
+}
+
+:global(:where([data-theme='dark'])) .rowLink:hover {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .top1 .rowLink:hover {
+  background: #3b3118;
+}
+
+:global(:where([data-theme='dark'])) .achievement {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .error {
+  border-bottom-color: #6b3a3d;
+  background: var(--color-surface-hover);
+  color: #ff9d9d;
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
+}

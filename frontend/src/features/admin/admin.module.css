@@ -1527,12 +1527,15 @@
 
   .sidebar {
     z-index: 40;
+    visibility: hidden;
     transform: translateX(-105%);
-    transition: transform 180ms ease;
+    transition: transform 180ms ease, visibility 0s linear 180ms;
   }
 
   .sidebarOpen {
+    visibility: visible;
     transform: translateX(0);
+    transition-delay: 0s;
   }
 
   .mobileScrim {

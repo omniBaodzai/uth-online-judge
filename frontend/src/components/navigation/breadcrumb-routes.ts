@@ -3,6 +3,7 @@ import { getContestById } from '../../features/contests/data.ts'
 export type BreadcrumbItem = {
   label: string
   to?: string
+  dynamic?: boolean
 }
 
 export type BreadcrumbOptions = {
@@ -58,10 +59,12 @@ function contestProblemCrumbs(
     {
       label: contest?.contestTitle ?? 'Chi tiết cuộc thi',
       to: `/contests/${encodeURIComponent(contestSlug)}`,
+      dynamic: Boolean(contest?.contestTitle),
     },
     {
       label: contest?.problemTitle ?? code,
       ...(action ? { to: detailPath } : {}),
+      dynamic: true,
     },
   ]
   return action ? [...items, { label: action }] : items
@@ -98,10 +101,12 @@ const routes: RouteDefinition[] = [
           {
             label: contestProblem.contestTitle,
             to: `/contests/${contestSlug}`,
+            dynamic: true,
           },
           {
             label: contestProblem.problemTitle,
             to: `/contests/${contestSlug}/problems/${code}`,
+            dynamic: true,
           },
           { label: 'Chi tiết bài nộp' },
         ]
@@ -128,11 +133,14 @@ const routes: RouteDefinition[] = [
   { pattern: '/contests', build: () => [home, { label: 'Cuộc thi' }] },
   {
     pattern: '/contests/:contestId',
-    build: ({ contestId }) => [
-      home,
-      { label: 'Cuộc thi', to: '/contests' },
-      { label: getContestById(contestId)?.title ?? 'Chi tiết cuộc thi' },
-    ],
+    build: ({ contestId }) => {
+      const contestTitle = getContestById(contestId)?.title
+      return [
+        home,
+        { label: 'Cuộc thi', to: '/contests' },
+        { label: contestTitle ?? 'Chi tiết cuộc thi', dynamic: Boolean(contestTitle) },
+      ]
+    },
   },
   { pattern: '/organizations', build: () => [home, { label: 'Tổ chức' }] },
   { pattern: '/contact', build: () => [home, { label: 'Liên hệ' }] },

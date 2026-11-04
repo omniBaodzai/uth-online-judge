@@ -187,7 +187,7 @@ function ContestSection({ config }: { config: ContestSectionConfig }) {
           <h2 id={`${config.status.toLocaleLowerCase('vi')}-title`}>{title}</h2>
         </div>
         <span className={styles.count}>
-          {visibleResult ? t('contestCount', { count: visibleResult.total }) : isLoading ? t('loadingContests') : '—'}
+          {visibleResult ? t('contestCount', { count: visibleResult.total.toLocaleString(locale) }) : isLoading ? t('loadingContests') : '—'}
         </span>
       </header>
 
@@ -271,7 +271,7 @@ function ContestSection({ config }: { config: ContestSectionConfig }) {
                       <div className={styles.metadata}>
                         <span><b>{t('startTime')}</b> {formatContestDate(contest.startsAt, locale)}</span>
                         <span><b>{t('endTime')}</b> {formatContestDate(contest.endsAt, locale)}</span>
-                        <span><b>{t('contestDuration')}</b> {getContestDurationMinutes(contest)} {t('minutes')}</span>
+                        <span><b>{t('contestDuration')}</b> {getContestDurationMinutes(contest).toLocaleString(locale)} {t('minutes')}</span>
                       </div>
                     </div>
                   </td>

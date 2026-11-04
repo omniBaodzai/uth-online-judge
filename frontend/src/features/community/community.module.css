@@ -92,12 +92,12 @@
 }
 
 .primaryButton {
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
 }
 
 .primaryButton:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .secondaryButton {
@@ -524,4 +524,52 @@
   color: #7a8c8f;
   font-size: 14px;
   font-style: italic;
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .secondaryButton:hover:not(:disabled),
+:global(:where([data-theme='dark'])) .dangerButton:hover:not(:disabled),
+:global(:where([data-theme='dark'])) .reactionButton:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .dangerButton {
+  border-color: #6b3a3d;
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .lockBadge {
+  background: var(--color-surface-subtle);
+  color: #f5c76a;
+}
+
+:global(:where([data-theme='dark'])) .stateError,
+:global(:where([data-theme='dark'])) .linkDanger {
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .plainText {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .error {
+  border-color: #6b3a3d;
+  background: var(--color-surface-subtle);
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .reactionActive {
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .replies {
+  border-left-color: var(--color-border);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../assets/uth_background.jpg');
 }

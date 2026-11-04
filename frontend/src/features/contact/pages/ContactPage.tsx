@@ -230,7 +230,8 @@ function ContactPage() {
 
             <form className={styles.form} noValidate onSubmit={handleSubmit} aria-busy={isSubmitting}>
               {formFields.map(({ name, label, placeholder, type, maxLength, autoComplete }) => {
-                const error = getVisibleError(name)
+                const errorKey = getVisibleError(name)
+                const error = errorKey ? t(errorKey) : undefined
                 const fieldId = `contact-${name}`
                 const errorId = `${fieldId}-error`
                 const describedBy = error ? errorId : undefined
@@ -275,7 +276,7 @@ function ContactPage() {
                         <span className={styles.fieldError} id={errorId} role="alert">{error}</span>
                       ) : <span aria-hidden="true" />}
                       {name === 'message' && (
-                        <span className={styles.counter}>{values.message.length}/2000</span>
+                        <span className={styles.counter}>{t('characterCount', { count: values.message.length, max: 2000 })}</span>
                       )}
                     </div>
                   </div>

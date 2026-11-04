@@ -15,14 +15,23 @@ import {
   type StudentContestRequester,
   type StudentContestStatistics,
 } from '../student-contests.api'
+import { useContestText } from '../translate'
 import styles from './ContestStatisticsTab.module.css'
 
-const verdictDetails: Record<ContestVerdict, { label: string; color: string }> = {
-  AC: { label: 'AC — Accepted', color: '#16A34A' },
-  WA: { label: 'WA — Wrong Answer', color: '#EA580C' },
-  CE: { label: 'CE — Compilation Error', color: '#64748B' },
-  TLE: { label: 'TLE — Time Limit Exceeded', color: '#94A3B8' },
-  ERR: { label: 'ERR — Other Errors', color: '#F59E0B' },
+const verdictColors: Record<ContestVerdict, string> = {
+  AC: '#16A34A',
+  WA: '#EA580C',
+  CE: '#64748B',
+  TLE: '#94A3B8',
+  ERR: '#F59E0B',
+}
+
+function verdictLabel(verdict: ContestVerdict, text: ReturnType<typeof useContestText>['text']): string {
+  if (verdict === 'AC') return text('verdictAC', 'AC — Đúng', 'AC — Accepted')
+  if (verdict === 'WA') return text('verdictWA', 'WA — Sai đáp án', 'WA — Wrong Answer')
+  if (verdict === 'CE') return text('verdictCE', 'CE — Lỗi biên dịch', 'CE — Compilation Error')
+  if (verdict === 'TLE') return text('verdictTLE', 'TLE — Quá thời gian', 'TLE — Time Limit Exceeded')
+  return text('verdictOther', 'ERR — Lỗi khác', 'ERR — Other errors')
 }
 
 const languageColors = ['#008689', '#4F46E5', '#D97706', '#0F766E', '#DB2777']
@@ -132,6 +141,7 @@ function toChartStatistics(data: StudentContestStatistics): ContestStatistics {
 }
 
 function SubmissionStatusChart({ statistics }: { statistics: ContestStatistics }) {
+  const { text, locale } = useContestText()
   const maxTotal = Math.max(1, ...statistics.problems.map(({ total }) => total))
   const chartHeight = CHART_PADDING_TOP + statistics.problems.length * ROW_HEIGHT + CHART_PADDING_BOTTOM
   const plotWidth = CHART_WIDTH - LABEL_WIDTH - RIGHT_PADDING
@@ -141,31 +151,31 @@ function SubmissionStatusChart({ statistics }: { statistics: ContestStatistics }
 
   return (
     <ChartCard
-      title="Phân phối theo trạng thái"
+      title={text('submissionDistributionTitle', 'Phân phối theo trạng thái', 'Submission verdict distribution')}
       className={styles.statusCard}
       headerContent={
         <span className={styles.totalBadge}>
-          {formatSubmissionCount(statistics.totalSubmissions)} bài nộp
+          {formatSubmissionCount(statistics.totalSubmissions, locale)} {text('submissions', 'bài nộp', 'submissions')}
         </span>
       }
     >
       <ChartLegend items={contestVerdicts.map((verdict) => ({
-        label: verdictDetails[verdict].label,
-        color: verdictDetails[verdict].color,
+        label: verdictLabel(verdict, text),
+        color: verdictColors[verdict],
       }))} />
-      <div className={styles.chartScroll} role="region" aria-label="Biểu đồ phân phối bài nộp theo trạng thái" tabIndex={0}>
+      <div className={styles.chartScroll} role="region" aria-label={text('submissionDistributionChart', 'Biểu đồ phân phối bài nộp theo trạng thái', 'Submission verdict distribution chart')} tabIndex={0}>
         <svg
           className={styles.chartSvg}
           viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
           role="group"
-          aria-label="Biểu đồ thanh ngang chồng phân phối bài nộp theo trạng thái của từng bài"
+          aria-label={text('submissionDistributionChartDescription', 'Biểu đồ thanh ngang chồng phân phối bài nộp theo trạng thái của từng bài', 'Stacked horizontal bar chart of submission verdicts for each problem')}
         >
           {ticks.map((tick) => {
             const x = LABEL_WIDTH + (tick / maxTotal) * plotWidth
             return (
               <g key={tick}>
                 <line x1={x} y1={CHART_PADDING_TOP - 3} x2={x} y2={chartHeight - CHART_PADDING_BOTTOM + 2} className={styles.gridLine} />
-                <text x={x} y={chartHeight - 10} textAnchor="middle" className={styles.axisTick}>{tick}</text>
+                <text x={x} y={chartHeight - 10} textAnchor="middle" className={styles.axisTick}>{tick.toLocaleString(locale)}</text>
               </g>
             )
           })}
@@ -181,20 +191,21 @@ function SubmissionStatusChart({ statistics }: { statistics: ContestStatistics }
                   const x = currentX
                   currentX += width
                   if (width <= 0) return null
-                  const details = verdictDetails[verdict]
+                  const label = verdictLabel(verdict, text)
+                  const countLabel = formatSubmissionCount(count, locale)
                   return (
                     <g
                       key={verdict}
                       tabIndex={0}
-                      aria-label={`${problemStats.problem.title}: ${details.label}, ${formatSubmissionCount(count)} bài nộp`}
+                      aria-label={text('problemVerdictLabel', '{{problem}}: {{verdict}}, {{count}} bài nộp', '{{problem}}: {{verdict}}, {{count}} submissions', { problem: problemStats.problem.title, verdict: label, count: countLabel })}
                     >
-                      <title>{`${problemStats.problem.title} · ${details.label}: ${formatSubmissionCount(count)} bài nộp`}</title>
+                      <title>{text('problemVerdictTitle', '{{problem}} · {{verdict}}: {{count}} bài nộp', '{{problem}} · {{verdict}}: {{count}} submissions', { problem: problemStats.problem.title, verdict: label, count: countLabel })}</title>
                       <rect
                         x={x}
                         y={y + 7}
                         width={width}
                         height={22}
-                        fill={details.color}
+                        fill={verdictColors[verdict]}
                         rx={currentX === LABEL_WIDTH + width ? 4 : 0}
                         className={styles.barSegment}
                       />
@@ -205,7 +216,7 @@ function SubmissionStatusChart({ statistics }: { statistics: ContestStatistics }
             )
           })}
           <text x={LABEL_WIDTH + plotWidth / 2} y={chartHeight - 1} textAnchor="middle" className={styles.axisTitle}>
-            Số lượng bài nộp
+            {text('submissionCountAxis', 'Số lượng bài nộp', 'Number of submissions')}
           </text>
         </svg>
       </div>
@@ -214,25 +225,26 @@ function SubmissionStatusChart({ statistics }: { statistics: ContestStatistics }
 }
 
 function ProblemAcceptanceChart({ statistics }: { statistics: ContestStatistics }) {
+  const { text, locale } = useContestText()
   const chartHeight = CHART_PADDING_TOP + statistics.problems.length * ROW_HEIGHT + CHART_PADDING_BOTTOM
   const plotWidth = CHART_WIDTH - LABEL_WIDTH - RIGHT_PADDING
   const ticks = [0, 25, 50, 75, 100]
 
   return (
-    <ChartCard title="Tỉ lệ AC theo bài tập" className={styles.acceptanceCard}>
-      <div className={styles.chartScroll} role="region" aria-label="Biểu đồ tỉ lệ AC theo bài tập" tabIndex={0}>
+    <ChartCard title={text('problemAcceptanceTitle', 'Tỉ lệ AC theo bài tập', 'Acceptance rate by problem')} className={styles.acceptanceCard}>
+      <div className={styles.chartScroll} role="region" aria-label={text('problemAcceptanceChart', 'Biểu đồ tỉ lệ AC theo bài tập', 'Problem acceptance rate chart')} tabIndex={0}>
         <svg
           className={styles.chartSvg}
           viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
           role="group"
-          aria-label="Biểu đồ thanh ngang tỉ lệ Accepted theo từng bài tập"
+          aria-label={text('problemAcceptanceChartDescription', 'Biểu đồ thanh ngang tỉ lệ Accepted theo từng bài tập', 'Horizontal bar chart of accepted submission rates by problem')}
         >
           {ticks.map((tick) => {
             const x = LABEL_WIDTH + (tick / 100) * plotWidth
             return (
               <g key={tick}>
                 <line x1={x} y1={CHART_PADDING_TOP - 3} x2={x} y2={chartHeight - CHART_PADDING_BOTTOM + 2} className={styles.gridLine} />
-                <text x={x} y={chartHeight - 10} textAnchor="middle" className={styles.axisTick}>{tick}%</text>
+                <text x={x} y={chartHeight - 10} textAnchor="middle" className={styles.axisTick}>{tick.toLocaleString(locale)}%</text>
               </g>
             )
           })}
@@ -244,20 +256,30 @@ function ProblemAcceptanceChart({ statistics }: { statistics: ContestStatistics 
               <g
                 key={problemStats.problem.id}
                 tabIndex={0}
-                aria-label={`${problemStats.problem.title}: ${formatSubmissionCount(problemStats.accepted)} AC trên ${formatSubmissionCount(problemStats.total)}, ${formatPercent(safeRate)}`}
+                aria-label={text('problemAcceptanceLabel', '{{problem}}: {{accepted}} AC trên {{total}}, {{rate}}', '{{problem}}: {{accepted}} AC out of {{total}}, {{rate}}', {
+                  problem: problemStats.problem.title,
+                  accepted: formatSubmissionCount(problemStats.accepted, locale),
+                  total: formatSubmissionCount(problemStats.total, locale),
+                  rate: formatPercent(safeRate, locale),
+                })}
               >
-                <title>{`${problemStats.problem.title} · ${problemStats.accepted} AC / ${problemStats.total} bài nộp · ${formatPercent(safeRate)}`}</title>
+                <title>{text('problemAcceptanceTitleTooltip', '{{problem}} · {{accepted}} AC / {{total}} bài nộp · {{rate}}', '{{problem}} · {{accepted}} AC / {{total}} submissions · {{rate}}', {
+                  problem: problemStats.problem.title,
+                  accepted: formatSubmissionCount(problemStats.accepted, locale),
+                  total: formatSubmissionCount(problemStats.total, locale),
+                  rate: formatPercent(safeRate, locale),
+                })}</title>
                 <ProblemLabels stats={problemStats} y={y + ROW_HEIGHT / 2} />
                 <rect x={LABEL_WIDTH} y={y + 9} width={plotWidth} height={18} rx={9} className={styles.barTrack} />
                 <rect x={LABEL_WIDTH} y={y + 9} width={width} height={18} rx={9} className={styles.acceptanceBar} />
                 <text x={LABEL_WIDTH + plotWidth + 10} y={y + ROW_HEIGHT / 2 + 4} className={styles.valueLabel}>
-                  {formatPercent(safeRate)}
+                  {formatPercent(safeRate, locale)}
                 </text>
               </g>
             )
           })}
           <text x={LABEL_WIDTH + plotWidth / 2} y={chartHeight - 1} textAnchor="middle" className={styles.axisTitle}>
-            Tỉ lệ Accepted
+            {text('acceptanceRateAxis', 'Tỉ lệ Accepted', 'Acceptance rate')}
           </text>
         </svg>
       </div>
@@ -266,16 +288,17 @@ function ProblemAcceptanceChart({ statistics }: { statistics: ContestStatistics 
 }
 
 function LanguageDistributionChart({ statistics }: { statistics: ContestStatistics }) {
+  const { text, locale } = useContestText()
   const total = statistics.totalSubmissions
   const radius = 72
   const circumference = 2 * Math.PI * radius
 
   return (
-    <ChartCard title="Bài nộp theo ngôn ngữ" className={styles.languageCard}>
+    <ChartCard title={text('languageDistributionTitle', 'Bài nộp theo ngôn ngữ', 'Submissions by language')} className={styles.languageCard}>
       <div className={styles.languageLayout}>
         <div className={styles.donutWrap}>
-          <svg viewBox="0 0 220 220" role="group" aria-label="Biểu đồ donut số bài nộp theo ngôn ngữ">
-            <circle cx="110" cy="110" r={radius} fill="none" stroke="#e8eeee" strokeWidth="28" />
+          <svg viewBox="0 0 220 220" role="group" aria-label={text('languageDistributionChart', 'Biểu đồ donut số bài nộp theo ngôn ngữ', 'Donut chart of submissions by language')}>
+            <circle cx="110" cy="110" r={radius} fill="none" stroke="var(--color-border)" strokeWidth="28" />
             {statistics.languages.map((languageStats, index) => {
               const share = total > 0 ? languageStats.total / total : 0
               const dashLength = share * circumference
@@ -297,24 +320,32 @@ function LanguageDistributionChart({ statistics }: { statistics: ContestStatisti
                   strokeDashoffset={dashOffset}
                   transform="rotate(-90 110 110)"
                   tabIndex={0}
-                  aria-label={`${languageStats.language}: ${formatSubmissionCount(languageStats.total)} bài nộp, ${formatPercent(share * 100)}`}
+                  aria-label={text('languageSubmissionLabel', '{{language}}: {{count}} bài nộp, {{percent}}', '{{language}}: {{count}} submissions, {{percent}}', {
+                    language: languageStats.language,
+                    count: formatSubmissionCount(languageStats.total, locale),
+                    percent: formatPercent(share * 100, locale),
+                  })}
                 >
-                  <title>{`${languageStats.language}: ${formatSubmissionCount(languageStats.total)} bài nộp · ${formatPercent(share * 100)}`}</title>
+                  <title>{text('languageSubmissionTitle', '{{language}}: {{count}} bài nộp · {{percent}}', '{{language}}: {{count}} submissions · {{percent}}', {
+                    language: languageStats.language,
+                    count: formatSubmissionCount(languageStats.total, locale),
+                    percent: formatPercent(share * 100, locale),
+                  })}</title>
                 </circle>
               )
             })}
             <text x="110" y="106" textAnchor="middle" className={styles.donutTotal}>
-              {formatSubmissionCount(total)}
+              {formatSubmissionCount(total, locale)}
             </text>
             <text x="110" y="128" textAnchor="middle" className={styles.donutLabel}>
-              bài nộp
+              {text('submissions', 'bài nộp', 'submissions')}
             </text>
           </svg>
         </div>
         <ChartLegend items={statistics.languages.map((languageStats, index) => ({
           label: languageStats.language,
           color: languageColors[index % languageColors.length],
-          value: `${formatSubmissionCount(languageStats.total)} · ${formatPercent(total > 0 ? (languageStats.total / total) * 100 : 0)}`,
+          value: `${formatSubmissionCount(languageStats.total, locale)} · ${formatPercent(total > 0 ? (languageStats.total / total) * 100 : 0, locale)}`,
         }))} />
       </div>
     </ChartCard>
@@ -322,25 +353,26 @@ function LanguageDistributionChart({ statistics }: { statistics: ContestStatisti
 }
 
 function LanguageAcceptanceChart({ statistics }: { statistics: ContestStatistics }) {
+  const { text, locale } = useContestText()
   const chartHeight = CHART_PADDING_TOP + statistics.languages.length * 52 + CHART_PADDING_BOTTOM
   const plotWidth = CHART_WIDTH - LABEL_WIDTH - RIGHT_PADDING
   const ticks = [0, 25, 50, 75, 100]
 
   return (
-    <ChartCard title="Tỉ lệ AC theo ngôn ngữ" className={styles.acceptanceCard}>
-      <div className={styles.chartScroll} role="region" aria-label="Biểu đồ tỉ lệ AC theo ngôn ngữ" tabIndex={0}>
+    <ChartCard title={text('languageAcceptanceTitle', 'Tỉ lệ AC theo ngôn ngữ', 'Acceptance rate by language')} className={styles.acceptanceCard}>
+      <div className={styles.chartScroll} role="region" aria-label={text('languageAcceptanceChart', 'Biểu đồ tỉ lệ AC theo ngôn ngữ', 'Language acceptance rate chart')} tabIndex={0}>
         <svg
           className={styles.chartSvg}
           viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
           role="group"
-          aria-label="Biểu đồ thanh ngang tỉ lệ Accepted theo ngôn ngữ lập trình"
+          aria-label={text('languageAcceptanceChartDescription', 'Biểu đồ thanh ngang tỉ lệ Accepted theo ngôn ngữ lập trình', 'Horizontal bar chart of accepted submission rates by programming language')}
         >
           {ticks.map((tick) => {
             const x = LABEL_WIDTH + (tick / 100) * plotWidth
             return (
               <g key={tick}>
                 <line x1={x} y1={CHART_PADDING_TOP - 3} x2={x} y2={chartHeight - CHART_PADDING_BOTTOM + 2} className={styles.gridLine} />
-                <text x={x} y={chartHeight - 10} textAnchor="middle" className={styles.axisTick}>{tick}%</text>
+                <text x={x} y={chartHeight - 10} textAnchor="middle" className={styles.axisTick}>{tick.toLocaleString(locale)}%</text>
               </g>
             )
           })}
@@ -353,9 +385,19 @@ function LanguageAcceptanceChart({ statistics }: { statistics: ContestStatistics
               <g
                 key={languageStats.language}
                 tabIndex={0}
-                aria-label={`${languageStats.language}: ${formatSubmissionCount(languageStats.accepted)} AC trên ${formatSubmissionCount(languageStats.total)}, ${formatPercent(safeRate)}`}
+                aria-label={text('languageAcceptanceLabel', '{{language}}: {{accepted}} AC trên {{total}}, {{rate}}', '{{language}}: {{accepted}} AC out of {{total}}, {{rate}}', {
+                  language: languageStats.language,
+                  accepted: formatSubmissionCount(languageStats.accepted, locale),
+                  total: formatSubmissionCount(languageStats.total, locale),
+                  rate: formatPercent(safeRate, locale),
+                })}
               >
-                <title>{`${languageStats.language} · ${languageStats.accepted} AC / ${languageStats.total} bài nộp · ${formatPercent(safeRate)}`}</title>
+                <title>{text('languageAcceptanceTooltip', '{{language}} · {{accepted}} AC / {{total}} bài nộp · {{rate}}', '{{language}} · {{accepted}} AC / {{total}} submissions · {{rate}}', {
+                  language: languageStats.language,
+                  accepted: formatSubmissionCount(languageStats.accepted, locale),
+                  total: formatSubmissionCount(languageStats.total, locale),
+                  rate: formatPercent(safeRate, locale),
+                })}</title>
                 <text x={LABEL_WIDTH - 14} y={y + rowHeight / 2 + 4} textAnchor="end" className={styles.axisLabel}>
                   {languageStats.language}
                 </text>
@@ -370,13 +412,13 @@ function LanguageAcceptanceChart({ statistics }: { statistics: ContestStatistics
                   className={styles.languageBar}
                 />
                 <text x={LABEL_WIDTH + plotWidth + 10} y={y + rowHeight / 2 + 4} className={styles.valueLabel}>
-                  {formatPercent(safeRate)}
+                  {formatPercent(safeRate, locale)}
                 </text>
               </g>
             )
           })}
           <text x={LABEL_WIDTH + plotWidth / 2} y={chartHeight - 1} textAnchor="middle" className={styles.axisTitle}>
-            Tỉ lệ Accepted
+            {text('acceptanceRateAxis', 'Tỉ lệ Accepted', 'Acceptance rate')}
           </text>
         </svg>
       </div>
@@ -396,6 +438,7 @@ function ContestStatisticsTab({
   identifier: string
   requester: StudentContestRequester
 }) {
+  const { text } = useContestText()
   const [retryKey, setRetryKey] = useState(0)
   const [result, setResult] = useState<{ key: string; state: LoadState }>()
   const key = `${identifier}:${retryKey}`
@@ -416,7 +459,7 @@ function ContestStatisticsTab({
             phase: 'error',
             message: error instanceof ApiError
               ? error.message
-              : 'Không thể tải thống kê cuộc thi. Vui lòng thử lại.',
+              : text('statisticsRequestError', 'Không thể tải thống kê cuộc thi. Vui lòng thử lại.', 'Could not load contest statistics. Please try again.'),
           },
         })
       })
@@ -424,12 +467,12 @@ function ContestStatisticsTab({
       active = false
       controller.abort()
     }
-  }, [identifier, key, requester])
+  }, [identifier, key, requester, text])
 
   if (state.phase === 'loading') {
     return (
       <section className={styles.emptyState} role="status" aria-live="polite">
-        <h2>Đang tải thống kê…</h2>
+        <h2>{text('statisticsLoading', 'Đang tải thống kê…', 'Loading statistics…')}</h2>
       </section>
     )
   }
@@ -437,10 +480,10 @@ function ContestStatisticsTab({
   if (state.phase === 'error') {
     return (
       <section className={styles.emptyState} role="alert">
-        <h2>Không thể tải thống kê</h2>
+        <h2>{text('statisticsLoadError', 'Không thể tải thống kê', 'Could not load statistics')}</h2>
         <p>{state.message}</p>
         <button type="button" className={styles.retryButton} onClick={() => setRetryKey((value) => value + 1)}>
-          Thử lại
+          {text('retry', 'Thử lại', 'Retry')}
         </button>
       </section>
     )
@@ -449,9 +492,9 @@ function ContestStatisticsTab({
   const statistics = toChartStatistics(state.statistics)
   if (statistics.totalSubmissions === 0) {
     return (
-      <section className={styles.emptyState} aria-label="Thống kê cuộc thi">
-        <h2>Chưa có bài nộp</h2>
-        <p>Thống kê sẽ xuất hiện khi có bài nộp trong cuộc thi này.</p>
+      <section className={styles.emptyState} aria-label={text('statisticsLabel', 'Thống kê cuộc thi', 'Contest statistics')}>
+        <h2>{text('noSubmissions', 'Chưa có bài nộp', 'No submissions yet')}</h2>
+        <p>{text('statisticsWillAppear', 'Thống kê sẽ xuất hiện khi có bài nộp trong cuộc thi này.', 'Statistics will appear once this contest has submissions.')}</p>
       </section>
     )
   }

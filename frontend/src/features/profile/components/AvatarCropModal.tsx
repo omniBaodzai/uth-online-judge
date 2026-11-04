@@ -5,6 +5,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AVATAR_ACCEPTED_TYPES, AVATAR_MAX_BYTES } from '../avatar-constants'
 import { constrainCropOffset, getCropImageStyle, getCropRect } from '../crop-geometry'
 import styles from './AvatarCropModal.module.css'
@@ -49,10 +50,14 @@ function AvatarCropModal({
   outputWidth = 512,
   maxBytes = AVATAR_MAX_BYTES,
   fileBaseName = 'avatar',
-  title = 'Chỉnh sửa ảnh đại diện',
-  hint = 'Kéo ảnh để đổi vị trí, dùng thanh trượt để phóng to hoặc thu nhỏ.',
-  saveLabel = 'Lưu ảnh đại diện',
+  title,
+  hint,
+  saveLabel,
 }: AvatarCropModalProps) {
+  const { t, i18n } = useTranslation('pages')
+  const dialogTitle = title ?? t('cropImageTitle')
+  const dialogHint = hint ?? t('cropImageHint')
+  const dialogSaveLabel = saveLabel ?? t('saveAvatarImage')
   const [natural, setNatural] = useState<Size | null>(null)
   const [zoom, setZoom] = useState(MIN_ZOOM)
   const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 })
@@ -132,10 +137,12 @@ function AvatarCropModal({
       context.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9))
       if (!blob || !AVATAR_ACCEPTED_TYPES.includes(blob.type)) {
-        throw new Error('Trình duyệt không thể xử lý ảnh này.')
+        throw new Error(t('cropImageUnsupported'))
       }
       if (blob.size > maxBytes) {
-        throw new Error(`Ảnh sau khi cắt vượt quá ${(maxBytes / (1024 * 1024)).toFixed(0)} MB. Hãy chọn ảnh khác.`)
+        throw new Error(t('cropImageTooLarge', {
+          size: new Intl.NumberFormat(i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN').format(maxBytes / (1024 * 1024)),
+        }))
       }
       const selection: CropSelection = {
         ...crop,
@@ -147,10 +154,10 @@ function AvatarCropModal({
     } catch (saveError) {
       setError(
         saveError instanceof DOMException && saveError.name === 'SecurityError'
-          ? 'Máy chủ ảnh không cho phép tải ảnh an toàn (CORS). Hãy dùng ảnh khác hoặc tải tệp từ thiết bị.'
+          ? t('cropImageCorsError')
           : saveError instanceof Error && saveError.message !== 'canvas'
             ? saveError.message
-            : 'Không thể lưu ảnh. Vui lòng thử lại.',
+            : t('cropImageSaveError'),
       )
       setIsSaving(false)
     }
@@ -169,8 +176,8 @@ function AvatarCropModal({
         ref={dialogRef}
         onKeyDown={handleDialogKeyDown}
       >
-        <h2 id="crop-dialog-title">{title}</h2>
-        <p className={styles.hint}>{hint}</p>
+        <h2 id="crop-dialog-title">{dialogTitle}</h2>
+        <p className={styles.hint}>{dialogHint}</p>
         <div className={styles.workspace}>
           <div
             className={`${styles.cropBox} ${isCover ? styles.coverCropBox : ''}`}
@@ -178,7 +185,7 @@ function AvatarCropModal({
             ref={boxRef}
             role="group"
             tabIndex={0}
-            aria-label="Vùng cắt ảnh. Dùng phím mũi tên để di chuyển ảnh."
+            aria-label={t('cropImageArea')}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={() => { dragRef.current = null }}
@@ -199,21 +206,21 @@ function AvatarCropModal({
               })}
               onError={() => setError(
                 crossOrigin
-                  ? 'Không thể tải ảnh từ URL. Hãy kiểm tra địa chỉ và quyền CORS của máy chủ ảnh.'
-                  : 'Không thể đọc ảnh. Hãy chọn tệp ảnh khác.',
+                  ? t('cropImageUrlLoadError')
+                  : t('cropImageReadError'),
               )}
             />
             <span className={`${styles.mask} ${isCover ? styles.coverMask : ''}`} aria-hidden="true" />
           </div>
           <div className={styles.side}>
-            <div className={`${styles.preview} ${isCover ? styles.coverPreview : ''}`} style={{ aspectRatio }} aria-label="Xem trước ảnh đã cắt">
+            <div className={`${styles.preview} ${isCover ? styles.coverPreview : ''}`} style={{ aspectRatio }} aria-label={t('cropImagePreview')}>
               {natural ? <img crossOrigin={crossOrigin} src={imageUrl} alt="" draggable={false} style={transform} /> : null}
             </div>
-            <span className={styles.previewLabel}>Xem trước</span>
+            <span className={styles.previewLabel}>{t('cropImagePreview')}</span>
           </div>
         </div>
         <div className={styles.zoomRow}>
-          <label htmlFor="image-crop-zoom">Thu phóng</label>
+          <label htmlFor="image-crop-zoom">{t('cropImageZoom')}</label>
           <input
             id="image-crop-zoom"
             type="range"
@@ -227,9 +234,9 @@ function AvatarCropModal({
         </div>
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
         <div className={styles.actions}>
-          <button className={styles.secondary} type="button" onClick={onCancel} disabled={isSaving}>Hủy</button>
+          <button className={styles.secondary} type="button" onClick={onCancel} disabled={isSaving}>{t('cancel')}</button>
           <button className={styles.primary} type="button" onClick={handleSave} disabled={!natural || isSaving}>
-            {isSaving ? 'Đang lưu…' : saveLabel}
+            {isSaving ? t('saving') : dialogSaveLabel}
           </button>
         </div>
       </div>

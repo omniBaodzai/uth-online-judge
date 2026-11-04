@@ -66,7 +66,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   font-size: 17px;
   font-weight: 800;
@@ -307,7 +307,7 @@ a.contactValue:hover {
   padding: 0 20px;
   border: 0;
   border-radius: 10px;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -317,7 +317,7 @@ a.contactValue:hover {
 }
 
 .submitButton:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .submitButton:disabled {
@@ -419,4 +419,35 @@ a.contactValue:hover {
     font-size: 17px;
   }
 
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card,
+:global(:where([data-theme='dark'])) .field input:hover,
+:global(:where([data-theme='dark'])) .field textarea:hover {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .contactIcon,
+:global(:where([data-theme='dark'])) .formIcon {
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .field label > span,
+:global(:where([data-theme='dark'])) .fieldError {
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .notice {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
 }

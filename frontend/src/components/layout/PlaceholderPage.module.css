@@ -25,3 +25,12 @@
   margin: 0;
   color: #4b6667;
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card h1 {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .card p {
+  color: var(--color-muted);
+}

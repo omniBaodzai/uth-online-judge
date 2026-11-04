@@ -75,7 +75,10 @@ function PasswordInput({
         <button
           className={styles.passwordToggle}
           type="button"
-          aria-label={visible ? `${t('hidePassword')} ${label.toLocaleLowerCase()}` : `${t('showPassword')} ${label.toLocaleLowerCase()}`}
+          aria-label={t('passwordVisibilityLabel', {
+            action: t(visible ? 'hidePasswordAction' : 'showPasswordAction'),
+            label,
+          })}
           aria-pressed={visible}
           onClick={() => setVisible((current) => !current)}
         >
@@ -255,7 +258,7 @@ function ForgotPasswordPage() {
                 {t('confirmEmail')}
               </h2>
               <div className={styles.field}>
-                <label className={styles.label} htmlFor="recovery-email">Email</label>
+                <label className={styles.label} htmlFor="recovery-email">{t('email')}</label>
                 <div className={styles.inputWrap}>
                   <span className={styles.fieldIcon} aria-hidden="true">
                     <svg viewBox="0 0 24 24">

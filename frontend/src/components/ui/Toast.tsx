@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ToastContext } from './toast-context'
 import styles from './Toast.module.css'
 
 const TOAST_DURATION_MS = 4000
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation('common')
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null)
   const counter = useRef(0)
   const timer = useRef<number | undefined>(undefined)
@@ -32,7 +34,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toast ? (
           <div className={styles.toast} key={toast.id}>
             <span>{toast.message}</span>
-            <button className={styles.close} type="button" aria-label="Đóng thông báo" onClick={dismiss}>
+            <button className={styles.close} type="button" aria-label={t('toastClose')} onClick={dismiss}>
               ×
             </button>
           </div>

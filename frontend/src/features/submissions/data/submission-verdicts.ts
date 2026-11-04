@@ -22,6 +22,7 @@ export const submissionVerdictTranslationKeys: Record<string, string> = {
   RUNNING: 'verdictRunning',
   PENDING: 'verdictPending',
   INTERNAL_ERROR: 'verdictInternal',
+  OTHER: 'submissionsOtherVerdict',
 }
 
 export type SubmissionVerdictDistributionItem = {

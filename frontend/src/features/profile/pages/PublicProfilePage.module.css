@@ -16,3 +16,8 @@
     padding-top: 112px;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .page {
+  color: var(--color-muted);
+}

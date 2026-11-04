@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import type { ProblemDetailState } from '../useProblemDetail'
+import '../i18n'
 import styles from '../pages/ProblemDetailPage.module.css'
 
 type ProblemStateMessageProps = {
@@ -10,22 +12,23 @@ type ProblemStateMessageProps = {
 
 // Hiển thị trạng thái tải, lỗi mạng và không tìm thấy dùng chung cho trang chi tiết và trang gửi bài.
 function ProblemStateMessage({ state, code, onRetry }: ProblemStateMessageProps) {
+  const { t } = useTranslation('pages')
   return (
     <main className={styles.main} id="main-content">
       <div className={styles.notFound} aria-busy={state.phase === 'loading'}>
-        {state.phase === 'loading' && <p role="status">Đang tải bài tập…</p>}
+        {state.phase === 'loading' && <p role="status">{t('problemLoadingDetail')}</p>}
         {state.phase === 'not-found' && (
           <>
-            <h1>Không tìm thấy bài tập</h1>
-            <p>Bài tập “{code}” không tồn tại hoặc chưa được xuất bản.</p>
-            <Link className={styles.cta} to="/problems">Quay lại danh sách bài tập</Link>
+            <h1>{t('problemNotFound')}</h1>
+            <p>{t('problemNotFoundDescription', { code })}</p>
+            <Link className={styles.cta} to="/problems">{t('problemBackToList')}</Link>
           </>
         )}
         {state.phase === 'error' && (
           <div role="alert">
-            <h1>Không thể tải bài tập</h1>
+            <h1>{t('problemCannotLoad')}</h1>
             <p>{state.message}</p>
-            <button className={styles.cta} type="button" onClick={onRetry}>Thử lại</button>
+            <button className={styles.cta} type="button" onClick={onRetry}>{t('retry', { ns: 'common' })}</button>
           </div>
         )}
       </div>

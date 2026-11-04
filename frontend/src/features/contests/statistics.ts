@@ -128,11 +128,11 @@ export function getMockContestStatistics(contest: Contest): ContestStatistics {
   return aggregateContestStatistics(contest.problems, submissions)
 }
 
-export function formatPercent(value: number): string {
+export function formatPercent(value: number, locale = 'vi-VN'): string {
   const safeValue = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0
-  return `${Number(safeValue.toFixed(2)).toLocaleString('vi-VN')}%`
+  return `${Number(safeValue.toFixed(2)).toLocaleString(locale)}%`
 }
 
-export function formatSubmissionCount(value: number): string {
-  return Math.max(0, Math.floor(value)).toLocaleString('vi-VN')
+export function formatSubmissionCount(value: number, locale = 'vi-VN'): string {
+  return Math.max(0, Math.floor(value)).toLocaleString(locale)
 }

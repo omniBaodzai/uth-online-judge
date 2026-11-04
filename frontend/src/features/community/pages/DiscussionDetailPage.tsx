@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Pagination from '../../../components/ui/Pagination'
 import { ConfirmDialog } from '../../admin/components/ConfirmDialog'
 import { ApiError } from '../../auth/api'
@@ -13,14 +14,20 @@ import {
 } from '../api'
 import { formatDateTime, totalPages } from '../format'
 import { useToast } from '../../../components/ui/toast-context'
-import { GUEST_MESSAGES, decideGuestAction } from '../guest-actions'
+import { decideGuestAction } from '../guest-actions'
 import { ReactionBar } from '../ReactionBar'
 import { errorMessage, useAsync } from '../useAsync'
+import { communityText } from '../translate'
 import styles from '../community.module.css'
 
 const COMMENT_PAGE_SIZE = 20
 
 function DiscussionDetailPage() {
+  const { t, i18n } = useTranslation('pages')
+  const language = i18n.resolvedLanguage ?? i18n.language
+  const text = (key: string, vi: string, en: string, values: Record<string, string | number> = {}) =>
+    communityText(t, language, key, vi, en, values)
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { request, isReady, isAuthenticated } = useCommunityRequest()
@@ -55,7 +62,7 @@ function DiscussionDetailPage() {
     try {
       await action()
     } catch (error) {
-      onError(errorMessage(error))
+      onError(errorMessage(error, text('genericError', 'Đã xảy ra lỗi. Vui lòng thử lại.', 'An error occurred. Please try again.')))
     } finally {
       setBusy(false)
     }
@@ -101,7 +108,7 @@ function DiscussionDetailPage() {
     event.preventDefault()
     const content = newComment.trim()
     if (!content) {
-      setCommentError('Vui lòng nhập nội dung bình luận.')
+      setCommentError(text('commentRequired', 'Vui lòng nhập nội dung bình luận.', 'Please enter a comment.'))
       return
     }
     await run(async () => {
@@ -121,12 +128,12 @@ function DiscussionDetailPage() {
       <main className={styles.main} id="main-content">
         <div className={styles.container}>
           <div className={`${styles.card} ${styles.state} ${notFound ? '' : styles.stateError}`} role="alert">
-            <strong>{notFound ? 'Không tìm thấy chủ đề' : 'Không thể tải chủ đề'}</strong>
-            <span>{notFound ? 'Chủ đề không tồn tại hoặc đã bị xóa.' : errorMessage(discussion.error)}</span>
+            <strong>{notFound ? text('discussionNotFound', 'Không tìm thấy chủ đề', 'Discussion not found') : text('discussionLoadError', 'Không thể tải chủ đề', 'Could not load discussion')}</strong>
+            <span>{notFound ? text('discussionUnavailable', 'Chủ đề không tồn tại hoặc đã bị xóa.', 'This discussion does not exist or has been deleted.') : errorMessage(discussion.error, text('genericError', 'Đã xảy ra lỗi. Vui lòng thử lại.', 'An error occurred. Please try again.'))}</span>
             {notFound ? (
-              <Link className={styles.secondaryButton} to="/discussions">Quay lại danh sách</Link>
+              <Link className={styles.secondaryButton} to="/discussions">{text('backToDiscussions', 'Quay lại danh sách', 'Back to discussions')}</Link>
             ) : (
-              <button className={styles.secondaryButton} type="button" onClick={discussion.reload}>Thử lại</button>
+              <button className={styles.secondaryButton} type="button" onClick={discussion.reload}>{text('retry', 'Thử lại', 'Retry')}</button>
             )}
           </div>
         </div>
@@ -138,7 +145,7 @@ function DiscussionDetailPage() {
     return (
       <main className={styles.main} id="main-content">
         <div className={styles.container}>
-          <div className={`${styles.card} ${styles.state}`}>Đang tải chủ đề…</div>
+          <div className={`${styles.card} ${styles.state}`}>{text('discussionLoading', 'Đang tải chủ đề…', 'Loading discussion…')}</div>
         </div>
       </main>
     )
@@ -154,16 +161,16 @@ function DiscussionDetailPage() {
             <form className={styles.form} onSubmit={saveEdit} noValidate>
               {actionError ? <p className={styles.error} role="alert">{actionError}</p> : null}
               <div className={styles.field}>
-                <label htmlFor="edit-title">Tiêu đề</label>
+                <label htmlFor="edit-title">{text('title', 'Tiêu đề', 'Title')}</label>
                 <input id="edit-title" className={styles.input} value={draftTitle} maxLength={200} onChange={(event) => setDraftTitle(event.target.value)} />
               </div>
               <div className={styles.field}>
-                <label htmlFor="edit-content">Nội dung</label>
+                <label htmlFor="edit-content">{text('content', 'Nội dung', 'Content')}</label>
                 <textarea id="edit-content" className={styles.textarea} value={draftContent} maxLength={10000} rows={8} onChange={(event) => setDraftContent(event.target.value)} />
               </div>
               <div className={styles.actions}>
-                <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu thay đổi'}</button>
-                <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => setEditing(false)}>Hủy</button>
+                <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? text('saving', 'Đang lưu…', 'Saving…') : text('saveChanges', 'Lưu thay đổi', 'Save changes')}</button>
+                <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => setEditing(false)}>{text('cancel', 'Hủy', 'Cancel')}</button>
               </div>
             </form>
           ) : (
@@ -171,42 +178,42 @@ function DiscussionDetailPage() {
               <h1 className={styles.articleTitle}>{current.title}</h1>
               <p className={styles.articleMeta}>
                 <span>{current.authorName}</span>
-                <time dateTime={current.createdAt}>{formatDateTime(current.createdAt)}</time>
+                <time dateTime={current.createdAt}>{formatDateTime(current.createdAt, locale)}</time>
                 {current.updatedAt !== current.createdAt ? (
-                  <span>Đã chỉnh sửa lúc <time dateTime={current.updatedAt}>{formatDateTime(current.updatedAt)}</time></span>
+                  <span>{text('editedAt', 'Đã chỉnh sửa lúc', 'Edited')} <time dateTime={current.updatedAt}>{formatDateTime(current.updatedAt, locale)}</time></span>
                 ) : null}
-                {current.isLocked ? <span className={styles.lockBadge}>Đã khóa</span> : null}
+                {current.isLocked ? <span className={styles.lockBadge}>{text('locked', 'Đã khóa', 'Locked')}</span> : null}
               </p>
               <p className={styles.plainText}>{current.content}</p>
               <ReactionBar summary={current.reactions} path={`/discussions/${encodeURIComponent(id)}/reaction`} />
               {actionError ? <p className={styles.error} role="alert" style={{ marginTop: 16 }}>{actionError}</p> : null}
               {current.canEdit || current.canDelete || current.canModerate ? (
                 <div className={styles.actions}>
-                  {current.canEdit ? <button className={styles.secondaryButton} type="button" onClick={() => startEdit(current)}>Chỉnh sửa</button> : null}
+                  {current.canEdit ? <button className={styles.secondaryButton} type="button" onClick={() => startEdit(current)}>{text('edit', 'Chỉnh sửa', 'Edit')}</button> : null}
                   {current.canModerate ? (
                     <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => void toggleLock(current)}>
-                      {current.isLocked ? 'Mở khóa' : 'Khóa thảo luận'}
+                      {current.isLocked ? text('unlockDiscussion', 'Mở khóa', 'Unlock discussion') : text('lockDiscussion', 'Khóa thảo luận', 'Lock discussion')}
                     </button>
                   ) : null}
-                  {current.canDelete ? <button className={styles.dangerButton} type="button" onClick={() => setConfirmDelete(true)}>Xóa</button> : null}
+                  {current.canDelete ? <button className={styles.dangerButton} type="button" onClick={() => setConfirmDelete(true)}>{text('delete', 'Xóa', 'Delete')}</button> : null}
                 </div>
               ) : null}
             </>
           )}
         </article>
 
-        <section className={styles.section} aria-label="Bình luận">
-          <h2>Bình luận ({current.replies})</h2>
+        <section className={styles.section} aria-label={text('comments', 'Bình luận', 'Comments')}>
+          <h2>{text('commentsCount', 'Bình luận ({{count}})', 'Comments ({{count}})', { count: current.replies.toLocaleString(locale) })}</h2>
           <div className={styles.card}>
             {comments.status === 'error' ? (
               <div className={`${styles.state} ${styles.stateError}`} role="alert">
-                <span>{errorMessage(comments.error)}</span>
-                <button className={styles.secondaryButton} type="button" onClick={comments.reload}>Thử lại</button>
+                <span>{errorMessage(comments.error, text('genericError', 'Đã xảy ra lỗi. Vui lòng thử lại.', 'An error occurred. Please try again.'))}</span>
+                <button className={styles.secondaryButton} type="button" onClick={comments.reload}>{text('retry', 'Thử lại', 'Retry')}</button>
               </div>
             ) : comments.status === 'loading' ? (
-              <div className={styles.state}>Đang tải bình luận…</div>
+              <div className={styles.state}>{text('commentsLoading', 'Đang tải bình luận…', 'Loading comments…')}</div>
             ) : comments.data.items.length === 0 ? (
-              <div className={styles.state}>Chưa có bình luận nào.</div>
+              <div className={styles.state}>{text('noComments', 'Chưa có bình luận nào.', 'No comments yet.')}</div>
             ) : (
               comments.data.items.map((comment) => (
                 <CommentItem
@@ -229,36 +236,36 @@ function DiscussionDetailPage() {
               currentPage={commentPage}
               totalPages={totalPages(comments.data.total, COMMENT_PAGE_SIZE)}
               onPageChange={setCommentPage}
-              label="bình luận"
+              label={text('commentsLabel', 'bình luận', 'comments')}
             />
           ) : null}
 
           <div className={`${styles.card} ${styles.section}`}>
             {current.isLocked ? (
-              <p className={styles.loginPrompt}>Chủ đề đã bị khóa, không thể thêm bình luận mới.</p>
+              <p className={styles.loginPrompt}>{text('discussionLockedPrompt', 'Chủ đề đã bị khóa, không thể thêm bình luận mới.', 'This discussion is locked; new comments are disabled.')}</p>
             ) : isAuthenticated ? (
               <form className={`${styles.form} ${styles.article}`} onSubmit={submitComment} noValidate>
                 {commentError ? <p className={styles.error} role="alert">{commentError}</p> : null}
                 <div className={styles.field}>
-                  <label htmlFor="new-comment">Viết bình luận</label>
+                  <label htmlFor="new-comment">{text('writeComment', 'Viết bình luận', 'Write a comment')}</label>
                   <textarea id="new-comment" className={styles.textarea} value={newComment} maxLength={5000} rows={4} onChange={(event) => setNewComment(event.target.value)} />
                 </div>
                 <div>
-                  <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi bình luận'}</button>
+                  <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? text('sending', 'Đang gửi…', 'Sending…') : text('sendComment', 'Gửi bình luận', 'Post comment')}</button>
                 </div>
               </form>
             ) : (
               <div className={styles.joinPrompt}>
                 <div>
-                  <h3>Tham gia cuộc thảo luận</h3>
-                  <p>Đăng nhập để bình luận và trao đổi với cộng đồng.</p>
+                  <h3>{text('joinDiscussion', 'Tham gia cuộc thảo luận', 'Join the discussion')}</h3>
+                  <p>{text('signInToComment', 'Đăng nhập để bình luận và trao đổi với cộng đồng.', 'Sign in to comment and engage with the community.')}</p>
                 </div>
                 <div className={styles.actions}>
-                  <button className={styles.secondaryButton} type="button" onClick={() => showToast(GUEST_MESSAGES.comment)}>
-                    Viết bình luận
+                  <button className={styles.secondaryButton} type="button" onClick={() => showToast(text('guestComment', 'Bạn cần đăng nhập để bình luận.', 'Sign in to comment.'))}>
+                    {text('writeComment', 'Viết bình luận', 'Write a comment')}
                   </button>
                   <Link className={styles.primaryButton} to={buildLoginPath(`/discussions/${encodeURIComponent(id)}`)}>
-                    Đăng nhập để tham gia
+                    {text('signInToJoin', 'Đăng nhập để tham gia', 'Sign in to join')}
                   </Link>
                 </div>
               </div>
@@ -269,9 +276,9 @@ function DiscussionDetailPage() {
 
       {confirmDelete ? (
         <ConfirmDialog
-          title="Xóa chủ đề?"
-          description="Chủ đề và toàn bộ bình luận sẽ bị xóa vĩnh viễn."
-          confirmLabel="Xóa chủ đề"
+          title={text('deleteDiscussionTitle', 'Xóa chủ đề?', 'Delete discussion?')}
+          description={text('deleteDiscussionDescription', 'Chủ đề và toàn bộ bình luận sẽ bị xóa vĩnh viễn.', 'The discussion and all its comments will be permanently deleted.')}
+          confirmLabel={text('deleteDiscussion', 'Xóa chủ đề', 'Delete discussion')}
           danger
           busy={busy}
           error={actionError}
@@ -293,6 +300,11 @@ type CommentItemProps = {
 }
 
 function CommentItem({ comment, discussionId, locked, isReply = false, request, onChanged }: CommentItemProps) {
+  const { t, i18n } = useTranslation('pages')
+  const language = i18n.resolvedLanguage ?? i18n.language
+  const text = (key: string, vi: string, en: string, values: Record<string, string | number> = {}) =>
+    communityText(t, language, key, vi, en, values)
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const { isReady, isAuthenticated } = useCommunityRequest()
   const { showToast } = useToast()
   const [editing, setEditing] = useState(false)
@@ -303,7 +315,7 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
   const [busy, setBusy] = useState(false)
 
   function startReply() {
-    const decision = decideGuestAction({ isReady, isAuthenticated }, 'reply')
+    const decision = decideGuestAction({ isReady, isAuthenticated }, 'reply', text('guestReply', 'Bạn cần đăng nhập để trả lời bình luận.', 'Sign in to reply.'))
     if (decision.kind === 'toast') showToast(decision.message)
     else if (decision.kind === 'proceed') setReplying(true)
   }
@@ -312,7 +324,7 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
     event.preventDefault()
     const content = replyDraft.trim()
     if (!content) {
-      setError('Vui lòng nhập nội dung phản hồi.')
+      setError(text('replyRequired', 'Vui lòng nhập nội dung phản hồi.', 'Please enter a reply.'))
       return
     }
     setBusy(true)
@@ -326,7 +338,7 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
       setReplying(false)
       onChanged()
     } catch (caught) {
-      setError(errorMessage(caught))
+      setError(errorMessage(caught, text('genericError', 'Đã xảy ra lỗi. Vui lòng thử lại.', 'An error occurred. Please try again.')))
     } finally {
       setBusy(false)
     }
@@ -340,7 +352,7 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
       after?.()
       onChanged()
     } catch (caught) {
-      setError(errorMessage(caught))
+      setError(errorMessage(caught, text('genericError', 'Đã xảy ra lỗi. Vui lòng thử lại.', 'An error occurred. Please try again.')))
     } finally {
       setBusy(false)
     }
@@ -365,7 +377,7 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
   if (comment.isDeleted) {
     return (
       <div className={`${styles.comment} ${isReply ? styles.reply : ''}`}>
-        <p className={styles.deletedComment}>Bình luận đã bị xóa</p>
+        <p className={styles.deletedComment}>{text('commentDeleted', 'Bình luận đã bị xóa', 'Comment deleted')}</p>
         {replyList}
       </div>
     )
@@ -375,8 +387,8 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
     <div className={`${styles.comment} ${isReply ? styles.reply : ''}`}>
       <div className={styles.commentHead}>
         <strong>{comment.authorName}</strong>
-        <time dateTime={comment.createdAt}>{formatDateTime(comment.createdAt)}</time>
-        {comment.updatedAt !== comment.createdAt ? <span>Đã chỉnh sửa</span> : null}
+        <time dateTime={comment.createdAt}>{formatDateTime(comment.createdAt, locale)}</time>
+        {comment.updatedAt !== comment.createdAt ? <span>{text('edited', 'Đã chỉnh sửa', 'Edited')}</span> : null}
       </div>
       {error ? <p className={styles.error} role="alert">{error}</p> : null}
       {editing ? (
@@ -387,10 +399,10 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
             void mutate({ method: 'PATCH', body: JSON.stringify({ content: draft.trim() }) }, () => setEditing(false))
           }}
         >
-          <textarea className={styles.textarea} aria-label="Sửa bình luận" value={draft} maxLength={5000} rows={3} onChange={(event) => setDraft(event.target.value)} />
+          <textarea className={styles.textarea} aria-label={text('editComment', 'Sửa bình luận', 'Edit comment')} value={draft} maxLength={5000} rows={3} onChange={(event) => setDraft(event.target.value)} />
           <div className={styles.actions}>
-            <button className={styles.primaryButton} type="submit" disabled={busy}>Lưu</button>
-            <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => setEditing(false)}>Hủy</button>
+            <button className={styles.primaryButton} type="submit" disabled={busy}>{text('save', 'Lưu', 'Save')}</button>
+            <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => setEditing(false)}>{text('cancel', 'Hủy', 'Cancel')}</button>
           </div>
         </form>
       ) : (
@@ -400,19 +412,19 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
         <div className={styles.commentTools}>
           <ReactionBar summary={comment.reactions} path={`/discussion-comments/${encodeURIComponent(comment.id)}/reaction`} small />
           {!locked ? (
-            <button className={styles.linkButton} type="button" onClick={startReply}>Trả lời</button>
+            <button className={styles.linkButton} type="button" onClick={startReply}>{text('reply', 'Trả lời', 'Reply')}</button>
           ) : null}
-          {comment.canEdit ? <button className={styles.linkButton} type="button" onClick={() => setEditing(true)}>Sửa</button> : null}
+          {comment.canEdit ? <button className={styles.linkButton} type="button" onClick={() => setEditing(true)}>{text('edit', 'Chỉnh sửa', 'Edit')}</button> : null}
           {comment.canDelete ? (
             <button
               className={`${styles.linkButton} ${styles.linkDanger}`}
               type="button"
               disabled={busy}
               onClick={() => {
-                if (window.confirm('Xóa bình luận này?')) void mutate({ method: 'DELETE' })
+                if (window.confirm(text('deleteCommentConfirmation', 'Xóa bình luận này?', 'Delete this comment?'))) void mutate({ method: 'DELETE' })
               }}
             >
-              Xóa
+              {text('delete', 'Xóa', 'Delete')}
             </button>
           ) : null}
         </div>
@@ -421,7 +433,7 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
         <form className={`${styles.form} ${styles.replyForm}`} onSubmit={submitReply} noValidate>
           <textarea
             className={styles.textarea}
-            aria-label={`Trả lời ${comment.authorName}`}
+            aria-label={text('replyTo', 'Trả lời {{name}}', 'Reply to {{name}}', { name: comment.authorName })}
             value={replyDraft}
             maxLength={5000}
             rows={3}
@@ -429,8 +441,8 @@ function CommentItem({ comment, discussionId, locked, isReply = false, request, 
             onChange={(event) => setReplyDraft(event.target.value)}
           />
           <div className={styles.actions}>
-            <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi phản hồi'}</button>
-            <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => setReplying(false)}>Hủy</button>
+            <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? text('sending', 'Đang gửi…', 'Sending…') : text('sendReply', 'Gửi phản hồi', 'Post reply')}</button>
+            <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => setReplying(false)}>{text('cancel', 'Hủy', 'Cancel')}</button>
           </div>
         </form>
       ) : null}

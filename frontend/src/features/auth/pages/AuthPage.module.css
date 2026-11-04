@@ -540,3 +540,63 @@
     transition: none;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .intro,
+:global(:where([data-theme='dark'])) .floatingInputWrap .input:focus + .floatingLabel,
+:global(:where([data-theme='dark'])) .floatingInputWrap .input:not(:placeholder-shown) + .floatingLabel,
+:global(:where([data-theme='dark'])) .floatingInputWrap .input:-webkit-autofill + .floatingLabel,
+:global(:where([data-theme='dark'])) .forgotLink,
+:global(:where([data-theme='dark'])) .forgotLink:hover,
+:global(:where([data-theme='dark'])) .switchPrompt a:hover,
+:global(:where([data-theme='dark'])) .switchPrompt a {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .fieldError,
+:global(:where([data-theme='dark'])) .noticeError {
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .passwordToggle:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .oauthDivider::before,
+:global(:where([data-theme='dark'])) .oauthDivider::after {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .googleButton {
+  border-color: var(--color-border);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .googleButton:not(:disabled):hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .notice,
+:global(:where([data-theme='dark'])) .noticeSuccess {
+  color: var(--color-muted);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .page {
+  background-color: var(--color-page);
+  background-image:
+    linear-gradient(rgba(16, 36, 38, 0.84), rgba(16, 36, 38, 0.88)),
+    url('../../../assets/uth_background.jpg');
+}
+
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    linear-gradient(rgba(16, 36, 38, 0.84), rgba(16, 36, 38, 0.88)),
+    url('../../../assets/uth_background.jpg');
+}

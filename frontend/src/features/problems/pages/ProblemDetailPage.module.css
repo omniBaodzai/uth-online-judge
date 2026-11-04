@@ -320,7 +320,7 @@
   padding: 0 18px;
   border: 0;
   border-radius: 10px;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -331,7 +331,7 @@
 }
 
 .cta:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .cta:disabled {
@@ -409,7 +409,7 @@
   justify-content: center;
   gap: 8px;
   border-radius: 12px;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   font-size: 16px;
   font-weight: 760;
@@ -419,7 +419,7 @@
 }
 
 .submit:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
   transform: translateY(-1px);
 }
 
@@ -601,4 +601,60 @@
   .grid {
     width: calc(100% - 32px);
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .panel,
+:global(:where([data-theme='dark'])) .notFound {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .statement p,
+:global(:where([data-theme='dark'])) .constraints,
+:global(:where([data-theme='dark'])) .comments p,
+:global(:where([data-theme='dark'])) .actions a,
+:global(:where([data-theme='dark'])) .actions button {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .illustration,
+:global(:where([data-theme='dark'])) .codeBlock {
+  background: var(--color-surface);
+}
+
+:global(:where([data-theme='dark'])) .header h1 {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .solved {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .wrong,
+:global(:where([data-theme='dark'])) .reportButton:hover {
+  background: var(--color-surface-hover);
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .unsolved,
+:global(:where([data-theme='dark'])) .tags li {
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .constraints code {
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .sideTitle {
+  color: var(--color-ink) !important;
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
 }

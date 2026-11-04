@@ -324,3 +324,33 @@
     transition: none;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card,
+:global(:where([data-theme='dark'])) .emptyState {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .totalBadge {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .legend li {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .axisTick,
+:global(:where([data-theme='dark'])) .axisLabel,
+:global(:where([data-theme='dark'])) .axisTitle {
+  fill: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .valueLabel {
+  fill: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .acceptanceBar {
+  fill: var(--color-primary-dark);
+}

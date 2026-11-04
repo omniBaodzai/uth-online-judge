@@ -41,6 +41,7 @@ type ListState =
 function ProblemsPage() {
   const { t, i18n } = useTranslation('pages')
   const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const numberFormat = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 })
   const { fetcher, ready } = useProblemsFetcher()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -227,8 +228,8 @@ function ProblemsPage() {
                             {p.title}
                           </Link>
                         </td>
-                        <td className={styles.num}>{p.scoringEnabled ? p.points : '—'}</td>
-                        <td className={styles.num}>{p.acceptanceRate.toFixed(1)}%</td>
+                        <td className={styles.num}>{p.scoringEnabled ? numberFormat.format(p.points) : '—'}</td>
+                        <td className={styles.num}>{numberFormat.format(p.acceptanceRate)}%</td>
                         <td className={styles.num}>{p.acCount.toLocaleString(locale)}</td>
                         <td className={styles.center}>
                           {p.hasSolution ? (

@@ -360,3 +360,61 @@
     animation: none;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .trigger,
+:global(:where([data-theme='dark'])) .trigger:hover,
+:global(:where([data-theme='dark'])) .trigger[aria-expanded='true'],
+:global(:where([data-theme='dark'])) .markAllButton,
+:global(:where([data-theme='dark'])) .markAllButton:hover {
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .badge {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .dropdown,
+:global(:where([data-theme='dark'])) .heading h2,
+:global(:where([data-theme='dark'])) .notificationTitle {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .dropdownHeader {
+  border-bottom-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .unreadCount {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .notificationItem:hover,
+:global(:where([data-theme='dark'])) .notificationItem.unread:hover {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .notificationItem.unread,
+:global(:where([data-theme='dark'])) .emptyIcon {
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .notificationIcon {
+  border-color: var(--color-border);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .notificationMessage,
+:global(:where([data-theme='dark'])) .emptyState {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .mockLabel {
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .disclaimer {
+  border-top-color: var(--color-border);
+  background: var(--color-surface);
+}

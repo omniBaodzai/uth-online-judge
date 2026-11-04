@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ApiError } from '../auth/api'
 import { useAuth } from '../auth/useAuth'
 import { toProblemDetail, type ProblemDetail } from './detail-data'
@@ -8,6 +9,7 @@ import {
   type StudentContestDetail,
   type StudentContestProblem,
 } from '../contests/student-contests.api'
+import './i18n'
 
 export type ContestProblemDetailState =
   | { phase: 'loading' }
@@ -25,6 +27,7 @@ export function useContestProblemDetail(
   contestIdentifier: string | undefined,
   problemCode: string,
 ): { state: ContestProblemDetailState; retry: () => void } {
+  const { t } = useTranslation('pages')
   const { user, isLoading, request } = useAuth()
   const [retryKey, setRetryKey] = useState(0)
   const [result, setResult] = useState<{
@@ -43,7 +46,7 @@ export function useContestProblemDetail(
     }
 
     if (!user) {
-      update({ phase: 'blocked', message: 'Vui lòng đăng nhập để truy cập bài tập trong cuộc thi.' })
+      update({ phase: 'blocked', message: t('problemSignInForContest') })
       return () => {
         active = false
         controller.abort()
@@ -62,7 +65,7 @@ export function useContestProblemDetail(
         } else {
           update({
             phase: 'error',
-            message: error instanceof Error ? error.message : 'Không thể tải thông tin cuộc thi.',
+            message: error instanceof Error ? error.message : t('problemCannotLoadContestInfo'),
           })
         }
         return
@@ -72,7 +75,7 @@ export function useContestProblemDetail(
         update({
           phase: 'blocked',
           contest,
-          message: 'Bạn cần đăng ký cuộc thi để truy cập đề bài.',
+          message: t('problemRegisterForContest'),
         })
         return
       }
@@ -80,7 +83,7 @@ export function useContestProblemDetail(
         update({
           phase: 'blocked',
           contest,
-          message: 'Đề bài chỉ được mở khi cuộc thi bắt đầu.',
+          message: t('problemOpensWhenContestStarts'),
         })
         return
       }
@@ -88,7 +91,7 @@ export function useContestProblemDetail(
         update({
           phase: 'blocked',
           contest,
-          message: 'Cuộc thi đã kết thúc; đề bài không còn được mở trong chế độ thi.',
+          message: t('problemContestEndedNoAccess'),
         })
         return
       }
@@ -121,7 +124,7 @@ export function useContestProblemDetail(
           update({
             phase: 'error',
             contest,
-            message: error instanceof Error ? error.message : 'Không thể tải đề bài.',
+            message: error instanceof Error ? error.message : t('problemCannotLoadStatement'),
           })
         }
       }
@@ -131,7 +134,7 @@ export function useContestProblemDetail(
       active = false
       controller.abort()
     }
-  }, [contestIdentifier, isLoading, key, problemCode, request, user])
+  }, [contestIdentifier, isLoading, key, problemCode, request, user, t])
 
   return { state, retry: () => setRetryKey((current) => current + 1) }
 }

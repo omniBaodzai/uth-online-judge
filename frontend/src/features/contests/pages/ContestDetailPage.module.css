@@ -102,7 +102,7 @@
   left: 12px;
   height: 3px;
   border-radius: 3px 3px 0 0;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   content: '';
 }
 
@@ -118,7 +118,7 @@
   padding: 0 16px;
   border: 1px solid var(--color-primary);
   border-radius: 10px;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -130,7 +130,7 @@
 
 .joinButton:hover {
   border-color: var(--color-primary-dark);
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .joinButton:disabled {
@@ -491,7 +491,7 @@
   padding: 0 14px;
   border: 1px solid var(--color-primary);
   border-radius: 9px;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -601,4 +601,66 @@
   .table tbody tr {
     transition: none;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .title,
+:global(:where([data-theme='dark'])) .problemLink {
+  color: #a5b8ff;
+}
+
+:global(:where([data-theme='dark'])) .tab,
+:global(:where([data-theme='dark'])) .lockedProblem {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .tab:hover {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .statusCard,
+:global(:where([data-theme='dark'])) .problemsCard,
+:global(:where([data-theme='dark'])) .placeholder,
+:global(:where([data-theme='dark'])) .notFound {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .ongoing {
+  border-color: #2f6b4f;
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .upcoming {
+  border-color: #35557f;
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .past {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .rules,
+:global(:where([data-theme='dark'])) .paginationBottom {
+  border-top-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .problemsHeader,
+:global(:where([data-theme='dark'])) .paginationTop {
+  border-bottom-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .placeholderIcon {
+  background: var(--color-surface-subtle);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
 }

@@ -187,3 +187,28 @@
     transition: none;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card,
+:global(:where([data-theme='dark'])) .search input:hover {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .header {
+  border-bottom-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .participantCount {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .paginationTop {
+  border-top-color: var(--color-border);
+  border-bottom-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .paginationBottom {
+  border-top-color: var(--color-border);
+}

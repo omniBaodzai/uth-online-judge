@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../auth/useAuth'
 import { useBreadcrumbContestProblem } from '../../../components/navigation/useBreadcrumbContestProblem'
 import {
@@ -10,6 +11,7 @@ import ProblemStatement from '../components/ProblemStatement'
 import ProblemStateMessage from '../components/ProblemStateMessage'
 import { useContestProblemDetail } from '../useContestProblemDetail'
 import { useProblemDetail } from '../useProblemDetail'
+import '../i18n'
 import CodeEditorPanel from '../submit/CodeEditorPanel'
 import detail from './ProblemDetailPage.module.css'
 import styles from './SubmitSolutionPage.module.css'
@@ -17,6 +19,7 @@ import styles from './SubmitSolutionPage.module.css'
 type Tab = 'statement' | 'editor'
 
 function SubmitSolutionPage() {
+  const { t } = useTranslation('pages')
   const { code = '', contestId } = useParams()
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('editor')
@@ -60,7 +63,7 @@ function SubmitSolutionPage() {
         />
       )}
       <div className={styles.wrap}>
-        <div className={styles.tabs} role="tablist" aria-label="Chế độ xem">
+        <div className={styles.tabs} role="tablist" aria-label={t('problemEditorTablist')}>
           <button
             type="button"
             role="tab"
@@ -69,7 +72,7 @@ function SubmitSolutionPage() {
             aria-controls="pane-statement"
             onClick={() => setTab('statement')}
           >
-            Đề bài
+            {t('problemStatementTab')}
           </button>
           <button
             type="button"
@@ -79,7 +82,7 @@ function SubmitSolutionPage() {
             aria-controls="pane-editor"
             onClick={() => setTab('editor')}
           >
-            Soạn code
+            {t('problemEditorTab')}
           </button>
         </div>
         <div className={styles.grid}>

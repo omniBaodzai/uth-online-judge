@@ -61,7 +61,7 @@
   }
 
   .tabs button[aria-selected='true'] {
-    background: var(--color-primary);
+    background: var(--color-primary-solid);
     color: #fff;
   }
 
@@ -88,4 +88,12 @@
   .wrap {
     width: calc(100% - 32px);
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+@media (max-width: 980px) {
+  :global(:where([data-theme='dark'])) .tabs button {
+    color: var(--color-muted);
+  }
+
 }

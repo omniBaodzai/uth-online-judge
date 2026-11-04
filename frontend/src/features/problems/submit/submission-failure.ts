@@ -1,4 +1,14 @@
-export function describeSubmissionFailure(error: unknown): {
+const defaultMessages: Record<string, string> = {
+  problemEditorSubmitFailureOffline:
+    'Mất kết nối trước khi nhận xác nhận. Bài nộp có thể đã được lưu; hãy kiểm tra danh sách bài nộp trước khi gửi lại.',
+  problemEditorSubmitFailureUnknown:
+    'Không nhận được xác nhận hợp lệ từ máy chủ. Hãy kiểm tra bài nộp trước khi gửi lại.',
+}
+
+export function describeSubmissionFailure(
+  error: unknown,
+  translate: (key: string) => string = (key) => defaultMessages[key] ?? key,
+): {
   message: string
   submissionId?: string
   outcomeUnknown: boolean
@@ -15,7 +25,7 @@ export function describeSubmissionFailure(error: unknown): {
     if (status === 0) {
       return {
         message:
-          'Mất kết nối trước khi nhận xác nhận. Bài nộp có thể đã được lưu; hãy kiểm tra danh sách bài nộp trước khi gửi lại.',
+          translate('problemEditorSubmitFailureOffline'),
         outcomeUnknown: true,
       }
     }
@@ -24,7 +34,7 @@ export function describeSubmissionFailure(error: unknown): {
     }
   }
   return {
-    message: 'Không nhận được xác nhận hợp lệ từ máy chủ. Hãy kiểm tra bài nộp trước khi gửi lại.',
+    message: translate('problemEditorSubmitFailureUnknown'),
     outcomeUnknown: true,
   }
 }

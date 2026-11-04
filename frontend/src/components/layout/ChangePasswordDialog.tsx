@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { Eye, EyeOff, KeyRound, X } from 'lucide-react'
 import { ApiError } from '../../features/auth/api'
 import PasswordStrengthMeter from '../../features/auth/components/PasswordStrengthMeter'
@@ -15,10 +16,10 @@ type PasswordField = 'currentPassword' | 'newPassword' | 'confirmPassword'
 type PasswordValues = Record<PasswordField, string>
 type PasswordErrors = Partial<Record<PasswordField, string>>
 
-const fieldLabels: Record<PasswordField, string> = {
-  currentPassword: 'Mật khẩu hiện tại',
-  newPassword: 'Mật khẩu mới',
-  confirmPassword: 'Xác nhận mật khẩu mới',
+const fieldLabelKeys: Record<PasswordField, string> = {
+  currentPassword: 'passwordCurrent',
+  newPassword: 'passwordNew',
+  confirmPassword: 'passwordConfirmNew',
 }
 
 function utf8ByteLength(value: string): number {
@@ -26,6 +27,7 @@ function utf8ByteLength(value: string): number {
 }
 
 function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps) {
+  const { t } = useTranslation('auth')
   const { changePassword, completePasswordSetup, request } = useAuth()
   const dialogRef = useRef<HTMLDivElement>(null)
   const currentPasswordRef = useRef<HTMLInputElement>(null)
@@ -72,7 +74,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
         setRequestError(
           error instanceof Error
             ? error.message
-            : 'Không thể kiểm tra trạng thái mật khẩu. Vui lòng thử lại.',
+            : t('passwordStatusFailed'),
         )
       })
       .finally(() => {
@@ -81,7 +83,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
     return () => {
       active = false
     }
-  }, [request, statusAttempt])
+  }, [request, statusAttempt, t])
 
   useEffect(() => {
     if (hasPassword === true) currentPasswordRef.current?.focus()
@@ -134,11 +136,11 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
   function validateChange(): PasswordErrors {
     const nextErrors: PasswordErrors = {}
     if (!values.currentPassword) {
-      nextErrors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại.'
+      nextErrors.currentPassword = t('enterCurrentPassword')
     }
     validateNewPassword(nextErrors)
     if (values.newPassword && values.currentPassword === values.newPassword) {
-      nextErrors.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại.'
+      nextErrors.newPassword = t('passwordDifferent')
     }
     return nextErrors
   }
@@ -151,16 +153,16 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
 
   function validateNewPassword(nextErrors: PasswordErrors) {
     if (!values.newPassword) {
-      nextErrors.newPassword = 'Vui lòng nhập mật khẩu mới.'
+      nextErrors.newPassword = t('enterNewPassword')
     } else if (values.newPassword.length < 8) {
-      nextErrors.newPassword = 'Mật khẩu mới phải có ít nhất 8 ký tự.'
+      nextErrors.newPassword = t('passwordMinLength')
     } else if (values.newPassword.length > 72 || utf8ByteLength(values.newPassword) > 72) {
-      nextErrors.newPassword = 'Mật khẩu mới không được vượt quá 72 ký tự hoặc 72 byte.'
+      nextErrors.newPassword = t('passwordMaxLength')
     }
     if (!values.confirmPassword) {
-      nextErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới.'
+      nextErrors.confirmPassword = t('enterPasswordConfirmation')
     } else if (values.confirmPassword !== values.newPassword) {
-      nextErrors.confirmPassword = 'Mật khẩu xác nhận không khớp.'
+      nextErrors.confirmPassword = t('passwordMismatch')
     }
   }
 
@@ -229,15 +231,15 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
         })
         completed = true
       } else {
-        setRequestError('Giao dịch xác minh không còn hợp lệ. Vui lòng gửi lại mã.')
+        setRequestError(t('invalidVerificationTransaction'))
       }
     } catch (error) {
       if (error instanceof ApiError) setRequestError(error.message)
       else {
         setRequestError(
           hasPassword
-            ? 'Không thể đổi mật khẩu lúc này. Vui lòng thử lại sau.'
-            : 'Không thể thiết lập mật khẩu lúc này. Vui lòng thử lại sau.',
+            ? t('changePasswordFailed')
+            : t('setupPasswordFailed'),
         )
       }
     } finally {
@@ -263,7 +265,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
       setRequestError(
         error instanceof Error
           ? error.message
-          : 'Không thể gửi lại mã xác minh. Vui lòng thử lại sau.',
+          : t('resendOtpFailed'),
       )
     } finally {
       setIsSubmitting(false)
@@ -271,7 +273,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
   }
 
   function renderPasswordField(field: PasswordField, autoComplete: string) {
-    const label = fieldLabels[field]
+    const label = t(fieldLabelKeys[field])
     const errorId = `${field}-error`
     const strengthId = `${field}-strength`
     const showStrength = field === 'newPassword'
@@ -335,7 +337,10 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
           <button
             className={styles.visibilityButton}
             type="button"
-            aria-label={`${visibleFields.has(field) ? 'Ẩn' : 'Hiện'} ${label.toLocaleLowerCase('vi')}`}
+            aria-label={t('passwordVisibilityLabel', {
+              action: t(visibleFields.has(field) ? 'hidePasswordAction' : 'showPasswordAction'),
+              label,
+            })}
             aria-pressed={visibleFields.has(field)}
             onClick={() => toggleVisibility(field)}
             disabled={isSubmitting}
@@ -353,13 +358,13 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
 
   const isSetup = hasPassword === false
   const title = hasPassword === null
-    ? 'Quản lý mật khẩu'
+    ? t('passwordManagerTitle')
     : isSetup
-      ? 'Thiết lập mật khẩu'
-      : 'Đổi mật khẩu'
+      ? t('passwordSetupTitle')
+      : t('passwordChangeTitle')
   const description = isSetup
-    ? 'Bạn đang sử dụng Google hoặc GitHub để đăng nhập. Hãy thiết lập mật khẩu để có thể đăng nhập bằng email và mật khẩu.'
-    : 'Bảo vệ tài khoản bằng mật khẩu mới.'
+    ? t('passwordSetupDescription')
+    : t('passwordChangeDescription')
 
   return createPortal(
     <div
@@ -386,7 +391,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
           <button
             className={styles.closeButton}
             type="button"
-            aria-label="Đóng hộp thoại"
+            aria-label={t('closeDialog')}
             onClick={close}
             disabled={isSubmitting}
           >
@@ -396,12 +401,12 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
 
         <form className={styles.form} onSubmit={submit} noValidate>
           {statusLoading && hasPassword === null ? (
-            <p className={styles.statusMessage} role="status">Đang kiểm tra trạng thái mật khẩu…</p>
+            <p className={styles.statusMessage} role="status">{t('checkingPasswordStatus')}</p>
           ) : hasPassword === null ? (
             <>
               <p className={styles.requestError} role="alert">{requestError}</p>
               <div className={styles.actions}>
-                <button className={styles.cancelButton} type="button" onClick={close}>Hủy</button>
+                <button className={styles.cancelButton} type="button" onClick={close}>{t('cancel', { ns: 'common' })}</button>
                 <button
                   className={styles.submitButton}
                   type="button"
@@ -412,7 +417,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                   }}
                   disabled={statusLoading}
                 >
-                  {statusLoading ? 'Đang kiểm tra…' : 'Thử lại'}
+                  {statusLoading ? t('checkingPasswordStatus') : t('authRetry')}
                 </button>
               </div>
             </>
@@ -430,15 +435,15 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                   onClick={close}
                   disabled={isSubmitting}
                 >
-                  Hủy
+                  {t('cancel', { ns: 'common' })}
                 </button>
                 <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <span className={styles.spinner} aria-hidden="true" />
-                      Đang xử lý…
+                      {t('processing')}
                     </>
-                  ) : 'Đổi mật khẩu'}
+                  ) : t('passwordChangeTitle')}
                 </button>
               </div>
             </>
@@ -455,25 +460,25 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                   onClick={close}
                   disabled={isSubmitting}
                 >
-                  Hủy
+                  {t('cancel', { ns: 'common' })}
                 </button>
                 <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <span className={styles.spinner} aria-hidden="true" />
-                      Đang gửi mã…
+                      {t('sendingCode')}
                     </>
-                  ) : 'Tiếp tục xác minh email'}
+                  ) : t('continueEmailVerification')}
                 </button>
               </div>
             </>
           ) : (
             <>
               <p className={styles.passwordHint}>
-                Nhập mã 6 chữ số đã gửi đến email liên kết với tài khoản để xác minh quyền sở hữu.
+                {t('otpInstruction')}
               </p>
               <div className={styles.field}>
-                <label htmlFor="password-setup-otp">Mã xác minh <span aria-hidden="true">*</span></label>
+                <label htmlFor="password-setup-otp">{t('otpLabel')} <span aria-hidden="true">*</span></label>
                 <div className={`${styles.inputWrap} ${requestError ? styles.inputInvalid : ''}`}>
                   <input
                     ref={otpRef}
@@ -485,7 +490,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                     pattern="[0-9]{6}"
                     maxLength={6}
                     value={otp}
-                    aria-label="Mã xác minh gồm 6 chữ số"
+                    aria-label={t('otpGroupLabel')}
                     aria-invalid={Boolean(requestError)}
                     onChange={(event) => {
                       setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
@@ -497,8 +502,8 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
               </div>
               <p className={styles.statusMessage} role="status" aria-live="polite">
                 {cooldownSeconds > 0
-                  ? `Bạn có thể gửi lại mã sau ${cooldownSeconds} giây.`
-                  : 'Bạn có thể yêu cầu gửi lại mã xác minh.'}
+                  ? t('resendOtpCooldown', { count: cooldownSeconds })
+                  : t('resendOtpAvailable')}
               </p>
               {requestError && <p className={styles.requestError} role="alert">{requestError}</p>}
               <div className={styles.actions}>
@@ -508,7 +513,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                   onClick={close}
                   disabled={isSubmitting}
                 >
-                  Hủy
+                  {t('cancel', { ns: 'common' })}
                 </button>
                 <button
                   className={styles.cancelButton}
@@ -516,7 +521,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                   onClick={() => void resendOtp()}
                   disabled={isSubmitting || cooldownSeconds > 0}
                 >
-                  Gửi lại mã
+                  {t('resendOtp')}
                 </button>
                 <button
                   className={styles.submitButton}
@@ -526,9 +531,9 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                   {isSubmitting ? (
                     <>
                       <span className={styles.spinner} aria-hidden="true" />
-                      Đang xác minh…
+                      {t('verifyingCode')}
                     </>
-                  ) : setupToken ? 'Thử lại thiết lập mật khẩu' : 'Xác minh và thiết lập'}
+                  ) : setupToken ? t('retryPasswordSetup') : t('verifyAndSetup')}
                 </button>
               </div>
             </>

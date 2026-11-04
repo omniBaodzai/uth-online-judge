@@ -38,7 +38,7 @@ function AdminLoginPage() {
   }
 
   return (
-    <main className={styles.loginPage}>
+    <main className={styles.loginPage} data-admin-theme="light">
       <section className={styles.loginCard} aria-labelledby="admin-login-title">
         <Link className={styles.loginBrand} to="/" aria-label="Quay về UTH Online Judge">
           <img className={styles.loginLogo} src={uthLogo} alt="Đại học Giao thông vận tải Thành phố Hồ Chí Minh" />

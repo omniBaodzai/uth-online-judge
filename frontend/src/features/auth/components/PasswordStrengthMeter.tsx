@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Circle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { getPasswordAssessment } from '../password-policy'
 import type { PasswordStrengthEvaluation } from '../password-strength'
 import styles from './PasswordStrengthMeter.module.css'
@@ -29,6 +30,7 @@ function Requirement({
 }
 
 export default function PasswordStrengthMeter({ id, password }: PasswordStrengthMeterProps) {
+  const { t } = useTranslation('auth')
   const [evaluate, setEvaluate] = useState<
     ((value: string) => PasswordStrengthEvaluation) | null
   >(null)
@@ -82,18 +84,20 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
   const score = evaluation?.display.score ?? null
   const loading = hasInput && !evaluate && !loadError
   const label = !hasInput
-    ? 'Chưa nhập'
+    ? t('strengthEmpty')
     : loading
-      ? 'Đang đánh giá…'
+      ? t('strengthLoading')
       : loadError || evaluationError
-        ? 'Chưa thể đánh giá'
-        : evaluation?.display.label ?? 'Đang đánh giá…'
+        ? t('strengthUnavailable')
+        : score !== null
+          ? t(`strengthLevel${score}`)
+          : t('strengthLoading')
   const progress = evaluation?.display.progress ?? 0
 
   return (
-    <section className={styles.meter} id={id} aria-label="Đánh giá mật khẩu">
+    <section className={styles.meter} id={id} aria-label={t('strengthSectionLabel')}>
       <div className={styles.meterHeading}>
-        <span className={styles.meterTitle}>Độ mạnh mật khẩu</span>
+        <span className={styles.meterTitle}>{t('strengthTitle')}</span>
         <span
           className={`${styles.strengthLabel} ${score === null ? '' : styles[`scoreLabel${score}`]}`}
           aria-live="polite"
@@ -105,7 +109,7 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
       <div
         className={styles.progressTrack}
         role="progressbar"
-        aria-label="Độ mạnh mật khẩu"
+        aria-label={t('strengthTitle')}
         aria-valuemin={0}
         aria-valuemax={4}
         aria-valuenow={score ?? undefined}
@@ -117,8 +121,8 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
         />
       </div>
 
-      <ul className={styles.checks} aria-label="Điều kiện bắt buộc và gợi ý tăng độ mạnh">
-        <Requirement active={hasInput} met={assessment.criteria.minLength}>8+ ký tự</Requirement>
+      <ul className={styles.checks} aria-label={t('strengthChecksLabel')}>
+        <Requirement active={hasInput} met={assessment.criteria.minLength}>{t('strengthMinLength')}</Requirement>
         <Requirement active={hasInput} met={assessment.criteria.uppercase}>A - Z</Requirement>
         <Requirement active={hasInput} met={assessment.criteria.lowercase}>a - z</Requirement>
         <Requirement active={hasInput} met={assessment.criteria.number}>0 - 9</Requirement>
@@ -126,8 +130,8 @@ export default function PasswordStrengthMeter({ id, password }: PasswordStrength
       </ul>
       {hasInput && (loadError || evaluationError) ? (
         <div className={styles.loadError}>
-          <p role="status">Không thể đánh giá độ mạnh.</p>
-          <button type="button" onClick={retryEvaluation}>Thử lại đánh giá</button>
+          <p role="status">{t('strengthLoadError')}</p>
+                    <button type="button" onClick={retryEvaluation}>{t('strengthRetry')}</button>
         </div>
       ) : null}
     </section>

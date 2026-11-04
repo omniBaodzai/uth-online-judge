@@ -111,7 +111,7 @@
   padding: 0 16px;
   border: 0;
   border-radius: 10px;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -120,7 +120,7 @@
 }
 
 .linkButton:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .linkButton:focus-visible,
@@ -143,4 +143,33 @@
   .details {
     justify-content: flex-start;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .banner,
+:global(:where([data-theme='dark'])) .message {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .details,
+:global(:where([data-theme='dark'])) .message {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .status {
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .ongoing {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
 }

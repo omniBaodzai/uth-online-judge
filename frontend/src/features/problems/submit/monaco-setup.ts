@@ -34,4 +34,16 @@ monaco.editor.defineTheme('uth-light', {
   },
 })
 
+monaco.editor.defineTheme('uth-dark', {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [],
+  colors: {
+    'editor.background': '#14292b',
+    'editorLineNumber.foreground': '#6f8e90',
+    'editorLineNumber.activeForeground': '#79d4cb',
+    'editorGutter.background': '#14292b',
+  },
+})
+
 export { monaco }

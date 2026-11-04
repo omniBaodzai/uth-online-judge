@@ -29,3 +29,13 @@
   border-color: #e5f2f1;
   font-size: 34px;
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .avatar {
+  background: linear-gradient(145deg, var(--color-surface-subtle), var(--color-surface-hover));
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .large {
+  border-color: var(--color-border);
+}

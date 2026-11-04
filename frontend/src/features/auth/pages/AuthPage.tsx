@@ -113,7 +113,7 @@ function FormField({
           pattern={pattern}
           required={required}
           defaultValue={defaultValue}
-          placeholder={floatingLabel ? ' ' : placeholder ?? `Nhập ${label.toLocaleLowerCase('vi')}`}
+          placeholder={floatingLabel ? ' ' : placeholder ?? label}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
         />
@@ -233,23 +233,22 @@ function readRememberPreference(): boolean {
   }
 }
 
-function oauthErrorMessage(code: string, provider: 'google' | 'github'): string {
-  const providerName = provider === 'github' ? 'GitHub' : 'Google'
+function oauthErrorKey(code: string): string {
   switch (code) {
     case 'provider_cancelled':
-      return `Bạn đã hủy đăng nhập ${providerName}. Bạn có thể thử lại bất cứ lúc nào.`
+      return 'oauthCancelled'
     case 'account_exists':
-      return `Email ${providerName} này đã có tài khoản. Vui lòng đăng nhập bằng phương thức hiện tại.`
+      return 'oauthAccountExists'
     case 'account_disabled':
-      return 'Tài khoản UTH này hiện không hoạt động. Vui lòng liên hệ quản trị viên.'
+      return 'oauthAccountDisabled'
     case 'email_unverified':
-      return `${providerName} chưa cung cấp email đã xác minh. Hãy xác minh email trên ${providerName} rồi thử lại.`
+      return 'oauthEmailUnverified'
     case 'state_invalid':
-      return `Phiên xác thực ${providerName} không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.`
+      return 'oauthStateInvalid'
     case 'provider_unavailable':
-      return `Đăng nhập ${providerName} hiện chưa sẵn sàng. Vui lòng thử lại sau.`
+      return 'oauthUnavailable'
     default:
-      return `Không thể xác thực với ${providerName}. Vui lòng thử lại.`
+      return 'oauthFailed'
   }
 }
 
@@ -309,9 +308,11 @@ function AuthPage({ mode }: AuthPageProps) {
   } = useAuth()
   const [savedIdentifier] = useState(readSavedIdentifier)
   const [rememberMe, setRememberMe] = useState(readRememberPreference)
-  const [notice, setNotice] = useState(() =>
-    initialOAuthError ? oauthErrorMessage(initialOAuthError, initialOAuthProvider) : '',
-  )
+  const [notice, setNotice] = useState(() => initialOAuthError
+    ? t(oauthErrorKey(initialOAuthError), {
+      provider: initialOAuthProvider === 'github' ? 'GitHub' : 'Google',
+    })
+    : '')
   const [noticeType, setNoticeType] = useState<'error' | 'success' | ''>(() =>
     initialOAuthError ? 'error' : '',
   )
@@ -446,7 +447,7 @@ function AuthPage({ mode }: AuthPageProps) {
             {mode === 'register' && (
               <FormField
                 id="email"
-                label="Email"
+                label={t('email')}
                 icon="mail"
                 type="email"
                 autoComplete="email"

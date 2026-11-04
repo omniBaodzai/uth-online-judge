@@ -43,6 +43,7 @@ import ContactPage from './features/contact/pages/ContactPage'
 import { ToastProvider } from './components/ui/Toast'
 import { AdminProvider } from './features/admin/AdminContext'
 import { RequireAdmin } from './features/admin/components/RequireAdmin'
+import AdminLocaleBoundary from './features/admin/AdminLocaleBoundary'
 import './App.css'
 
 function App() {
@@ -51,8 +52,8 @@ function App() {
       <ToastProvider>
       <Routes>
         <Route element={<AuthProvider><Outlet /></AuthProvider>}>
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route element={<RequireAdmin />}>
+          <Route path="/admin/login" element={<AdminLocaleBoundary><AdminLoginPage /></AdminLocaleBoundary>} />
+          <Route element={<AdminLocaleBoundary><RequireAdmin /></AdminLocaleBoundary>}>
             <Route path="/admin" element={<AdminProvider><AdminLayout /></AdminProvider>}>
               <Route index element={<AdminDashboardPage />} />
               <Route path="problems" element={<AdminProblemsPage />} />
@@ -94,7 +95,7 @@ function App() {
             path="contests/:contestId/problems/:code/submit"
             element={<RequireAuth><SubmitSolutionPage /></RequireAuth>}
           />
-          <Route path="problems/:code/pdf" element={<PlaceholderPage title="Đề bài dạng PDF" />} />
+          <Route path="problems/:code/pdf" element={<PlaceholderPage titleKey="problemPdf" />} />
           <Route path="problems/:code/submissions" element={<SubmissionsPage />} />
           <Route path="problems/:code/best-submissions" element={<BestSubmissionsPage />} />
           <Route
@@ -113,7 +114,7 @@ function App() {
             element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}
           />
           <Route path="submissions" element={<SubmissionsPage />} />
-          <Route path="organizations" element={<PlaceholderPage title="Tổ chức" />} />
+          <Route path="organizations" element={<PlaceholderPage titleKey="organizations" />} />
           <Route path="contact" element={<ContactPage />} />
           <Route
             path="my/contact-messages/:messageId"

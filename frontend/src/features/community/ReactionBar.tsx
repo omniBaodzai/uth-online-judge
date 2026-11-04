@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
 import { Heart, Lightbulb, ThumbsUp, type LucideIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useToast } from '../../components/ui/toast-context'
 import { decideGuestAction } from './guest-actions'
 import { REACTION_OPTIONS, nextReaction, type ReactionSummary, type ReactionType } from './reactions'
 import { useCommunityRequest } from './api'
 import { errorMessage } from './useAsync'
+import { communityText } from './translate'
 import styles from './community.module.css'
 
 const ICONS: Record<ReactionType, LucideIcon> = { LIKE: ThumbsUp, LOVE: Heart, HELPFUL: Lightbulb }
@@ -17,6 +19,11 @@ type ReactionBarProps = {
 }
 
 export function ReactionBar({ summary, path, small = false }: ReactionBarProps) {
+  const { t, i18n } = useTranslation('pages')
+  const language = i18n.resolvedLanguage ?? i18n.language
+  const text = (key: string, vi: string, en: string, values: Record<string, string | number> = {}) =>
+    communityText(t, language, key, vi, en, values)
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const { request, isReady, isAuthenticated } = useCommunityRequest()
   const { showToast } = useToast()
   const [local, setLocal] = useState<{ base: ReactionSummary; value: ReactionSummary } | null>(null)
@@ -27,7 +34,7 @@ export function ReactionBar({ summary, path, small = false }: ReactionBarProps) 
   const shown = local && local.base === summary ? local.value : summary
 
   async function click(type: ReactionSummary['mine'] & string) {
-    const decision = decideGuestAction({ isReady, isAuthenticated }, 'react')
+    const decision = decideGuestAction({ isReady, isAuthenticated }, 'react', text('guestReact', 'Bạn cần đăng nhập để bày tỏ cảm xúc.', 'Sign in to react.'))
     if (decision.kind === 'wait') return
     if (decision.kind === 'toast') {
       showToast(decision.message)
@@ -45,7 +52,7 @@ export function ReactionBar({ summary, path, small = false }: ReactionBarProps) 
       })
       setLocal({ base: summary, value })
     } catch (caught) {
-      setError(errorMessage(caught))
+      setError(errorMessage(caught, text('genericError', 'Đã xảy ra lỗi. Vui lòng thử lại.', 'An error occurred. Please try again.')))
     } finally {
       lock.current = false
       setPending(false)
@@ -54,8 +61,13 @@ export function ReactionBar({ summary, path, small = false }: ReactionBarProps) 
 
   return (
     <div className={styles.reactionWrap}>
-      <div className={styles.reactions} role="group" aria-label="Cảm xúc">
-        {REACTION_OPTIONS.map(({ type, label }) => {
+      <div className={styles.reactions} role="group" aria-label={text('reactionsLabel', 'Cảm xúc', 'Reactions')}>
+        {REACTION_OPTIONS.map(({ type }) => {
+          const label = type === 'LIKE'
+            ? text('reactionLike', 'Thích', 'Like')
+            : type === 'LOVE'
+              ? text('reactionLove', 'Yêu thích', 'Love')
+              : text('reactionHelpful', 'Hữu ích', 'Helpful')
           const Icon = ICONS[type]
           const active = shown.mine === type
           const count = shown.counts[type]
@@ -65,7 +77,10 @@ export function ReactionBar({ summary, path, small = false }: ReactionBarProps) 
               type="button"
               className={`${styles.reactionButton} ${small ? styles.reactionSmall : ''} ${active ? styles.reactionActive : ''}`}
               aria-pressed={active}
-              aria-label={`${label}, ${count} lượt`}
+              aria-label={text('reactionAccessibleLabel', '{{label}}, {{count}} lượt', '{{label}}, {{count}} reactions', {
+                label,
+                count: count.toLocaleString(locale),
+              })}
               disabled={pending}
               onClick={() => void click(type)}
             >

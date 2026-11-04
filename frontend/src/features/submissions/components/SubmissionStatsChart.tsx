@@ -17,7 +17,10 @@ const RADIUS = 52
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 // Biểu đồ vành khuyên bằng SVG, không cần thêm thư viện biểu đồ.
 function SubmissionStatsChart({ total, accepted, verdictCounts, subtitle }: SubmissionStatsChartProps) {
-  const { t } = useTranslation('pages')
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const numberFormat = new Intl.NumberFormat(locale)
+  const percentFormat = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   const acRate = total === 0 ? 0 : (accepted / total) * 100
   const legend = getSubmissionVerdictLegend(verdictCounts, total)
 
@@ -41,7 +44,7 @@ function SubmissionStatsChart({ total, accepted, verdictCounts, subtitle }: Subm
             viewBox="0 0 140 140"
             className={styles.chart}
             role="img"
-            aria-label={t('submissionChartLabel', { total })}
+            aria-label={t('submissionChartLabel', { total: numberFormat.format(total) })}
           >
             <circle cx="70" cy="70" r={RADIUS} className={styles.track} />
             {segments.map((segment) => (
@@ -55,20 +58,20 @@ function SubmissionStatsChart({ total, accepted, verdictCounts, subtitle }: Subm
                 strokeDasharray={`${segment.length} ${CIRCUMFERENCE - segment.length}`}
                 strokeDashoffset={-segment.offset}
               >
-                <title>{`${segment.abbr}: ${segment.count} (${segment.percentage.toFixed(1)}%)`}</title>
+                <title>{`${segment.abbr}: ${numberFormat.format(segment.count)} (${percentFormat.format(segment.percentage)}%)`}</title>
               </circle>
             ))}
           </svg>
           <div className={styles.center}>
-            <strong>{total}</strong>
+            <strong>{numberFormat.format(total)}</strong>
             <span>{t('submissionCount')}</span>
           </div>
         </div>
 
         <dl className={styles.summary}>
-          <div><dt>{t('total')}</dt><dd>{total}</dd></div>
-          <div><dt>AC</dt><dd>{accepted}</dd></div>
-          <div><dt>{t('acceptedRate')}</dt><dd>{acRate.toFixed(1)}%</dd></div>
+          <div><dt>{t('total')}</dt><dd>{numberFormat.format(total)}</dd></div>
+          <div><dt>AC</dt><dd>{numberFormat.format(accepted)}</dd></div>
+          <div><dt>{t('acceptedRate')}</dt><dd>{percentFormat.format(acRate)}%</dd></div>
         </dl>
 
         {total === 0 ? (
@@ -82,7 +85,7 @@ function SubmissionStatsChart({ total, accepted, verdictCounts, subtitle }: Subm
                   <strong>{item.abbr}</strong> {submissionVerdictTranslationKeys[item.status] ? t(submissionVerdictTranslationKeys[item.status]) : item.label}
                 </span>
                 <span className={styles.value}>
-                  {item.count} · {item.percentage.toFixed(1)}%
+                  {numberFormat.format(item.count)} · {percentFormat.format(item.percentage)}%
                 </span>
               </li>
             ))}

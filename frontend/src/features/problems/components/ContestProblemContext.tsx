@@ -1,12 +1,8 @@
 import { Link } from 'react-router-dom'
-import type { StudentContestDetail, StudentContestTimeStatus } from '../../contests/student-contests.api'
+import { useTranslation } from 'react-i18next'
+import type { StudentContestDetail } from '../../contests/student-contests.api'
+import '../i18n'
 import styles from './ContestProblemContext.module.css'
-
-const timeStatusLabels: Record<StudentContestTimeStatus, string> = {
-  UPCOMING: 'Sắp diễn ra',
-  ONGOING: 'Đang diễn ra',
-  ENDED: 'Đã kết thúc',
-}
 
 export function ContestProblemBanner({
   contest,
@@ -15,17 +11,19 @@ export function ContestProblemBanner({
   contest: Pick<StudentContestDetail, 'slug' | 'title' | 'timeStatus'>
   maxScore: number
 }) {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   return (
-    <section className={styles.banner} aria-label="Ngữ cảnh cuộc thi">
+    <section className={styles.banner} aria-label={t('problemContestContext')}>
       <div className={styles.contestInfo}>
-        <Link to={`/contests/${encodeURIComponent(contest.slug)}`}>← Quay lại cuộc thi</Link>
+        <Link to={`/contests/${encodeURIComponent(contest.slug)}`}>← {t('problemBackToContest')}</Link>
         <strong>{contest.title}</strong>
       </div>
       <div className={styles.details}>
         <span className={`${styles.status} ${contest.timeStatus === 'ONGOING' ? styles.ongoing : ''}`}>
-          {timeStatusLabels[contest.timeStatus]}
+          {t(contest.timeStatus === 'UPCOMING' ? 'problemContestUpcoming' : contest.timeStatus === 'ONGOING' ? 'problemContestOngoing' : 'problemContestEnded')}
         </span>
-        <span>Điểm tối đa bài trong cuộc thi: <strong>{maxScore}</strong></span>
+        <span>{t('problemContestMaxPoints')} <strong>{new Intl.NumberFormat(locale).format(maxScore)}</strong></span>
       </div>
     </section>
   )
@@ -42,6 +40,7 @@ export function ContestProblemStateMessage({
   message?: string
   onRetry: () => void
 }) {
+  const { t } = useTranslation('pages')
   const contestPath = `/contests/${encodeURIComponent(contestIdentifier)}`
   return (
     <main className={styles.main} id="main-content">
@@ -50,27 +49,27 @@ export function ContestProblemStateMessage({
         aria-busy={phase === 'loading'}
         aria-live={phase === 'loading' ? 'polite' : undefined}
       >
-        {phase === 'loading' && <p role="status">Đang kiểm tra quyền truy cập và tải đề bài…</p>}
+        {phase === 'loading' && <p role="status">{t('problemLoadingContest')}</p>}
         {phase === 'not-found' && (
           <>
-            <h1>Không tìm thấy bài trong cuộc thi</h1>
-            <p>Bài tập không thuộc cuộc thi này, không còn khả dụng hoặc cuộc thi không tồn tại.</p>
-            <Link className={styles.linkButton} to={contestPath}>Quay lại cuộc thi</Link>
+            <h1>{t('problemContestNotFound')}</h1>
+            <p>{t('problemContestNotFoundDescription')}</p>
+            <Link className={styles.linkButton} to={contestPath}>{t('problemBackToContest')}</Link>
           </>
         )}
         {phase === 'blocked' && (
           <>
-            <h1>Chưa thể truy cập đề bài</h1>
+            <h1>{t('problemCannotAccessContestProblem')}</h1>
             <p>{message}</p>
-            <Link className={styles.linkButton} to={contestPath}>Quay lại cuộc thi</Link>
+            <Link className={styles.linkButton} to={contestPath}>{t('problemBackToContest')}</Link>
           </>
         )}
         {phase === 'error' && (
           <>
-            <h1>Không thể tải bài thi</h1>
+            <h1>{t('problemCannotLoadContest')}</h1>
             <p role="alert">{message}</p>
-            <button className={styles.linkButton} type="button" onClick={onRetry}>Thử lại</button>
-            <Link className={styles.backLink} to={contestPath}>Quay lại cuộc thi</Link>
+            <button className={styles.linkButton} type="button" onClick={onRetry}>{t('retry', { ns: 'common' })}</button>
+            <Link className={styles.backLink} to={contestPath}>{t('problemBackToContest')}</Link>
           </>
         )}
       </section>

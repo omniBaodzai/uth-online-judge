@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   box-shadow: 0 6px 18px rgba(0, 60, 62, .28);
   font: inherit;
@@ -40,7 +40,7 @@
 
 .fab:hover,
 .contactButton:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .fab:focus-visible,
@@ -140,4 +140,25 @@
   .contactButton {
     transition: none;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .contactMenu {
+  border-color: var(--color-border);
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .contactHead button,
+:global(:where([data-theme='dark'])) .contactOrg,
+:global(:where([data-theme='dark'])) .contactMenu li a small {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .contactHead button:hover,
+:global(:where([data-theme='dark'])) .contactMenu li a:hover {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .contactMenu li a {
+  border-color: var(--color-border);
 }

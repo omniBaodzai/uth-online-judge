@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, MessageCircleReply, Send } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
-import type { ContactMessageStatus } from '../../admin/contact-messages/contact-messages.types'
 import { formatDateTime } from '../../community/format'
 import { ContactConversation } from '../components/ContactConversation'
 import {
@@ -17,13 +17,9 @@ import styles from './UserContactMessageDetailsPage.module.css'
 
 const maximumReplyLength = 5000
 
-const statusLabels: Record<ContactMessageStatus, string> = {
-  NEW: 'Mới',
-  IN_PROGRESS: 'Đang xử lý',
-  RESOLVED: 'Đã xử lý',
-}
-
 function UserContactMessageDetailsPage() {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const { messageId = '' } = useParams()
   const navigate = useNavigate()
   const { user, request } = useAuth()
@@ -71,7 +67,7 @@ function UserContactMessageDetailsPage() {
           setLoaded({
             key,
             details: null,
-            error: getContactApiErrorMessage(error, 'Không thể tải yêu cầu liên hệ.'),
+            error: getContactApiErrorMessage(error, t('contactRequestLoadError')),
           })
         }
       })
@@ -80,7 +76,7 @@ function UserContactMessageDetailsPage() {
       active = false
       controller.abort()
     }
-  }, [messageId, user?.id])
+  }, [messageId, t, user?.id])
 
   const currentLoad = loaded?.key === pageKey ? loaded : null
   const details = currentLoad?.details ?? null
@@ -90,6 +86,11 @@ function UserContactMessageDetailsPage() {
   const messageReplies = details?.id === messageId
     ? details.replies.map(toContactReply)
     : []
+  const statusLabel = t({
+    NEW: 'contactStatusNew',
+    IN_PROGRESS: 'contactStatusInProgress',
+    RESOLVED: 'contactStatusResolved',
+  }[message?.status ?? 'NEW'])
   const replyContent = draft.key === pageKey ? draft.content : ''
   const currentFeedback = feedback.key === pageKey ? feedback : { key: pageKey, error: '', notice: '' }
   const isSubmitting = submitting.key === pageKey && submitting.value
@@ -100,7 +101,7 @@ function UserContactMessageDetailsPage() {
 
     const content = replyContent.trim()
     if (!content) {
-      setFeedback({ key: pageKey, error: 'Vui lòng nhập nội dung phản hồi trước khi gửi.', notice: '' })
+      setFeedback({ key: pageKey, error: t('contactReplyRequired'), notice: '' })
       return
     }
 
@@ -147,15 +148,15 @@ function UserContactMessageDetailsPage() {
         key: pageKey,
         error: '',
         notice: result.created
-          ? 'Phản hồi đã được gửi thành công.'
-          : 'Phản hồi này đã được gửi trước đó.',
+          ? t('contactReplySent')
+          : t('contactReplyAlreadySent'),
       })
       pendingIdempotencyRef.current = null
     } catch (error) {
       if (activePageKeyRef.current === pageKey) {
         setFeedback({
           key: pageKey,
-          error: getContactApiErrorMessage(error, 'Không thể gửi phản hồi. Vui lòng thử lại.'),
+          error: getContactApiErrorMessage(error, t('contactReplySendError')),
           notice: '',
         })
       }
@@ -166,21 +167,21 @@ function UserContactMessageDetailsPage() {
   }
 
   if (loading || loadError || !message) {
-    const title = loading ? 'Đang tải yêu cầu...' : 'Không tìm thấy yêu cầu'
+    const title = loading ? t('contactRequestLoading') : t('contactRequestNotFound')
     const description = loading
-      ? 'Vui lòng chờ trong giây lát.'
-      : loadError || 'Yêu cầu không tồn tại hoặc bạn không có quyền xem nội dung này.'
+      ? t('pleaseWait')
+      : loadError || t('contactRequestUnavailable')
 
     return (
       <main className={styles.main}>
         <div className={styles.container}>
           <section className={styles.notFound} aria-labelledby="contact-not-found-title" role={loading ? 'status' : 'alert'}>
-            <p className={styles.eyebrow}>HỖ TRỢ NGƯỜI DÙNG</p>
+            <p className={styles.eyebrow}>{t('contactUserSupport')}</p>
             <h1 id="contact-not-found-title">{title}</h1>
             <p>{description}</p>
             <button className={styles.secondaryButton} type="button" onClick={() => navigate('/contact')}>
               <ArrowLeft size={17} aria-hidden="true" />
-              Quay lại trang liên hệ
+              {t('backToContact')}
             </button>
           </section>
         </div>
@@ -197,18 +198,18 @@ function UserContactMessageDetailsPage() {
           <div className={styles.sectionHeading}>
             <span className={styles.headingIcon}><MessageCircleReply size={19} aria-hidden="true" /></span>
             <div>
-              <h2 id="original-request-title">Yêu cầu ban đầu</h2>
-              <p>Nội dung đã gửi đến đội ngũ hỗ trợ.</p>
+              <h2 id="original-request-title">{t('contactOriginalRequest')}</h2>
+              <p>{t('contactOriginalRequestDescription')}</p>
             </div>
           </div>
           <h3 className={styles.subject}>{message.subject}</h3>
           <dl className={styles.senderDetails}>
-            <div><dt>Người gửi</dt><dd>{message.fullName}</dd></div>
-            <div><dt>Email</dt><dd>{message.email}</dd></div>
-            <div><dt>Thời gian gửi</dt><dd>{formatDateTime(message.createdAt)}</dd></div>
+            <div><dt>{t('contactSender')}</dt><dd>{message.fullName}</dd></div>
+            <div><dt>{t('contactEmail')}</dt><dd>{message.email}</dd></div>
+            <div><dt>{t('contactSentAt')}</dt><dd>{formatDateTime(message.createdAt, locale)}</dd></div>
           </dl>
           <div className={styles.originalContent}>
-            <h3>Nội dung yêu cầu</h3>
+            <h3>{t('contactRequestContent')}</h3>
             <p>{message.message}</p>
           </div>
         </section>
@@ -217,14 +218,14 @@ function UserContactMessageDetailsPage() {
           <div className={styles.sectionHeading}>
             <span className={styles.headingIcon}><MessageCircleReply size={19} aria-hidden="true" /></span>
             <div>
-              <h2 id="conversation-title">Lịch sử trao đổi</h2>
-              <p>Phản hồi được sắp xếp theo thời gian gửi.</p>
+              <h2 id="conversation-title">{t('contactConversationHistory')}</h2>
+              <p>{t('contactRepliesChronological')}</p>
             </div>
           </div>
           <ContactConversation
             replies={messageReplies}
             viewer="user"
-            emptyMessage="Yêu cầu của bạn đã được tiếp nhận. Đội ngũ hỗ trợ sẽ phản hồi sớm nhất có thể."
+            emptyMessage={t('contactConversationEmpty')}
           />
         </section>
 
@@ -232,21 +233,21 @@ function UserContactMessageDetailsPage() {
           <div className={styles.sectionHeading}>
             <span className={styles.headingIcon}><Send size={18} aria-hidden="true" /></span>
             <div>
-              <h2 id="send-reply-title">Gửi phản hồi</h2>
+              <h2 id="send-reply-title">{t('contactSendReply')}</h2>
               <p>
-                Trạng thái hiện tại: <strong>{statusLabels[message.status]}</strong>.
+                {t('contactCurrentStatus')}: <strong>{statusLabel}</strong>.
                 {isResolved
-                  ? ' Yêu cầu đã được xử lý; bạn không thể gửi thêm phản hồi.'
-                  : ' Gửi phản hồi không tự thay đổi trạng thái.'}
+                  ? ` ${t('contactResolvedCannotReply')}`
+                  : ` ${t('contactReplyDoesNotChangeStatus')}`}
               </p>
             </div>
           </div>
           <form className={styles.replyForm} onSubmit={(event) => void submitReply(event)}>
-            <label htmlFor="user-contact-reply">Nội dung phản hồi</label>
+            <label htmlFor="user-contact-reply">{t('contactReplyContent')}</label>
             <textarea
               id="user-contact-reply"
               maxLength={maximumReplyLength}
-              placeholder="Nhập nội dung phản hồi của bạn..."
+              placeholder={t('contactReplyPlaceholder')}
               value={replyContent}
               disabled={isResolved || isSubmitting}
               aria-describedby="user-contact-reply-counter user-contact-reply-note user-contact-reply-error"
@@ -258,11 +259,14 @@ function UserContactMessageDetailsPage() {
             <div className={styles.replyMeta}>
               <span id="user-contact-reply-note">
                 {isResolved
-                  ? 'Yêu cầu đã được xử lý. Liên hệ Admin nếu cần mở lại.'
-                  : 'Phản hồi được lưu trên hệ thống; email chưa được gửi.'}
+                  ? t('contactResolvedReplyNote')
+                  : t('contactReplyDeliveryNote')}
               </span>
               <span id="user-contact-reply-counter" aria-live="polite">
-                {replyContent.length.toLocaleString('vi-VN')} / {maximumReplyLength.toLocaleString('vi-VN')} ký tự
+                {t('characterCount', {
+                  count: new Intl.NumberFormat(locale).format(replyContent.length),
+                  max: new Intl.NumberFormat(locale).format(maximumReplyLength),
+                })}
               </span>
             </div>
             {currentFeedback.error && (
@@ -279,7 +283,7 @@ function UserContactMessageDetailsPage() {
                 disabled={!replyContent.trim() || isResolved || isSubmitting}
               >
                 <Send size={16} aria-hidden="true" />
-                {isSubmitting ? 'Đang gửi...' : 'Gửi phản hồi'}
+                {isSubmitting ? t('sending') : t('contactSendReply')}
               </button>
             </div>
           </form>

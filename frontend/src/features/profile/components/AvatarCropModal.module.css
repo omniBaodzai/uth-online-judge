@@ -162,12 +162,12 @@
 
 .primary {
   border: 0;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .secondary {
@@ -204,4 +204,19 @@
   .actions button {
     flex: 1;
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .mask {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .preview {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .error {
+  background: var(--color-surface-hover);
+  color: #ff9d9d;
 }

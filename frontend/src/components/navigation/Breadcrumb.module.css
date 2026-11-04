@@ -78,3 +78,12 @@
     font-size: 12px;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .breadcrumb[data-variant='admin'] a {
+  color: var(--admin-primary-dark, var(--color-primary-dark));
+}
+
+:global(:where([data-theme='dark'])) .breadcrumb[data-variant='admin'] [aria-current='page'] {
+  color: var(--admin-ink, var(--color-ink));
+}

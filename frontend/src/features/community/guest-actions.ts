@@ -13,8 +13,9 @@ export type GuestDecision = { kind: 'proceed' } | { kind: 'wait' } | { kind: 'to
 export function decideGuestAction(
   auth: { isReady: boolean; isAuthenticated: boolean },
   action: GuestAction,
+  message = GUEST_MESSAGES[action],
 ): GuestDecision {
   if (!auth.isReady) return { kind: 'wait' }
   if (auth.isAuthenticated) return { kind: 'proceed' }
-  return { kind: 'toast', message: GUEST_MESSAGES[action] }
+  return { kind: 'toast', message }
 }

@@ -243,3 +243,32 @@
     width: calc(100% - 32px);
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .problemLink {
+  color: var(--color-primary, #a5b8ff);
+}
+
+:global(:where([data-theme='dark'])) .filters,
+:global(:where([data-theme='dark'])) .search input:hover,
+:global(:where([data-theme='dark'])) .card {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .reset:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+:global(:where([data-theme='dark'])) .error {
+  border-bottom-color: #6b3a3d;
+  background: var(--color-surface-hover);
+  color: #ff9d9d;
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
+}

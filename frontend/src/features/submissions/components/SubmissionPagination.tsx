@@ -39,7 +39,9 @@ function SubmissionPagination({
   onPageChange,
   onPageSizeChange,
 }: SubmissionPaginationProps) {
-  const { t } = useTranslation('common')
+  const { t, i18n } = useTranslation('common')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const numberFormat = new Intl.NumberFormat(locale)
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const from = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const to = Math.min(currentPage * pageSize, totalItems)
@@ -65,7 +67,7 @@ function SubmissionPagination({
   return (
     <div className={styles.root}>
       <p className={styles.summary}>
-        {t('showingRange')} <strong>{from}–{to}</strong> {t('showingRangeOf')} <strong>{totalItems}</strong> {localizedSummaryLabel}
+        {t('showingRange')} <strong>{numberFormat.format(from)}–{numberFormat.format(to)}</strong> {t('showingRangeOf')} <strong>{numberFormat.format(totalItems)}</strong> {localizedSummaryLabel}
         {additionalSummary ? <span> · {additionalSummary}</span> : null}
       </p>
       <nav className={styles.pages} aria-label={t('pageNavigation', { label: localizedLabel(label) })}>
@@ -85,10 +87,10 @@ function SubmissionPagination({
               type="button"
               className={`${styles.button} ${item === currentPage ? styles.active : ''}`}
               aria-current={item === currentPage ? 'page' : undefined}
-              aria-label={t('pageNumber', { page: item })}
+              aria-label={t('pageNumber', { page: numberFormat.format(item) })}
               onClick={() => onPageChange(item)}
             >
-              {item}
+              {numberFormat.format(item)}
             </button>
           ) : (
             <span key={item} className={styles.gap} aria-hidden="true">…</span>
@@ -109,7 +111,7 @@ function SubmissionPagination({
           <span>{t('itemsPerPage')}</span>
           <select value={pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
             {pageSizes.map((size) => (
-              <option key={size} value={size}>{size}</option>
+              <option key={size} value={size}>{numberFormat.format(size)}</option>
             ))}
           </select>
         </label>

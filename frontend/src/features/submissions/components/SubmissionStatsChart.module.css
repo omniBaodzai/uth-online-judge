@@ -140,3 +140,12 @@
   font-size: 13px;
   text-align: center;
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .card {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .name {
+  color: var(--color-ink);
+}

@@ -164,3 +164,21 @@
     background-position: -200% 0;
   }
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .rank {
+  color: var(--color-muted);
+}
+
+:global(:where([data-theme='dark'])) .time span,
+:global(:where([data-theme='dark'])) .lang {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .problem {
+  color: #a5b8ff;
+}
+
+:global(:where([data-theme='dark'])) .skeleton {
+  background: linear-gradient(90deg, var(--color-surface-subtle) 25%, var(--color-surface) 50%, var(--color-surface-subtle) 75%);
+}

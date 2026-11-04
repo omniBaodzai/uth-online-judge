@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Crown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import '../i18n'
 import { formatExecutionTime, formatMemory, getVerdictBadge, type Submission } from '../data'
 import { submissionVerdictTranslationKeys } from '../data/submission-verdicts'
 import styles from './SubmissionTable.module.css'
@@ -55,8 +56,8 @@ function SubmissionTable({
       <table className={styles.table}>
         <thead>
           <tr>
-            {showRank && <th scope="col">Thứ hạng</th>}
-            <th scope="col">Kết quả</th>
+            {showRank && <th scope="col">{t('submissionsRank')}</th>}
+            <th scope="col">{t('submissionsResult')}</th>
             <th scope="col">{t('submittedAt')}</th>
             <th scope="col">{t('coder')}</th>
             {!hideProblem && <th scope="col">{t('problemName')}</th>}
@@ -80,7 +81,7 @@ function SubmissionTable({
                 {showRank && (
                   <td className={styles.rank}>
                     {item.rank === 1 && <Crown size={16} aria-hidden="true" />}
-                    <span>{item.rank ?? '—'}</span>
+                    <span>{item.rank == null ? '—' : new Intl.NumberFormat(locale).format(item.rank)}</span>
                   </td>
                 )}
                 <td>
@@ -120,8 +121,8 @@ function SubmissionTable({
                   </td>
                 )}
                 <td className={styles.lang}>{item.language}</td>
-                <td className={styles.num}>{formatExecutionTime(item.executionTimeMs)}</td>
-                <td className={styles.num}>{formatMemory(item.memoryUsedKb)}</td>
+                <td className={styles.num}>{formatExecutionTime(item.executionTimeMs, locale)}</td>
+                <td className={styles.num}>{formatMemory(item.memoryUsedKb, locale)}</td>
               </tr>
             )
           })}

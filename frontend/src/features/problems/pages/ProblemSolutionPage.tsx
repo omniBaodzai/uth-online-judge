@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { BookOpen, Check, Copy, LockKeyhole } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import { fetchProblemEditorial, type ProblemEditorialResponse } from '../api'
+import '../i18n'
 import styles from './ProblemSolutionPage.module.css'
 
 const SolutionCodeViewer = lazy(() => import('../components/SolutionCodeViewer'))
@@ -15,11 +17,12 @@ type PageState =
   | { phase: 'error'; code: string; message: string }
 
 function ProblemSolutionPage() {
+  const { t } = useTranslation('pages')
   const { code = '' } = useParams()
   const { request } = useAuth()
   const [state, setState] = useState<PageState>({ phase: 'loading', code: '' })
   const [selectedId, setSelectedId] = useState('')
-  const [copyMessage, setCopyMessage] = useState('')
+  const [copyMessage, setCopyMessage] = useState<'' | 'copied' | 'copy-failed'>('')
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
@@ -42,21 +45,21 @@ function ProblemSolutionPage() {
         setState({
           phase: 'error',
           code,
-          message: cause instanceof Error ? cause.message : 'Không thể tải lời giải.',
+          message: cause instanceof Error ? cause.message : t('problemSolutionError'),
         })
       })
 
     return () => { active = false }
-  }, [attempt, code, request])
+  }, [attempt, code, request, t])
 
   const pageState = state.code === code ? state : { phase: 'loading' as const, code }
 
   async function copySource(sourceCode: string) {
     try {
       await navigator.clipboard.writeText(sourceCode)
-      setCopyMessage('Đã sao chép mã nguồn.')
+      setCopyMessage('copied')
     } catch {
-      setCopyMessage('Không thể sao chép. Hãy chọn và sao chép mã nguồn trực tiếp.')
+      setCopyMessage('copy-failed')
     }
   }
 
@@ -66,25 +69,25 @@ function ProblemSolutionPage() {
         {pageState.phase === 'loading' && (
           <section className={styles.statePanel} aria-live="polite">
             <span className={styles.stateIcon}><BookOpen size={22} aria-hidden="true" /></span>
-            <h1>Đang tải lời giải</h1>
-            <p>Vui lòng đợi trong giây lát.</p>
+            <h1>{t('problemSolutionLoading')}</h1>
+            <p>{t('problemPleaseWait')}</p>
           </section>
         )}
 
         {pageState.phase === 'locked' && (
           <section className={styles.statePanel} aria-labelledby="locked-title">
             <span className={styles.stateIcon}><LockKeyhole size={22} aria-hidden="true" /></span>
-            <p className={styles.eyebrow}>MỞ KHÓA LỜI GIẢI</p>
-            <h1 id="locked-title">Bạn chưa thể xem lời giải</h1>
-            <p>Bạn cần nộp bài và nhận kết quả chấm ít nhất một lần để mở khóa lời giải</p>
-            <Link className={styles.primaryButton} to={`/problems/${encodeURIComponent(code)}/submit`}>Làm bài ngay</Link>
+            <p className={styles.eyebrow}>{t('problemUnlockSolutionEyebrow')}</p>
+            <h1 id="locked-title">{t('problemSolutionLocked')}</h1>
+            <p>{t('problemSolutionLockHint')}</p>
+            <Link className={styles.primaryButton} to={`/problems/${encodeURIComponent(code)}/submit`}>{t('problemSolveNow')}</Link>
           </section>
         )}
 
         {pageState.phase === 'error' && (
           <section className={styles.statePanel} role="alert">
             <span className={styles.stateIcon}><BookOpen size={22} aria-hidden="true" /></span>
-            <h1>Không thể tải lời giải</h1>
+            <h1>{t('problemSolutionError')}</h1>
             <p>{pageState.message}</p>
             <button
               className={styles.secondaryButton}
@@ -94,7 +97,7 @@ function ProblemSolutionPage() {
                 setAttempt((value) => value + 1)
               }}
             >
-              Thử lại
+              {t('retry', { ns: 'common' })}
             </button>
           </section>
         )}
@@ -103,7 +106,7 @@ function ProblemSolutionPage() {
           <>
             <header className={styles.pageHeader}>
               <h1>
-                Lời giải của bài{' '}
+                {t('problemSolutionFor')}{' '}
                 <Link
                   className={styles.problemLink}
                   to={`/problems/${encodeURIComponent(pageState.result.problem.code)}`}
@@ -116,13 +119,13 @@ function ProblemSolutionPage() {
             {pageState.result.editorials.length === 0 ? (
               <section className={styles.statePanel} aria-labelledby="empty-title">
                 <span className={styles.stateIcon}><BookOpen size={22} aria-hidden="true" /></span>
-                <h2 id="empty-title">Chưa có lời giải</h2>
-                <p>Lời giải cho bài tập này chưa được cập nhật. Bạn có thể quay lại sau.</p>
+                <h2 id="empty-title">{t('problemNoSolutionYet')}</h2>
+                <p>{t('problemSolutionNotUpdated')}</p>
               </section>
             ) : (
-              <section className={styles.solutionPanel} aria-label="Nội dung lời giải">
+              <section className={styles.solutionPanel} aria-label={t('problemSolutionContent')}>
                 {pageState.result.editorials.length > 1 && (
-                  <div className={styles.tabs} role="tablist" aria-label="Chọn lời giải">
+                  <div className={styles.tabs} role="tablist" aria-label={t('problemChooseSolution')}>
                     {pageState.result.editorials.map((editorial) => (
                       <button
                         key={editorial.id}
@@ -157,13 +160,17 @@ function ProblemSolutionPage() {
                         <span className={styles.languageBadge}>{editorial.language}</span>
                       </div>
                       <button className={styles.copyButton} type="button" onClick={() => void copySource(editorial.sourceCode)}>
-                        {copyMessage.startsWith('Đã sao chép') ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-                        Sao chép
+                        {copyMessage === 'copied' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                        {t('problemCopy')}
                       </button>
                     </div>
-                    {copyMessage && <p className={styles.copyMessage} role="status">{copyMessage}</p>}
+                    {copyMessage && (
+                      <p className={styles.copyMessage} role="status">
+                        {t(copyMessage === 'copied' ? 'problemSolutionCopied' : 'problemCopySourceFailed')}
+                      </p>
+                    )}
                     <div className={styles.codeFrame}>
-                      <Suspense fallback={<div className={styles.codeLoading} aria-live="polite">Đang mở trình hiển thị mã nguồn…</div>}>
+                      <Suspense fallback={<div className={styles.codeLoading} aria-live="polite">{t('problemLoadingCodeViewer')}</div>}>
                         <SolutionCodeViewer
                           sourceCode={editorial.sourceCode}
                           language={editorial.language}

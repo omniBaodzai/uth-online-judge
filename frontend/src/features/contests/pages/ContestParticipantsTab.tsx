@@ -12,14 +12,9 @@ import {
   type StudentContestParticipantStatus,
 } from '../student-contests.api'
 import { formatParticipantRegistrationDate } from '../participants'
+import { useContestText } from '../translate'
 import tableStyles from './ContestDataTable.module.css'
 import styles from './ContestParticipantsTab.module.css'
-
-const statusOptions = [
-  { value: 'all', label: 'Tất cả' },
-  { value: 'registered', label: 'Đã đăng ký' },
-  { value: 'participated', label: 'Đã tham gia' },
-]
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -36,6 +31,12 @@ function ContestParticipantsTab({
   requester,
   onParticipantCountChange,
 }: ContestParticipantsTabProps) {
+  const { text, locale } = useContestText()
+  const statusOptions = [
+    { value: 'all', label: text('allStatuses', 'Tất cả', 'All') },
+    { value: 'registered', label: text('registered', 'Đã đăng ký', 'Registered') },
+    { value: 'participated', label: text('participated', 'Đã tham gia', 'Participated') },
+  ]
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [status, setStatus] = useState<StudentContestParticipantStatus | 'all'>('all')
@@ -55,6 +56,7 @@ function ContestParticipantsTab({
     pageSize,
     debouncedQuery,
     status,
+    text,
     retryKey,
   ])
   const data = loaded?.key === requestKey ? loaded.value : null
@@ -96,7 +98,7 @@ function ContestParticipantsTab({
           key: requestKey,
           error: requestError instanceof ApiError
             ? requestError.message
-            : 'Không thể tải danh sách thành viên. Vui lòng thử lại.',
+            : text('participantsRequestError', 'Không thể tải danh sách thành viên. Vui lòng thử lại.', 'Could not load the participant list. Please try again.'),
         })
       })
     return () => controller.abort()
@@ -110,6 +112,7 @@ function ContestParticipantsTab({
     requestKey,
     requester,
     status,
+    text,
   ])
 
   const hasFilters = Boolean(query.trim()) || status !== 'all'
@@ -118,8 +121,8 @@ function ContestParticipantsTab({
     pageSize,
     totalItems: total,
     pageSizes: submissionPageSizes,
-    label: 'thành viên cuộc thi',
-    summaryLabel: 'thành viên',
+    label: text('contestMembers', 'thành viên cuộc thi', 'contest members'),
+    summaryLabel: text('members', 'thành viên', 'members'),
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
       if (size === 10 || size === 20 || size === 50) {
@@ -132,9 +135,9 @@ function ContestParticipantsTab({
   return (
     <section className={styles.content} aria-labelledby="contest-participants-title">
       <header className={styles.heading}>
-        <h2 id="contest-participants-title">Danh sách thành viên</h2>
+        <h2 id="contest-participants-title">{text('participantsTitle', 'Danh sách thành viên', 'Participants')}</h2>
         <span className={tableStyles.participantCount}>
-          {totalParticipants.toLocaleString('vi-VN')} thành viên
+          {totalParticipants.toLocaleString(locale)} {text('members', 'thành viên', 'members')}
         </span>
       </header>
 
@@ -146,8 +149,8 @@ function ContestParticipantsTab({
           </svg>
           <input
             type="search"
-            aria-label="Tìm kiếm theo tên coder"
-            placeholder="Tìm kiếm theo tên coder..."
+            aria-label={text('searchParticipantLabel', 'Tìm kiếm theo tên coder', 'Search participants by coder name')}
+            placeholder={text('searchParticipantPlaceholder', 'Tìm kiếm theo tên coder...', 'Search by coder name...')}
             maxLength={100}
             value={query}
             onChange={(event) => {
@@ -157,7 +160,7 @@ function ContestParticipantsTab({
           />
         </label>
         <FilterDropdown
-          label="Trạng thái"
+          label={text('statusFilter', 'Trạng thái', 'Status')}
           options={statusOptions}
           selected={[status]}
           onChange={(value) => {
@@ -180,7 +183,7 @@ function ContestParticipantsTab({
           }}
           disabled={!query && status === 'all'}
         >
-          Đặt lại
+          {text('resetFilters', 'Đặt lại', 'Reset')}
         </button>
       </form>
 
@@ -192,31 +195,31 @@ function ContestParticipantsTab({
           <div className={tableStyles.empty} role="alert">
             <strong>{error}</strong>
             <button type="button" onClick={() => setRetryKey((key) => key + 1)}>
-              Thử lại
+              {text('retry', 'Thử lại', 'Retry')}
             </button>
           </div>
         ) : isLoading ? (
           <div className={tableStyles.empty} role="status" aria-live="polite">
-            <strong>Đang tải danh sách thành viên…</strong>
+            <strong>{text('participantsLoading', 'Đang tải danh sách thành viên…', 'Loading participants…')}</strong>
           </div>
         ) : data?.items.length === 0 ? (
           <div className={tableStyles.empty}>
             <strong>
               {totalParticipants === 0
-                ? 'Chưa có thành viên tham gia cuộc thi'
-                : 'Không tìm thấy thành viên phù hợp'}
+                ? text('noParticipants', 'Chưa có thành viên tham gia cuộc thi', 'No participants have joined this contest yet')
+                : text('noMatchingParticipants', 'Không tìm thấy thành viên phù hợp', 'No matching participants found')}
             </strong>
-            {totalParticipants > 0 && hasFilters && <p>Hãy thử username hoặc trạng thái khác.</p>}
+            {totalParticipants > 0 && hasFilters && <p>{text('changeParticipantFilters', 'Hãy thử username hoặc trạng thái khác.', 'Try a different username or status.')}</p>}
           </div>
         ) : (
-          <div className={tableStyles.tableWrap} role="region" aria-label="Danh sách thành viên cuộc thi" tabIndex={0}>
+          <div className={tableStyles.tableWrap} role="region" aria-label={text('participantsTableLabel', 'Danh sách thành viên cuộc thi', 'Contest participants table')} tabIndex={0}>
             <table className={`${tableStyles.table} ${styles.table}`}>
               <thead>
                 <tr>
-                  <th scope="col">STT</th>
-                  <th scope="col">CODER</th>
-                  <th scope="col">THỜI GIAN ĐĂNG KÝ</th>
-                  <th scope="col">TRẠNG THÁI</th>
+                  <th scope="col">{text('number', 'STT', 'NO.')}</th>
+                  <th scope="col">{text('coder', 'THÍ SINH', 'CODER')}</th>
+                  <th scope="col">{text('registeredAt', 'THỜI GIAN ĐĂNG KÝ', 'REGISTERED AT')}</th>
+                  <th scope="col">{text('status', 'TRẠNG THÁI', 'STATUS')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -225,7 +228,7 @@ function ContestParticipantsTab({
                     <td className={styles.numberCell}>{(page - 1) * pageSize + index + 1}</td>
                     <td className={styles.coderCell}>
                       <span className={styles.avatar} aria-hidden="true">
-                        {participant.username.slice(0, 1).toLocaleUpperCase('vi')}
+                        {participant.username.slice(0, 1).toLocaleUpperCase(locale)}
                         {participant.avatarUrl ? (
                           <img
                             src={participant.avatarUrl}
@@ -242,11 +245,11 @@ function ContestParticipantsTab({
                       </Link>
                     </td>
                     <td className={styles.dateCell}>
-                      {formatParticipantRegistrationDate(participant.registeredAt)}
+                      {formatParticipantRegistrationDate(participant.registeredAt, locale)}
                     </td>
                     <td className={styles.statusCell}>
                       <span className={`${styles.statusBadge} ${styles[participant.status]}`}>
-                        {participant.status === 'participated' ? 'Đã tham gia' : 'Đã đăng ký'}
+                        {participant.status === 'participated' ? text('participated', 'Đã tham gia', 'Participated') : text('registered', 'Đã đăng ký', 'Registered')}
                       </span>
                     </td>
                   </tr>

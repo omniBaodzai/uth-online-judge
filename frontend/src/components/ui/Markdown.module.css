@@ -100,3 +100,13 @@
   background: none;
   color: inherit;
 }
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .markdown {
+  color: var(--color-ink);
+}
+
+:global(:where([data-theme='dark'])) .markdown blockquote {
+  background: var(--color-surface-subtle);
+  color: var(--color-muted);
+}

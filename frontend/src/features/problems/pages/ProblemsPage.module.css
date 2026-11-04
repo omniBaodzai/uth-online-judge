@@ -272,7 +272,7 @@
   padding: 0 18px;
   border: 0;
   border-radius: 10px;
-  background: var(--color-primary);
+  background: var(--color-primary-solid);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -281,7 +281,7 @@
 }
 
 .retry:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-primary-solid-hover);
 }
 
 .skeletons {
@@ -451,4 +451,41 @@
   .grid {
     width: calc(100% - 32px);
   }
+}
+
+/* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .search input:hover,
+:global(:where([data-theme='dark'])) .card,
+:global(:where([data-theme='dark'])) .latest {
+  border-color: var(--color-border);
+}
+
+:global(:where([data-theme='dark'])) .titleLink {
+  color: #a5b8ff;
+}
+
+:global(:where([data-theme='dark'])) .statusIcon.solved {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary-dark);
+}
+
+:global(:where([data-theme='dark'])) .statusIcon.wrong {
+  background: var(--color-surface-hover);
+  color: #ff9d9d;
+}
+
+:global(:where([data-theme='dark'])) .statusIcon.unsolved {
+  background: var(--color-surface-subtle);
+}
+
+:global(:where([data-theme='dark'])) .skeleton {
+  background: linear-gradient(90deg, var(--color-surface-subtle) 25%, var(--color-surface) 50%, var(--color-surface-subtle) 75%);
+}
+
+/* Dark page background overlays (Phase 3.1) */
+:global(:where([data-theme='dark'])) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
+    url('../../../assets/uth_background.jpg');
 }
