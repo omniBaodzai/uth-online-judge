@@ -75,3 +75,5 @@ Thumbs.db
 
 # Markdown documentation - keep local only
 *.md
+
+/uth_online_judge_data.sql
