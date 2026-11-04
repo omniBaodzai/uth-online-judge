@@ -3,7 +3,7 @@
   overflow: hidden;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -62,9 +62,9 @@
   width: 100%;
   height: 44px;
   padding: 0 14px 0 40px;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
   font-size: 14px;
@@ -111,7 +111,7 @@
 
 .table th {
   padding: 13px 14px;
-  border-bottom: 1px solid #d5e2e2;
+  border-bottom: 1px solid var(--color-border);
   background: #008689;
   color: #fff;
   font-size: 12px;
@@ -137,7 +137,7 @@
 }
 
 .table tbody tr:hover {
-  background: #f1f8f7;
+  background: var(--color-surface-hover);
 }
 
 .empty {

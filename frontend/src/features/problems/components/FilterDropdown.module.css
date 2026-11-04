@@ -8,9 +8,9 @@
   align-items: center;
   gap: 8px;
   padding: 0 14px;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   cursor: pointer;
   font: inherit;
@@ -23,12 +23,12 @@
 .trigger:hover,
 .trigger[aria-expanded='true'] {
   border-color: var(--color-primary);
-  background: #f5fbfa;
+  background: var(--color-surface-subtle);
 }
 
 .trigger.active {
   border-color: var(--color-primary);
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
   color: var(--color-primary-dark);
 }
 
@@ -69,7 +69,7 @@
   padding: 6px;
   border: 1px solid rgba(0, 134, 137, 0.16);
   border-radius: 12px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 12px 30px rgba(4, 28, 35, 0.16);
   list-style: none;
 }
@@ -92,11 +92,11 @@
 }
 
 .option:hover {
-  background: #f1f8f7;
+  background: var(--color-surface-hover);
 }
 
 .option.selected {
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
   color: var(--color-primary-dark);
   font-weight: 700;
 }

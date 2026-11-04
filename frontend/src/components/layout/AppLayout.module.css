@@ -28,7 +28,7 @@
   transform: translateY(-160%);
   padding: 10px 14px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-primary-dark);
   font-size: 13px;
   font-weight: 700;

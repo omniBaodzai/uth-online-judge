@@ -56,7 +56,7 @@
   overflow: hidden;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -69,7 +69,7 @@
   padding: 12px;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -97,9 +97,9 @@
   width: 100%;
   height: 44px;
   padding: 0 14px 0 40px;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
   font-size: 14px;
@@ -149,7 +149,7 @@
   align-items: center;
   padding: 0 20px;
   min-height: 46px;
-  border-bottom: 1px solid #e3ebeb;
+  border-bottom: 1px solid var(--color-border);
   background: #008689;
   color: #ffffff;
   font-size: 12px;
@@ -172,8 +172,8 @@
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
-  background: #fff;
-  border-bottom: 1px solid #e8eeee;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-ink);
   transition: background-color 140ms ease;
 }
@@ -188,11 +188,11 @@
 }
 
 .top2 {
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .top3 {
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .viewer {
@@ -236,7 +236,7 @@
   display: grid;
   place-items: center;
   white-space: nowrap;
-  color: #5f7376;
+  color: var(--color-muted);
   font-size: 15px;
   font-variant-numeric: tabular-nums;
   font-weight: 750;
@@ -347,6 +347,53 @@
 .footer {
   padding: 14px 16px;
   border-top: 1px solid var(--color-border);
+}
+
+:global([data-theme='dark']) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(54, 185, 181, 0.1), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.93), rgba(16, 36, 38, 0.96)),
+    url('../../../assets/uth_background.jpg');
+}
+
+:global([data-theme='dark']) .card,
+:global([data-theme='dark']) .filters {
+  border-color: var(--color-border);
+  background: rgba(27, 48, 50, 0.96);
+}
+
+:global([data-theme='dark']) .search input {
+  border-color: var(--color-border);
+  background: #1b3032;
+}
+
+:global([data-theme='dark']) .viewerRank {
+  border-color: #356463;
+  background: #1d3839;
+  color: #b7e5df;
+}
+
+:global([data-theme='dark']) .entry,
+:global([data-theme='dark']) .top2,
+:global([data-theme='dark']) .top3 {
+  border-color: #344a4c;
+  background: #1b3032;
+}
+
+:global([data-theme='dark']) .top1 {
+  background: #3b382a;
+}
+
+:global([data-theme='dark']) .rowLink:hover {
+  background: #203b3d;
+}
+
+:global([data-theme='dark']) .top1 .rowLink:hover {
+  background: #48412a;
+}
+
+:global([data-theme='dark']) .rank {
+  color: #b4c5c6;
 }
 
 .error {

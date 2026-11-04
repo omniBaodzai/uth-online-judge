@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Bell, Inbox, MessageCircleReply } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useAuth } from '../../../features/auth/useAuth'
 import {
   getContactApiErrorMessage,
@@ -19,23 +21,25 @@ type NotificationBellProps = {
   userId: string
 }
 
-function formatRelativeTime(value: string): string {
+function formatRelativeTime(value: string, t: TFunction<'common'>, language: string): string {
   const timestamp = Date.parse(value)
-  if (Number.isNaN(timestamp)) return 'Thời gian không xác định'
+  if (Number.isNaN(timestamp)) return t('unknownTime')
 
   const elapsedMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000))
-  if (elapsedMinutes < 1) return 'Vừa xong'
-  if (elapsedMinutes < 60) return `${elapsedMinutes} phút trước`
+  if (elapsedMinutes < 1) return t('justNow')
+  if (elapsedMinutes < 60) return t('minutesAgo', { count: elapsedMinutes })
   const elapsedHours = Math.floor(elapsedMinutes / 60)
-  if (elapsedHours < 24) return `${elapsedHours} giờ trước`
+  if (elapsedHours < 24) return t('hoursAgo', { count: elapsedHours })
   const elapsedDays = Math.floor(elapsedHours / 24)
-  if (elapsedDays < 7) return `${elapsedDays} ngày trước`
-  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  if (elapsedDays < 7) return t('daysAgo', { count: elapsedDays })
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
     .format(timestamp)
 }
 
 function NotificationBell({ userId }: NotificationBellProps) {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation('common')
+  const language = i18n.resolvedLanguage === 'en' ? 'en' : 'vi'
   const { user, request } = useAuth()
   const { showToast } = useToast()
   const isCurrentUser = user?.id === userId
@@ -87,12 +91,12 @@ function NotificationBell({ userId }: NotificationBellProps) {
       }
     } catch (error) {
       if (mountedRef.current && sequence === countSequenceRef.current) {
-        setCountError(getContactApiErrorMessage(error, 'Không thể cập nhật số thông báo chưa đọc.'))
+        setCountError(getContactApiErrorMessage(error, t('notificationCountError')))
       }
     } finally {
       isLoadingCountRef.current = false
     }
-  }, [isCurrentUser])
+  }, [isCurrentUser, t])
 
   const refreshNotifications = useCallback(async () => {
     if (!isCurrentUser || isLoadingListRef.current) return
@@ -118,13 +122,13 @@ function NotificationBell({ userId }: NotificationBellProps) {
       if (mountedRef.current && sequence === listSequenceRef.current) {
         setNotifications([])
         setNotificationsLoaded(true)
-        setNotificationError(getContactApiErrorMessage(error, 'Không thể tải thông báo. Vui lòng thử lại.'))
+        setNotificationError(getContactApiErrorMessage(error, t('notificationLoadError')))
       }
     } finally {
       isLoadingListRef.current = false
       if (mountedRef.current && sequence === listSequenceRef.current) setIsLoadingNotifications(false)
     }
-  }, [isCurrentUser])
+  }, [isCurrentUser, t])
 
   useEffect(() => {
     if (!isCurrentUser) return
@@ -204,7 +208,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
     setIsOpen(false)
 
     if (notification.type !== 'CONTACT_REPLY' || !notification.contactMessageId.trim()) {
-      showToast('Thông báo không có liên kết yêu cầu hợp lệ.')
+      showToast(t('invalidNotificationLink'))
       return
     }
 
@@ -221,7 +225,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
         }
       } catch (error) {
         if (mountedRef.current) {
-          showToast(getContactApiErrorMessage(error, 'Không thể đánh dấu thông báo đã đọc.'))
+          showToast(getContactApiErrorMessage(error, t('markReadError')))
         }
       }
     }
@@ -243,7 +247,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
       setNotificationError('')
     } catch (error) {
       if (mountedRef.current) {
-        showToast(getContactApiErrorMessage(error, 'Không thể đánh dấu tất cả thông báo đã đọc.'))
+        showToast(getContactApiErrorMessage(error, t('markAllReadError')))
       }
     } finally {
       isMarkingAllRef.current = false
@@ -257,7 +261,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
         ref={buttonRef}
         className={styles.trigger}
         type="button"
-        aria-label={unreadCount ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo'}
+        aria-label={unreadCount ? t('unreadNotifications', { count: unreadCount }) : t('notifications')}
         aria-expanded={isOpen}
         aria-controls={isOpen ? dropdownId : undefined}
         onClick={toggleDropdown}
@@ -274,7 +278,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
         <section
           className={styles.dropdown}
           id={dropdownId}
-          aria-label="Danh sách thông báo"
+          aria-label={t('notificationList')}
           style={mobileDropdownPosition ? {
             position: 'absolute',
             left: mobileDropdownPosition.left,
@@ -286,8 +290,8 @@ function NotificationBell({ userId }: NotificationBellProps) {
         >
           <header className={styles.dropdownHeader}>
             <div className={styles.heading}>
-              <h2>Thông báo</h2>
-              {unreadCount > 0 && <span className={styles.unreadCount}>{unreadCount} chưa đọc</span>}
+              <h2>{t('notifications')}</h2>
+              {unreadCount > 0 && <span className={styles.unreadCount}>{t('unreadCount', { count: unreadCount })}</span>}
             </div>
             {unreadCount > 0 && (
               <button
@@ -296,7 +300,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
                 onClick={() => void markAllRead()}
                 disabled={isMarkingAllRead}
               >
-                {isMarkingAllRead ? 'Đang cập nhật...' : 'Đánh dấu tất cả đã đọc'}
+                {isMarkingAllRead ? t('updating') : t('markAllRead')}
               </button>
             )}
           </header>
@@ -305,23 +309,23 @@ function NotificationBell({ userId }: NotificationBellProps) {
           {isLoadingNotifications || !notificationsLoaded ? (
             <div className={styles.emptyState} role="status">
               <span className={styles.emptyIcon}><Inbox size={22} aria-hidden="true" /></span>
-              <p>Đang tải thông báo...</p>
+              <p>{t('loadingNotifications')}</p>
             </div>
           ) : notificationError ? (
             <p className={styles.disclaimer} role="alert">{notificationError}</p>
           ) : notifications.length === 0 ? (
             <div className={styles.emptyState}>
               <span className={styles.emptyIcon}><Inbox size={22} aria-hidden="true" /></span>
-              <p>Bạn chưa có thông báo nào.</p>
+              <p>{t('noNotifications')}</p>
             </div>
           ) : (
-            <ul className={styles.notificationList} aria-label={`${notifications.length} thông báo`}>
+            <ul className={styles.notificationList} aria-label={t('notificationCount', { count: notifications.length })}>
               {notifications.map((notification) => (
                 <li key={notification.id}>
                   <button
                     className={`${styles.notificationItem} ${!notification.isRead ? styles.unread : ''}`}
                     type="button"
-                    aria-label={`${notification.title}. ${notification.message} ${formatRelativeTime(notification.createdAt)}${notification.isRead ? ', đã đọc' : ', chưa đọc'}`}
+                    aria-label={`${notification.title}. ${notification.message} ${formatRelativeTime(notification.createdAt, t, language)}${notification.isRead ? `, ${t('read')}` : `, ${t('unread')}`}`}
                     onClick={() => void openNotification(notification)}
                   >
                     <span className={styles.notificationIcon}>
@@ -331,8 +335,8 @@ function NotificationBell({ userId }: NotificationBellProps) {
                       <span className={styles.notificationTitle}>{notification.title}</span>
                       <span className={styles.notificationMessage}>{notification.message}</span>
                       <span className={styles.notificationMeta}>
-                        <time dateTime={notification.createdAt}>{formatRelativeTime(notification.createdAt)}</time>
-                        <span className={styles.mockLabel}>{notification.isRead ? 'Đã đọc' : 'Chưa đọc'}</span>
+                        <time dateTime={notification.createdAt}>{formatRelativeTime(notification.createdAt, t, language)}</time>
+                        <span className={styles.mockLabel}>{notification.isRead ? t('read') : t('unread')}</span>
                       </span>
                     </span>
                     {!notification.isRead && <span className={styles.unreadDot} aria-hidden="true" />}
@@ -341,7 +345,7 @@ function NotificationBell({ userId }: NotificationBellProps) {
               ))}
             </ul>
           )}
-          <p className={styles.disclaimer}>Thông báo phản hồi được cập nhật từ hệ thống.</p>
+          <p className={styles.disclaimer}>{t('notificationDisclaimer')}</p>
         </section>
       )}
     </div>

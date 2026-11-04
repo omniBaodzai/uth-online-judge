@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Crown } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { formatExecutionTime, formatMemory, getVerdictBadge, type Submission } from '../data'
+import { submissionVerdictTranslationKeys } from '../data/submission-verdicts'
 import styles from './SubmissionTable.module.css'
 
 type SubmissionTableProps = {
@@ -15,9 +17,6 @@ type SubmissionTableProps = {
   hideProblem?: boolean
 }
 
-const dateFormat = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-const timeFormat = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
-
 function SubmissionTable({
   items,
   isLoading = false,
@@ -28,9 +27,13 @@ function SubmissionTable({
   emptyDescription,
   contestIdentifier,
 }: SubmissionTableProps) {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const dateFormat = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const timeFormat = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
   if (isLoading) {
     return (
-      <ul className={styles.skeletons} aria-label="Đang tải dữ liệu" aria-busy="true">
+      <ul className={styles.skeletons} aria-label={t('loadingData')} aria-busy="true">
         {Array.from({ length: 6 }, (_, i) => (
           <li key={i} className={styles.skeleton} />
         ))}
@@ -41,30 +44,34 @@ function SubmissionTable({
   if (items.length === 0) {
     return (
       <div className={styles.empty}>
-        <strong>{emptyTitle ?? (hasFilters ? 'Không tìm thấy bài nộp phù hợp' : 'Chưa có bài nộp nào')}</strong>
-        <p>{emptyDescription ?? (hasFilters ? 'Hãy thử đổi từ khóa hoặc đặt lại bộ lọc.' : 'Các bài nộp mới sẽ xuất hiện tại đây.')}</p>
+        <strong>{emptyTitle ?? (hasFilters ? t('noMatchingSubmissions') : t('noSubmissions'))}</strong>
+        <p>{emptyDescription ?? (hasFilters ? t('submissionSearchHint') : t('newSubmissionsHint'))}</p>
       </div>
     )
   }
 
   return (
-    <div className={styles.wrap} tabIndex={0} role="region" aria-label="Bảng danh sách bài nộp">
+    <div className={styles.wrap} tabIndex={0} role="region" aria-label={t('submissionTableLabel')}>
       <table className={styles.table}>
         <thead>
           <tr>
             {showRank && <th scope="col">Thứ hạng</th>}
             <th scope="col">Kết quả</th>
-            <th scope="col">Thời gian nộp</th>
-            <th scope="col">Coder</th>
-            {!hideProblem && <th scope="col">Tên bài tập</th>}
-            <th scope="col">Ngôn ngữ</th>
-            <th scope="col" className={styles.num}>Thời gian chạy</th>
-            <th scope="col" className={styles.num}>Bộ nhớ</th>
+            <th scope="col">{t('submittedAt')}</th>
+            <th scope="col">{t('coder')}</th>
+            {!hideProblem && <th scope="col">{t('problemName')}</th>}
+            <th scope="col">{t('language', { ns: 'common' })}</th>
+            <th scope="col" className={styles.num}>{t('runtime')}</th>
+            <th scope="col" className={styles.num}>{t('memory')}</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item) => {
             const meta = getVerdictBadge(item.status)
+            const verdictTranslationKey = submissionVerdictTranslationKeys[item.status]
+            const verdictLabel = verdictTranslationKey
+              ? t(verdictTranslationKey)
+              : meta.name
             const date = new Date(item.submittedAt)
             const validDate = !Number.isNaN(date.getTime())
             const badgeStyle = { color: meta.color, background: meta.background }
@@ -83,12 +90,12 @@ function SubmissionTable({
                       className={`${styles.badge} ${styles.badgeLink}`}
                       style={badgeStyle}
                       to={`/submissions/${encodeURIComponent(item.id)}`}
-                      title={`${meta.name} — xem chi tiết`}
+                      title={`${verdictLabel} — ${t('viewSubmissionDetails')}`}
                     >
                       {meta.abbr}
                     </Link>
                   ) : (
-                    <span className={styles.badge} style={badgeStyle} title={meta.name}>
+                    <span className={styles.badge} style={badgeStyle} title={verdictLabel}>
                       {meta.abbr}
                     </span>
                   )}
@@ -98,7 +105,7 @@ function SubmissionTable({
                   <span>{validDate ? timeFormat.format(date) : ''}</span>
                 </td>
                 {/* Chưa có route hồ sơ công khai nên chưa gắn liên kết cho coder. */}
-                <td className={styles.coder}>{item.username ?? 'Ẩn danh'}</td>
+                <td className={styles.coder}>{item.username ?? t('anonymous')}</td>
                 {!hideProblem && (
                   <td>
                     <Link

@@ -43,7 +43,7 @@
   min-width: 0;
   border: 1px solid rgba(224, 235, 235, 0.95);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -94,7 +94,7 @@
 
 .aboutDescription {
   margin: 18px 0 0;
-  color: #52696c;
+  color: var(--color-muted);
   font-size: 14px;
   line-height: 1.7;
 }
@@ -225,7 +225,7 @@ a.contactValue:hover {
 }
 
 .field label {
-  color: #334e51;
+  color: var(--color-ink);
   font-size: 13px;
   font-weight: 650;
 }
@@ -239,9 +239,9 @@ a.contactValue:hover {
   width: 100%;
   min-height: 46px;
   padding: 11px 13px;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
   font-size: 14px;
@@ -334,6 +334,34 @@ a.contactValue:hover {
   color: #245c5b;
   font-size: 13px;
   line-height: 1.55;
+}
+
+:global([data-theme='dark']) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(54, 185, 181, 0.1), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.93), rgba(16, 36, 38, 0.96)),
+    url('../../../assets/uth_background.jpg');
+}
+
+:global([data-theme='dark']) .card {
+  border-color: var(--color-border);
+  background: rgba(27, 48, 50, 0.97);
+}
+
+:global([data-theme='dark']) .aboutDescription {
+  color: #b6c8c8;
+}
+
+:global([data-theme='dark']) .contactIcon,
+:global([data-theme='dark']) .formIcon {
+  background: #254446;
+  color: #9de1d8;
+}
+
+:global([data-theme='dark']) .notice {
+  border-color: #356463;
+  background: #1d3839;
+  color: #b7e5df;
 }
 
 @media (max-width: 860px) {

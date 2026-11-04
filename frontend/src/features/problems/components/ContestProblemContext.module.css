@@ -17,7 +17,7 @@
   margin-inline: auto;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
   box-shadow: var(--shadow-card);
 }
 

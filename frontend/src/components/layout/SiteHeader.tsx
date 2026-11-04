@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
-import { KeyRound, LogOut, UserRound, UserRoundPen } from 'lucide-react'
+import { Globe, KeyRound, LogOut, Monitor, Moon, Sun, UserRound, UserRoundPen } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from './SiteHeader.module.css'
 import uthLogo from '../../assets/uth_logo.png'
 import { useAuth } from '../../features/auth/useAuth'
@@ -9,14 +10,16 @@ import UserAvatar from '../../features/profile/components/UserAvatar'
 import NotificationBell from './notifications/NotificationBell'
 import ChangePasswordDialog from './ChangePasswordDialog'
 import { useToast } from '../ui/toast-context'
+import { useTheme } from '../../theme/useTheme'
+import { changeLanguage } from '../../i18n'
 
 const navigationLinks = [
-  { label: 'Bài tập', href: '/problems' },
-  { label: 'Bảng chấm bài', href: '/submissions' },
-  { label: 'Bảng xếp hạng', href: '/leaderboard' },
-  { label: 'Cuộc thi', href: '/contests' },
-  { label: 'Tổ chức', href: '/organizations' },
-  { label: 'Liên hệ', href: '/contact' },
+  { label: 'problems', href: '/problems' },
+  { label: 'submissions', href: '/submissions' },
+  { label: 'leaderboard', href: '/leaderboard' },
+  { label: 'contests', href: '/contests' },
+  { label: 'organizations', href: '/organizations' },
+  { label: 'contact', href: '/contact' },
 ]
 
 const LOGOUT_TOAST_DURATION_MS = 5000
@@ -33,6 +36,15 @@ function SiteHeader() {
   const accountButtonRef = useRef<HTMLButtonElement>(null)
   const { showToast } = useToast()
   const { user, isLoading: isRestoringSession, logout } = useAuth()
+  const { t, i18n } = useTranslation('common')
+  const { mode, resolvedTheme, setMode } = useTheme()
+  const language = i18n.resolvedLanguage === 'en' ? 'en' : 'vi'
+  const nextTheme = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light'
+  const themeName = t(`theme${mode[0]?.toUpperCase()}${mode.slice(1)}`)
+
+  function toggleLanguage() {
+    void changeLanguage(language === 'vi' ? 'en' : 'vi')
+  }
 
   async function handleLogout() {
     setLogoutError('')
@@ -43,7 +55,7 @@ function SiteHeader() {
       setLogoutSuccess(true)
       navigate('/', { replace: true })
     } catch {
-      setLogoutError('Không thể thu hồi phiên trên máy chủ. Vui lòng thử đăng xuất lại.')
+      setLogoutError(t('logoutError'))
     } finally {
       setIsLoggingOut(false)
     }
@@ -56,7 +68,7 @@ function SiteHeader() {
 
   function handlePasswordChanged() {
     setChangePasswordOpen(false)
-    showToast('Mật khẩu đã được cập nhật.')
+    showToast(t('passwordChanged'))
     window.requestAnimationFrame(() => accountButtonRef.current?.focus())
   }
 
@@ -100,27 +112,27 @@ function SiteHeader() {
       <a
         className={styles.brand}
         href="/"
-        aria-label="UTH Online Judge - Trang chủ"
+        aria-label={t('homeLabel')}
         onClick={() => window.scrollTo(0, 0)}
       >
-        <img src={uthLogo} alt="Trường đại học Giao thông vận tải Thành phố Hồ Chí Minh" />
+        <img src={uthLogo} alt={t('university')} />
       </a>
 
       <div
         className={`${styles.menuPanel} ${menuOpen ? styles.menuPanelOpen : ''}`}
         id="primary-navigation-panel"
       >
-        <nav className={styles.navigation} aria-label="Điều hướng chính">
+        <nav className={styles.navigation} aria-label={t('navLabel')}>
           <ul className={styles.navigationList}>
             {navigationLinks.map(({ label, href }) => (
-              <li key={label}>
+              <li key={href}>
                 {href.startsWith('/') ? (
                   <NavLink
                     className={styles.navigationLink}
                     to={href}
                     onClick={() => setMenuOpen(false)}
                   >
-                    {label}
+                    {t(label)}
                   </NavLink>
                 ) : (
                   <a
@@ -128,7 +140,7 @@ function SiteHeader() {
                     href={href}
                     onClick={() => setMenuOpen(false)}
                   >
-                    {label}
+                    {t(label)}
                   </a>
                 )}
               </li>
@@ -137,8 +149,35 @@ function SiteHeader() {
         </nav>
 
         <div className={styles.accountActions} aria-busy={isRestoringSession && !user}>
+          <div className={styles.appearanceControls} aria-label={t('appearanceSettings')}>
+            <button
+              className={styles.appearanceButton}
+              type="button"
+              aria-label={`${t('selectTheme')}: ${themeName}`}
+              title={`${t('theme')}: ${themeName}`}
+              onClick={() => setMode(nextTheme)}
+            >
+              {mode === 'system' ? (
+                <Monitor size={17} aria-hidden="true" />
+              ) : resolvedTheme === 'dark' ? (
+                <Moon size={17} aria-hidden="true" />
+              ) : (
+                <Sun size={17} aria-hidden="true" />
+              )}
+            </button>
+            <button
+              className={styles.languageButton}
+              type="button"
+              aria-label={`${t('selectLanguage')}: ${language === 'vi' ? t('languageVietnamese') : t('languageEnglish')}`}
+              title={`${t('language')}: ${language === 'vi' ? t('languageVietnamese') : t('languageEnglish')}`}
+              onClick={toggleLanguage}
+            >
+              <Globe size={16} aria-hidden="true" />
+              <span>{language.toUpperCase()}</span>
+            </button>
+          </div>
           {isRestoringSession && !user ? (
-            <div className={styles.accountSkeleton} role="status" aria-label="Đang kiểm tra phiên đăng nhập">
+            <div className={styles.accountSkeleton} role="status" aria-label={t('checkingSession')}>
               <span />
               <span />
             </div>
@@ -153,6 +192,7 @@ function SiteHeader() {
                     ref={accountButtonRef}
                     aria-expanded={accountMenuOpen}
                     aria-controls="account-menu"
+                    aria-label={t('accountMenu')}
                     onClick={() => setAccountMenuOpen((open) => !open)}
                   >
                     <UserAvatar
@@ -160,7 +200,7 @@ function SiteHeader() {
                       username={user.username ?? user.email}
                     />
                     <span className={styles.userGreeting}>
-                      <span className={styles.greetingLabel}>Xin chào,</span>
+                      <span className={styles.greetingLabel}>{t('accountGreeting')}</span>
                       <span className={styles.username} title={user.username ?? user.email}>
                         {user.username ?? user.email}
                       </span>
@@ -177,7 +217,7 @@ function SiteHeader() {
                         }}
                       >
                         <UserRound size={18} aria-hidden="true" />
-                        Thông tin cá nhân
+                        {t('profile')}
                       </Link>
                       <button
                         type="button"
@@ -187,7 +227,7 @@ function SiteHeader() {
                         }}
                       >
                         <KeyRound size={18} aria-hidden="true" />
-                        Đổi mật khẩu
+                        {t('changePassword')}
                       </button>
                       <Link
                         to="/profile/edit"
@@ -197,7 +237,7 @@ function SiteHeader() {
                         }}
                       >
                         <UserRoundPen size={18} aria-hidden="true" />
-                        Chỉnh sửa hồ sơ
+                        {t('editProfile')}
                       </Link>
                       <button
                         type="button"
@@ -205,7 +245,7 @@ function SiteHeader() {
                         disabled={isLoggingOut}
                       >
                         <LogOut size={18} aria-hidden="true" />
-                        {isLoggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}
+                        {t(isLoggingOut ? 'loggingOut' : 'logout')}
                       </button>
                     </div>
                   )}
@@ -215,10 +255,10 @@ function SiteHeader() {
           ) : (
             <>
               <Link className={styles.registerLink} to="/register" onClick={() => setMenuOpen(false)}>
-                Đăng ký
+                {t('register')}
               </Link>
               <Link className={styles.loginLink} to="/login" onClick={() => setMenuOpen(false)}>
-                Đăng nhập
+                {t('login')}
               </Link>
             </>
           )}
@@ -235,12 +275,12 @@ function SiteHeader() {
         >
           <span className={styles.successIcon} aria-hidden="true">✓</span>
           <span>
-            <strong>Đăng xuất thành công!</strong>
-            <span>Hẹn gặp lại bạn nhé.</span>
+            <strong>{t('logoutSuccess')}</strong>
+            <span>{t('seeYou')}</span>
           </span>
           <button
             type="button"
-            aria-label="Đóng thông báo đăng xuất"
+            aria-label={t('closeLogoutNotice')}
             onClick={() => setLogoutSuccess(false)}
           >
             ×
@@ -258,7 +298,7 @@ function SiteHeader() {
       <button
         className={styles.menuToggle}
         type="button"
-        aria-label={menuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
+        aria-label={t(menuOpen ? 'closeNavigation' : 'openNavigation')}
         aria-expanded={menuOpen}
         aria-controls="primary-navigation-panel"
         onClick={() => setMenuOpen((open) => !open)}

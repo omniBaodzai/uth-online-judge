@@ -43,7 +43,7 @@
   padding: 22px;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in srgb, var(--color-surface) 95%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -87,7 +87,7 @@
   align-items: center;
   overflow: hidden;
   margin: 0 0 22px;
-  border: 1px solid #e3ebeb;
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   background: #f7fafa;
 }
@@ -203,7 +203,7 @@
 
 .codeBlock {
   overflow: hidden;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   background: #f5f9f9;
 }
@@ -214,7 +214,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 8px 0 12px;
-  border-bottom: 1px solid #d5e2e2;
+  border-bottom: 1px solid var(--color-border);
   background: #008689;
   color: #ffffff;
   font-size: 12px;
@@ -237,14 +237,14 @@
 }
 
 .codeHeader button:hover {
-  background: #dff1f0;
+  background: var(--color-surface-hover);
 }
 
 .codeBlock pre {
   margin: 0;
   padding: 12px;
   overflow-x: auto;
-  color: #183337;
+  color: var(--color-ink);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
   font-size: 14px;
   line-height: 1.6;
@@ -298,9 +298,9 @@
 .commentForm textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #d5e2e2;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
   font-size: 14px;
@@ -458,7 +458,7 @@
 
 .actions a:hover,
 .actions button:hover {
-  background: #f1f8f7;
+  background: var(--color-surface-hover);
   color: var(--color-primary-dark);
 }
 
@@ -527,7 +527,7 @@
 }
 
 .langs li {
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
   color: var(--color-primary-dark);
 }
 
@@ -545,7 +545,7 @@
   padding: 36px;
   border: 1px solid rgba(224, 235, 235, 0.9);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in srgb, var(--color-surface) 95%, transparent);
   text-align: center;
 }
 

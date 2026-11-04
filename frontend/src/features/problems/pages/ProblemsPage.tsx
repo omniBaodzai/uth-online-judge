@@ -1,21 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../auth/api'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
 import { submissionPageSizes } from '../../submissions/data'
 import { fetchProblems, fetchTags, type ProblemListItem, type Tag } from '../api'
 import FilterDropdown from '../components/FilterDropdown'
-import { statusLabels, statusOptions, type ProblemStatus } from '../data'
+import { statusOptions, type ProblemStatus } from '../data'
 import { useProblemsFetcher } from '../useProblemsFetcher'
 import styles from './ProblemsPage.module.css'
 
 const DEFAULT_PAGE_SIZE = submissionPageSizes[0]
 const LATEST_COUNT = 5
 
-const statusFilterOptions = statusOptions.map((value) => ({ value, label: statusLabels[value] }))
-
-function StatusIcon({ status }: { status: ProblemStatus }) {
-  const label = statusLabels[status]
+function StatusIcon({ status, label }: { status: ProblemStatus; label: string }) {
   return (
     <span className={`${styles.statusIcon} ${styles[status]}`} role="img" aria-label={label} title={label}>
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -27,12 +25,12 @@ function StatusIcon({ status }: { status: ProblemStatus }) {
   )
 }
 
-function formatDate(iso: string | null) {
-  return iso ? new Date(iso).toLocaleDateString('vi-VN') : ''
+function formatDate(iso: string | null, locale: string) {
+  return iso ? new Date(iso).toLocaleDateString(locale) : ''
 }
 
-function errorMessage(error: unknown) {
-  return error instanceof ApiError ? error.message : 'Không thể tải dữ liệu. Vui lòng thử lại.'
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof ApiError ? error.message : fallback
 }
 
 type ListState =
@@ -41,6 +39,8 @@ type ListState =
   | { phase: 'ready'; items: ProblemListItem[]; total: number }
 
 function ProblemsPage() {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const { fetcher, ready } = useProblemsFetcher()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -106,14 +106,18 @@ function ProblemsPage() {
         setList({ phase: 'ready', items: result.items, total: result.total })
       })
       .catch((error: unknown) => {
-        if (!cancelled) setList({ phase: 'error', message: errorMessage(error) })
+      if (!cancelled) setList({ phase: 'error', message: errorMessage(error, t('loadProblemsError')) })
       })
     return () => {
       cancelled = true
     }
-  }, [fetcher, ready, page, pageSize, search, statusFilter, topicFilter, reloadKey])
+  }, [fetcher, ready, page, pageSize, search, statusFilter, topicFilter, reloadKey, t])
 
   const topicFilterOptions = tags.map((tag) => ({ value: tag.slug, label: tag.name }))
+  const statusFilterOptions = statusOptions.map((value) => ({
+    value,
+    label: t(value === 'solved' ? 'problemStatusSolved' : value === 'wrong' ? 'problemStatusWrong' : 'problemStatusUnsolved'),
+  }))
   const isLoading = list.phase === 'loading'
   const totalItems = list.phase === 'ready' ? list.total : 0
   const paginationProps = {
@@ -121,8 +125,8 @@ function ProblemsPage() {
     pageSize,
     totalItems,
     pageSizes: submissionPageSizes,
-    label: 'bài tập',
-    summaryLabel: 'bài tập',
+    label: t('problemsPaginationLabel'),
+    summaryLabel: t('problemsPaginationLabel'),
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
       setPageSize(size)
@@ -133,7 +137,7 @@ function ProblemsPage() {
   return (
     <main className={styles.main} id="main-content">
       <div className={styles.grid}>
-        <h1 id="problems-title" className={styles.title}>Danh sách bài tập</h1>
+        <h1 id="problems-title" className={styles.title}>{t('problemList')}</h1>
 
           <form className={styles.filters} role="search" onSubmit={(e) => e.preventDefault()}>
             <div className={styles.search}>
@@ -143,15 +147,15 @@ function ProblemsPage() {
               </svg>
               <input
                 type="search"
-                aria-label="Tìm kiếm bài tập"
-                placeholder="Tìm kiếm bài tập theo tên hoặc mã bài tập..."
+                aria-label={t('searchProblemsLabel')}
+                placeholder={t('searchProblems')}
                 maxLength={100}
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
               />
             </div>
             <FilterDropdown
-              label="Trạng thái"
+              label={t('status')}
               options={statusFilterOptions}
               selected={statusFilter}
               onChange={(value) => {
@@ -160,7 +164,7 @@ function ProblemsPage() {
               }}
             />
             <FilterDropdown
-              label="Chủ đề"
+              label={t('topic')}
               options={topicFilterOptions}
               selected={topicFilter}
               multiple
@@ -176,42 +180,47 @@ function ProblemsPage() {
               <SubmissionPagination {...paginationProps} showPageSize={false} />
             </div>
             {list.phase === 'loading' ? (
-              <ul className={styles.skeletons} aria-label="Đang tải dữ liệu">
+              <ul className={styles.skeletons} aria-label={t('loadingData')}>
                 {Array.from({ length: 6 }, (_, i) => (
                   <li key={i} className={styles.skeleton} />
                 ))}
               </ul>
             ) : list.phase === 'error' ? (
               <div className={styles.empty} role="alert">
-                <strong>Không thể tải danh sách bài tập</strong>
+                <strong>{t('loadProblemsError')}</strong>
                 <p>{list.message}</p>
                 <button className={styles.retry} type="button" onClick={() => setReloadKey((key) => key + 1)}>
-                  Thử lại
+                  {t('retry')}
                 </button>
               </div>
             ) : list.items.length === 0 ? (
               <div className={styles.empty}>
-                <strong>Không tìm thấy bài tập phù hợp</strong>
-                <p>Hãy thử đổi từ khóa hoặc nới lỏng bộ lọc.</p>
+                <strong>{t('noMatchingProblems')}</strong>
+                <p>{t('adjustSearch')}</p>
               </div>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th scope="col" className={styles.center}>Trạng thái</th>
-                      <th scope="col">Mã bài tập</th>
-                      <th scope="col">Tên bài tập</th>
-                      <th scope="col" className={styles.num}>Điểm</th>
-                      <th scope="col" className={styles.num}>Tỷ lệ AC</th>
-                      <th scope="col" className={styles.num}>Số lượng AC</th>
-                      <th scope="col" className={styles.center}>Lời giải</th>
+                      <th scope="col" className={styles.center}>{t('status')}</th>
+                      <th scope="col">{t('problemCode')}</th>
+                      <th scope="col">{t('problemName')}</th>
+                      <th scope="col" className={styles.num}>{t('points')}</th>
+                      <th scope="col" className={styles.num}>{t('acceptanceRate')}</th>
+                      <th scope="col" className={styles.num}>{t('acceptedCount')}</th>
+                      <th scope="col" className={styles.center}>{t('solution')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.items.map((p) => (
                       <tr key={p.code}>
-                        <td className={styles.center}><StatusIcon status={p.status} /></td>
+                        <td className={styles.center}>
+                          <StatusIcon
+                            status={p.status}
+                            label={t(p.status === 'solved' ? 'problemStatusSolved' : p.status === 'wrong' ? 'problemStatusWrong' : 'problemStatusUnsolved')}
+                          />
+                        </td>
                         <td className={styles.code}>{p.code}</td>
                         <td>
                           <Link className={styles.titleLink} to={`/problems/${p.code}`}>
@@ -220,21 +229,21 @@ function ProblemsPage() {
                         </td>
                         <td className={styles.num}>{p.scoringEnabled ? p.points : '—'}</td>
                         <td className={styles.num}>{p.acceptanceRate.toFixed(1)}%</td>
-                        <td className={styles.num}>{p.acCount.toLocaleString('vi-VN')}</td>
+                        <td className={styles.num}>{p.acCount.toLocaleString(locale)}</td>
                         <td className={styles.center}>
                           {p.hasSolution ? (
                             <Link
                               className={styles.solutionLink}
                               to={`/problems/${p.code}/solution`}
-                              aria-label={`Lời giải bài ${p.title}`}
-                              title="Xem lời giải"
+                              aria-label={`${t('solution')} ${p.title}`}
+                              title={t('solution')}
                             >
                               <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" />
                               </svg>
                             </Link>
                           ) : (
-                            <span className={styles.noSolution} aria-label="Chưa có lời giải">—</span>
+                            <span className={styles.noSolution} aria-label={t('noSolution')}>—</span>
                           )}
                         </td>
                       </tr>
@@ -250,9 +259,9 @@ function ProblemsPage() {
           </div>
 
         <aside className={styles.latest} aria-labelledby="latest-title">
-          <h2 id="latest-title">Bài tập mới nhất</h2>
+          <h2 id="latest-title">{t('latestProblems')}</h2>
           {latest.length === 0 ? (
-            <p>Chưa có bài tập nào được xuất bản.</p>
+            <p>{t('noPublishedProblems')}</p>
           ) : (
             <ol className={styles.latestList}>
               {latest.map((p) => (
@@ -260,7 +269,7 @@ function ProblemsPage() {
                   <Link to={`/problems/${p.code}`}>
                     <span className={styles.latestTitle}>{p.title}</span>
                     <span className={styles.latestMeta}>
-                      {p.code} · {formatDate(p.publishedAt)}
+                      {p.code} · {formatDate(p.publishedAt, locale)}
                     </span>
                   </Link>
                 </li>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Pagination from '../../../components/ui/Pagination'
 import { request } from '../../auth/api'
 import {
@@ -22,8 +23,6 @@ type FeedState = {
 }
 
 const pageSize = 3
-
-const tabLabels: Record<FeedTab, string> = { news: 'Tin tức', discussion: 'Thảo luận' }
 
 function useFeed(tab: FeedTab, page: number): FeedState & { retry: () => void } {
   const [state, setState] = useState<FeedState>({ items: [], total: 0, status: 'loading' })
@@ -53,6 +52,7 @@ function useFeed(tab: FeedTab, page: number): FeedState & { retry: () => void } 
 }
 
 function CommunityFeed() {
+  const { t } = useTranslation('home')
   const [activeTab, setActiveTab] = useState<FeedTab>('news')
   const [pages, setPages] = useState<Record<FeedTab, number>>({ news: 1, discussion: 1 })
   const news = useFeed('news', pages.news)
@@ -69,14 +69,19 @@ function CommunityFeed() {
     document.getElementById(`${nextTab}-tab`)?.focus()
   }
 
+  const tabLabels: Record<FeedTab, string> = {
+    news: t('newsTab'),
+    discussion: t('discussionsTab'),
+  }
+
   return (
-    <section className={styles.feed} id="community" aria-label="Tin tức và thảo luận">
+    <section className={styles.feed} id="community" aria-label={t('communitySection')}>
       <div className={styles.feedHeader}>
-        <h2 className={styles.sectionTitle}>Góc cộng đồng</h2>
+        <h2 className={styles.sectionTitle}>{t('communitySection')}</h2>
         <div
           className={styles.tabs}
           role="tablist"
-          aria-label="Chọn nội dung cộng đồng"
+          aria-label={t('communityTablist')}
           onKeyDown={handleTabKeyDown}
         >
           {(Object.keys(tabLabels) as FeedTab[]).map((id) => (
@@ -108,26 +113,26 @@ function CommunityFeed() {
       >
         {active.status === 'error' ? (
           <div className={styles.empty}>
-            <strong>Không thể tải nội dung</strong>
-            <p>Vui lòng kiểm tra kết nối và thử lại.</p>
+          <strong>{t('loadFeedError')}</strong>
+          <p>{t('feedConnectionHint')}</p>
             <button className={styles.retry} type="button" onClick={active.retry}>
-              Thử lại
+            {t('retry', { ns: 'common' })}
             </button>
           </div>
         ) : active.status === 'loading' && active.items.length === 0 ? (
           <div className={styles.empty}>
-            <p>Đang tải nội dung…</p>
+            <p>{t('loadingFeed')}</p>
           </div>
         ) : active.items.length === 0 ? (
           activeTab === 'news' ? (
             <div className={styles.empty}>
-              <strong>Chưa có tin tức</strong>
-              <p>Tin tức mới sẽ xuất hiện tại đây.</p>
+              <strong>{t('noNews')}</strong>
+              <p>{t('newsWillAppear')}</p>
             </div>
           ) : (
             <div className={styles.empty}>
-              <strong>Chưa có cuộc thảo luận nào</strong>
-              <p>Hãy là người đầu tiên đặt câu hỏi hoặc chia sẻ kinh nghiệm với cộng đồng.</p>
+              <strong>{t('noDiscussions')}</strong>
+              <p>{t('startDiscussion')}</p>
               <CreateDiscussionButton className={styles.createButton} />
             </div>
           )
@@ -141,7 +146,7 @@ function CommunityFeed() {
       <div className={styles.footer}>
         <div className={styles.footerLinks}>
           <Link className={styles.viewAll} to={activeTab === 'news' ? '/news' : '/discussions'}>
-            Xem tất cả
+            {t('viewAll', { ns: 'common' })}
           </Link>
           {activeTab === 'discussion' && active.items.length > 0 ? (
             <CreateDiscussionButton className={styles.createButton} />
@@ -152,7 +157,7 @@ function CommunityFeed() {
           currentPage={pages[activeTab]}
           totalPages={totalPages(active.total, pageSize)}
           onPageChange={(page) => setPages((previous) => ({ ...previous, [activeTab]: page }))}
-          label={activeTab === 'news' ? 'tin tức' : 'thảo luận'}
+          label={tabLabels[activeTab]}
         />
       </div>
     </section>
@@ -160,13 +165,15 @@ function CommunityFeed() {
 }
 
 function FeedEntry({ item, isDiscussion }: { item: FeedEntryData; isDiscussion: boolean }) {
-  const { day, month } = toDateBlock(item.dateTime)
+  const { t, i18n } = useTranslation('home')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const { day, month } = toDateBlock(item.dateTime, locale)
   return (
     <article className={styles.entry}>
       {isDiscussion ? (
-        <div className={styles.replyBlock} aria-label={`${item.replies ?? 0} phản hồi`}>
+        <div className={styles.replyBlock} aria-label={t('replyCount', { count: item.replies ?? 0, ns: 'common' })}>
           <strong>{item.replies ?? 0}</strong>
-          <span>phản hồi</span>
+          <span>{t('replyLabel')}</span>
         </div>
       ) : (
         <div className={styles.dateBlock} aria-hidden="true">
@@ -184,8 +191,8 @@ function FeedEntry({ item, isDiscussion }: { item: FeedEntryData; isDiscussion: 
         <p className={styles.entryMeta}>
           {item.category ? <span className={styles.category}>{item.category}</span> : null}
           <span>{item.author}</span>
-          <time dateTime={item.dateTime ?? undefined}>{formatDate(item.dateTime)}</time>
-          {item.reactions ? <span>{item.reactions} cảm xúc</span> : null}
+          <time dateTime={item.dateTime ?? undefined}>{formatDate(item.dateTime, locale)}</time>
+          {item.reactions ? <span>{t('reactionCount', { count: item.reactions, ns: 'common' })}</span> : null}
         </p>
       </div>
     </article>

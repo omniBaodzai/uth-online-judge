@@ -34,7 +34,7 @@
   padding: 18px 20px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in srgb, var(--color-surface) 95%, transparent);
 }
 
 .headerText {
@@ -169,7 +169,7 @@
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
 }
 
 .scoreCard,
@@ -224,7 +224,7 @@
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
 }
 
 .sectionHeading {
@@ -343,7 +343,7 @@
   padding: 0 12px;
   border: 1px solid #c8d9d9;
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-primary-dark);
   cursor: pointer;
   font: inherit;
@@ -356,7 +356,7 @@
 .secondaryButton:hover,
 .secondaryLink:hover {
   border-color: #8bbdbd;
-  background: #f1f8f7;
+  background: var(--color-surface-hover);
 }
 
 .secondaryButton:focus-visible,
@@ -426,7 +426,7 @@
   padding: 24px;
   border: 1px solid var(--color-border);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.97);
+  background: color-mix(in srgb, var(--color-surface) 97%, transparent);
 }
 
 .stateCard h1 {

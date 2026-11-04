@@ -19,7 +19,7 @@
   transform: translateY(-160%);
   padding: 10px 14px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-primary-dark);
   font-size: 13px;
   font-weight: 700;
@@ -60,6 +60,13 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+:global([data-theme='dark']) .main {
+  background-image:
+    radial-gradient(ellipse at 4% 0%, rgba(54, 185, 181, 0.1), transparent 34%),
+    linear-gradient(rgba(16, 36, 38, 0.93), rgba(16, 36, 38, 0.96)),
+    url('../../../assets/uth_background.jpg');
 }
 
 @media (max-width: 980px) {

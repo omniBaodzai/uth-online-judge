@@ -63,7 +63,7 @@
 .markdown code {
   padding: 1px 5px;
   border-radius: 4px;
-  background: #eef3f3;
+  background: var(--color-surface-subtle);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 0.9em;
 }

@@ -26,7 +26,7 @@
   padding: 15px 17px 12px;
   border: 1px solid #dfe9e8;
   border-radius: 14px;
-  background: #fff;
+  background: var(--color-surface);
   color: #233638;
   box-shadow: 0 4px 14px rgba(27, 62, 64, .045);
 }
@@ -74,7 +74,7 @@
   padding: 3px 8px;
   border: 1px solid #c9e3e1;
   border-radius: 999px;
-  background: #fff;
+  background: var(--color-surface);
   color: #176e70;
   font-size: 11px;
   font-weight: 650;
@@ -108,7 +108,7 @@
   border: 1px dashed #cbdcdb;
   border-radius: 12px;
   background: #f8fbfb;
-  color: #52696c;
+  color: var(--color-muted);
   font-size: 14px;
   line-height: 1.6;
   text-align: center;

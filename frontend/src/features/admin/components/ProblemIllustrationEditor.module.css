@@ -2,7 +2,7 @@
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid #e3ebeb;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   background: #fbfdfd;
 }

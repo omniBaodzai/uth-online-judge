@@ -2,7 +2,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  background: #f3f7f7;
+  background: var(--color-page);
 }
 
 .profileContent {
@@ -37,7 +37,7 @@
   transform: translateY(-160%);
   padding: 10px 14px;
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   color: #006d70;
   font-weight: 700;
 }
@@ -65,7 +65,7 @@
   padding: clamp(24px, 5vw, 40px);
   border: 1px solid rgba(0, 134, 137, 0.14);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 14px 40px rgba(15, 58, 60, 0.09);
 }
 
@@ -135,7 +135,7 @@
   grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1.3fr);
   gap: 16px;
   padding: 15px 0;
-  border-bottom: 1px solid #e8eeee;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .details dt {
@@ -169,7 +169,7 @@
   padding: 10px 12px;
   border: 1px solid #cbdada;
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   color: #193f40;
   font: inherit;
 }
@@ -180,7 +180,7 @@
 }
 
 .form input:disabled {
-  background: #f3f7f7;
+  background: var(--color-page);
   color: #607576;
 }
 
@@ -273,7 +273,7 @@
   padding: 0 12px;
   border: 1px solid #cbdada;
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-surface);
   color: #536b6c;
   cursor: pointer;
   font: inherit;
@@ -321,12 +321,12 @@
 }
 
 .secondaryButton {
-  background: #fff;
+  background: var(--color-surface);
   color: #006d70;
 }
 
 .secondaryButton:hover {
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
 }
 
 .primaryButton:disabled {
@@ -362,7 +362,7 @@
 }
 
 .status {
-  background: #f3f7f7;
+  background: var(--color-page);
   color: #536b6c;
 }
 
@@ -404,7 +404,7 @@
   padding: clamp(20px, 3vw, 30px);
   border: 1px solid rgba(0, 134, 137, 0.14);
   border-radius: 12px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 14px 40px rgba(15, 58, 60, 0.09);
 }
 
@@ -413,7 +413,7 @@
   align-items: center;
   gap: 16px;
   padding-bottom: 22px;
-  border-bottom: 1px solid #e8eeee;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .avatarIdentity > div {
@@ -475,7 +475,7 @@
 }
 
 .avatarTabs .avatarTabActive {
-  background: #fff;
+  background: var(--color-surface);
   color: #006d70;
   box-shadow: 0 1px 5px rgba(15, 58, 60, 0.12);
 }
@@ -497,7 +497,7 @@
   padding: 10px 12px;
   border: 1px solid #cbdada;
   border-radius: 7px;
-  background: #fff;
+  background: var(--color-surface);
   color: #193f40;
   font: inherit;
   font-size: 14px;
@@ -575,7 +575,7 @@
   grid-template-columns: minmax(78px, 0.65fr) minmax(0, 1.35fr);
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid #e8eeee;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .accountInfo dt {
@@ -628,7 +628,7 @@
 .editCard .actions {
   margin-top: 20px;
   padding-top: 18px;
-  border-top: 1px solid #e8eeee;
+  border-top: 1px solid var(--color-border);
 }
 
 @media (max-width: 560px) {

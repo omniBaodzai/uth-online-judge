@@ -13,7 +13,7 @@
   width: min(560px, 100%);
   padding: 24px;
   border-radius: 16px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 24px 60px rgba(4, 28, 35, 0.3);
   outline: none;
 }
@@ -171,8 +171,8 @@
 }
 
 .secondary {
-  border: 1px solid #d5e2e2;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   color: var(--color-primary-dark);
 }
 

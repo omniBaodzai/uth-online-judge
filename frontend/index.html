@@ -2,6 +2,24 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (() => {
+        let savedTheme = null
+        let savedLanguage = null
+        try {
+          savedTheme = localStorage.getItem('uth-online-judge-theme')
+          savedLanguage = localStorage.getItem('uth-online-judge-language')
+        } catch {
+          // Use system and Vietnamese defaults when browser storage is unavailable.
+        }
+        const theme = savedTheme === 'light' || savedTheme === 'dark'
+          ? savedTheme
+          : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.dataset.theme = theme
+        document.documentElement.style.colorScheme = theme
+        document.documentElement.lang = savedLanguage === 'en' ? 'en' : 'vi'
+      })()
+    </script>
     <link rel="icon" type="image/png" href="./src/assets/uth_favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta

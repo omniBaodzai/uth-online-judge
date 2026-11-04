@@ -8,11 +8,10 @@ import {
   type MouseEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { buildActivityCalendar, formatActivityDate } from '../profile-activity'
 import type { PublicProfile } from '../api'
 import styles from './ProfileShowcase.module.css'
-
-const weekdayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 type ActivityTooltip = {
   date: string
@@ -23,8 +22,14 @@ type ActivityTooltip = {
 }
 
 function ProfileActivityHeatmap({ activity }: { activity: PublicProfile['activity'] }) {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
+  const weekdayLabels = i18n.resolvedLanguage === 'en'
+    ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    : ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
   const calendar = buildActivityCalendar(activity)
   const yearlySubmissions = calendar.days.reduce((total, day) => total + day.count, 0)
+  const numberFormat = new Intl.NumberFormat(locale)
   const [activeDate, setActiveDate] = useState<string | null>(null)
   const [tooltip, setTooltip] = useState<ActivityTooltip | null>(null)
   const tooltipId = useId()
@@ -99,8 +104,8 @@ function ProfileActivityHeatmap({ activity }: { activity: PublicProfile['activit
     <section className={styles.section} aria-labelledby="activity-title">
       <header className={styles.sectionHeader}>
         <div>
-          <h2 id="activity-title">Hoạt động trong năm</h2>
-          <p>{calendar.year} · {yearlySubmissions.toLocaleString('vi-VN')} lượt nộp</p>
+          <h2 id="activity-title">{t('activityTitle')}</h2>
+          <p>{t('yearSubmissionCount', { year: calendar.year, count: numberFormat.format(yearlySubmissions) })}</p>
         </div>
       </header>
       <div className={styles.activityCalendar}>
@@ -111,7 +116,7 @@ function ProfileActivityHeatmap({ activity }: { activity: PublicProfile['activit
           className={styles.heatmapScroll}
           tabIndex={0}
           role="group"
-          aria-label={`Hoạt động nộp bài theo ngày trong năm ${calendar.year}. Dùng phím mũi tên để di chuyển giữa các ngày.`}
+          aria-label={t('activityCalendarLabel', { year: calendar.year })}
         >
           <div className={styles.heatmapContent}>
             <div className={styles.monthLabels} aria-hidden="true">
@@ -121,7 +126,11 @@ function ProfileActivityHeatmap({ activity }: { activity: PublicProfile['activit
                   key={`${month.label}-${month.weekIndex}`}
                   style={{ left: `${month.weekIndex * 13}px` }}
                 >
-                  {month.label}
+                  {i18n.resolvedLanguage === 'en'
+                    ? new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(
+                      new Date(Date.UTC(calendar.year, Number(month.label.slice(2)) - 1, 1)),
+                    )
+                    : month.label}
                 </span>
               ))}
             </div>
@@ -135,7 +144,10 @@ function ProfileActivityHeatmap({ activity }: { activity: PublicProfile['activit
                       key={day.date}
                       type="button"
                       tabIndex={day.date === tabStopDate ? 0 : -1}
-                      aria-label={`${formatActivityDate(day.date)}, ${day.count} lượt nộp`}
+                      aria-label={t('activityCount', {
+                        date: formatActivityDate(day.date, locale),
+                        count: numberFormat.format(day.count),
+                      })}
                       aria-describedby={tooltip?.date === day.date ? tooltipId : undefined}
                       ref={(element) => {
                         if (element) dayButtons.current.set(day.date, element)
@@ -179,10 +191,10 @@ function ProfileActivityHeatmap({ activity }: { activity: PublicProfile['activit
           </div>
         </div>
       </div>
-      <div className={styles.heatmapLegend} aria-label="Mức độ hoạt động">
-        <span>Ít</span>
+      <div className={styles.heatmapLegend} aria-label={t('activityLevel')}>
+        <span>{t('activityFew')}</span>
         {[0, 1, 2, 3, 4].map((level) => <span className={styles.activityDay} data-level={level} key={level} aria-hidden="true" />)}
-        <span>Nhiều</span>
+        <span>{t('activityMany')}</span>
       </div>
       {tooltip && createPortal(
         <div
@@ -192,8 +204,8 @@ function ProfileActivityHeatmap({ activity }: { activity: PublicProfile['activit
           data-placement={tooltip.placement}
           style={{ left: tooltip.left, top: tooltip.top }}
         >
-          <strong>{formatActivityDate(tooltip.date)}</strong>
-          <span>{tooltip.count.toLocaleString('vi-VN')} lượt nộp</span>
+          <strong>{formatActivityDate(tooltip.date, locale)}</strong>
+          <span>{t('activityTooltipCount', { count: numberFormat.format(tooltip.count) })}</span>
         </div>,
         document.body,
       )}

@@ -55,7 +55,7 @@
 
 .secondaryButton {
   border-color: #d3e2e1;
-  background: #fff;
+  background: var(--color-surface);
   color: #24595b;
 }
 
@@ -91,7 +91,7 @@
   padding: clamp(18px, 3vw, 26px);
   border: 1px solid rgba(224, 235, 235, .95);
   border-radius: 16px;
-  background: rgba(255, 255, 255, .97);
+  background: color-mix(in srgb, var(--color-surface) 97%, transparent);
   box-shadow: var(--shadow-card);
 }
 
@@ -145,8 +145,8 @@
   gap: 14px 18px;
   margin: 0;
   padding: 15px 0;
-  border-top: 1px solid #e8eeee;
-  border-bottom: 1px solid #e8eeee;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .senderDetails > div {
@@ -207,7 +207,7 @@
   padding: 12px 13px;
   border: 1px solid #d5e1e1;
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
   color: #233d40;
   font: inherit;
   font-size: 16px;

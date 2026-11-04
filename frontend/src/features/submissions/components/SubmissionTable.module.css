@@ -24,7 +24,7 @@
 
 .table th {
   padding: 13px 14px;
-  border-bottom: 1px solid #d5e2e2;
+  border-bottom: 1px solid var(--color-border);
   background: #008689;
   color: #ffffff;
   font-size: 12px;
@@ -50,7 +50,7 @@
 }
 
 .table tbody tr:hover {
-  background: #f1f8f7;
+  background: var(--color-surface-hover);
 }
 
 .table .num {

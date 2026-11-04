@@ -1,6 +1,7 @@
 import type { DragEvent, FormEvent, KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Upload, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { resolveAvatarUrl } from '../../auth/api'
 import UserAvatar from './UserAvatar'
 import ProfileActivityHeatmap from './ProfileActivityHeatmap'
@@ -40,6 +41,8 @@ function ProfileShowcase({
   onDropCover,
   onRemoveCover,
 }: ProfileShowcaseProps) {
+  const { t, i18n } = useTranslation('pages')
+  const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const coverImage = profile.coverImageUrl?.startsWith('blob:')
     ? profile.coverImageUrl
     : resolveAvatarUrl(profile.coverImageUrl)
@@ -87,7 +90,7 @@ function ProfileShowcase({
             aria-controls="cover-editor-popover"
             onClick={onEditCover}
           >
-            Chỉnh sửa ảnh bìa
+            {t('editCover')}
           </button>
         ) : null}
       </div>
@@ -97,28 +100,28 @@ function ProfileShowcase({
           id="cover-editor-popover"
           role="dialog"
           aria-modal="false"
-          aria-label="Tùy chọn ảnh bìa"
+          aria-label={t('coverOptions')}
           onKeyDown={(event) => {
             if (event.key === 'Escape') onCloseCoverEditor?.()
           }}
         >
           <header className={styles.coverPopoverHeader}>
             <div>
-              <h2>Ảnh bìa</h2>
-              <p>Chọn ảnh và căn chỉnh trước khi lưu.</p>
+              <h2>{t('coverImage')}</h2>
+              <p>{t('chooseCoverHint')}</p>
             </div>
             <button
               className={styles.popoverClose}
               type="button"
               onClick={onCloseCoverEditor}
-              aria-label="Đóng tùy chọn ảnh bìa"
+              aria-label={t('closeCoverOptions')}
             >
               <X size={16} aria-hidden="true" />
             </button>
           </header>
 
           <form className={styles.coverUrlForm} onSubmit={handleUrlSubmit} noValidate>
-            <label htmlFor="cover-image-url">Dùng đường dẫn ảnh</label>
+            <label htmlFor="cover-image-url">{t('useImageUrl')}</label>
             <div className={styles.coverUrlRow}>
               <input
                 id="cover-image-url"
@@ -131,10 +134,10 @@ function ProfileShowcase({
                 disabled={isCoverBusy}
               />
               <button type="submit" disabled={isCoverBusy}>
-                {isCoverBusy ? 'Đang tải…' : 'Áp dụng'}
+                {isCoverBusy ? t('applying') : t('apply')}
               </button>
             </div>
-            <p className={styles.coverPopoverHint}>Ảnh từ website ngoài cần cho phép CORS.</p>
+            <p className={styles.coverPopoverHint}>{t('coverCorsHint')}</p>
           </form>
 
           <div
@@ -146,10 +149,10 @@ function ProfileShowcase({
             onKeyDown={handleDropzoneKeyDown}
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDrop}
-            aria-label="Tải ảnh bìa từ thiết bị hoặc kéo thả ảnh vào đây"
+            aria-label={t('uploadCoverLabel')}
           >
             <span className={styles.uploadMark} aria-hidden="true"><Upload size={17} /></span>
-            <span><strong>Tải ảnh từ thiết bị</strong><small>Chọn hoặc kéo thả JPG, PNG, WebP · tối đa 5 MB</small></span>
+            <span><strong>{t('uploadImage')}</strong><small>{t('uploadImageHint')}</small></span>
           </div>
 
           {coverError ? <p className={styles.coverPopoverError} role="alert">{coverError}</p> : null}
@@ -162,7 +165,7 @@ function ProfileShowcase({
                 onClick={onRemoveCover}
                 disabled={isCoverBusy}
               >
-                Xóa ảnh bìa
+                {t('removeCover')}
               </button>
             ) : <span />}
             <button
@@ -170,7 +173,7 @@ function ProfileShowcase({
               type="button"
               onClick={onCloseCoverEditor}
             >
-              Đóng
+              {t('closeCover')}
             </button>
           </footer>
         </section>
@@ -184,58 +187,58 @@ function ProfileShowcase({
               source={avatarImage}
               username={profile.username}
               size="large"
-              label={`Ảnh đại diện ${profile.displayName}`}
+              label={t('avatarAlt', { name: profile.displayName })}
             />
             <h1>{profile.displayName}</h1>
             <p className={styles.username}>@{profile.username}</p>
-            <p className={styles.joined}>Tham gia {Number.isNaN(joined.getTime()) ? '—' : joined.toLocaleDateString('vi-VN')}</p>
+            <p className={styles.joined}>{t('joinedOn', { date: Number.isNaN(joined.getTime()) ? '—' : joined.toLocaleDateString(locale) })}</p>
             {privateEmail ? <p className={styles.privateEmail}>{privateEmail}</p> : null}
 
             <dl className={styles.sideStats}>
-              <div><dt>Bài đã giải</dt><dd>{profile.stats.solvedCount}</dd></div>
-              <div><dt>Hạng điểm</dt><dd>{profile.stats.rank ? `#${profile.stats.rank}` : '—'}</dd></div>
-              <div><dt>Tổng điểm</dt><dd>{profile.stats.cumulativePoints}</dd></div>
-              <div><dt>Đóng góp</dt><dd>{profile.stats.contributionCount}</dd></div>
+              <div><dt>{t('solvedProblems')}</dt><dd>{profile.stats.solvedCount.toLocaleString(locale)}</dd></div>
+              <div><dt>{t('pointsRank')}</dt><dd>{profile.stats.rank ? `#${profile.stats.rank}` : '—'}</dd></div>
+              <div><dt>{t('totalPoints')}</dt><dd>{profile.stats.cumulativePoints.toLocaleString(locale)}</dd></div>
+              <div><dt>{t('contributions')}</dt><dd>{profile.stats.contributionCount.toLocaleString(locale)}</dd></div>
             </dl>
             {isOwner ? (
-              <Link className={styles.primaryAction} to="/profile/edit">Chỉnh sửa hồ sơ</Link>
+              <Link className={styles.primaryAction} to="/profile/edit">{t('editProfile')}</Link>
             ) : (
-              <Link className={styles.primaryAction} to={`/submissions?userId=${encodeURIComponent(profile.id)}`}>Xem các bài nộp</Link>
+              <Link className={styles.primaryAction} to={`/submissions?userId=${encodeURIComponent(profile.id)}`}>{t('viewSubmissions')}</Link>
             )}
-            {isOwner ? <Link className={styles.secondaryAction} to={`/submissions?userId=${encodeURIComponent(profile.id)}`}>Xem các bài nộp</Link> : null}
+            {isOwner ? <Link className={styles.secondaryAction} to={`/submissions?userId=${encodeURIComponent(profile.id)}`}>{t('viewSubmissions')}</Link> : null}
           </section>
 
           <section className={styles.sidebarSection} aria-labelledby="contest-title">
-            <h2 id="contest-title">Thống kê cuộc thi</h2>
+            <h2 id="contest-title">{t('contestStatistics')}</h2>
             {profile.contestStatistics ? (
               <dl>
-                <div><dt>Đã tham gia</dt><dd>{profile.contestStatistics.participated}</dd></div>
-                <div><dt>Hạng rating</dt><dd>{profile.contestStatistics.highestRank ? `#${profile.contestStatistics.highestRank}` : '—'}</dd></div>
-                <div><dt>Rating hiện tại</dt><dd>{profile.contestStatistics.currentRating ?? '—'}</dd></div>
-                <div><dt>Thấp nhất</dt><dd>{profile.contestStatistics.lowestRating ?? '—'}</dd></div>
-                <div><dt>Cao nhất</dt><dd>{profile.contestStatistics.highestRating ?? '—'}</dd></div>
-                <div><dt>Danh hiệu</dt><dd>{profile.contestStatistics.titles.join(', ') || '—'}</dd></div>
+                <div><dt>{t('participated')}</dt><dd>{profile.contestStatistics.participated.toLocaleString(locale)}</dd></div>
+                <div><dt>{t('ratingRank')}</dt><dd>{profile.contestStatistics.highestRank ? `#${profile.contestStatistics.highestRank}` : '—'}</dd></div>
+                <div><dt>{t('currentRating')}</dt><dd>{profile.contestStatistics.currentRating ?? '—'}</dd></div>
+                <div><dt>{t('lowestRating')}</dt><dd>{profile.contestStatistics.lowestRating ?? '—'}</dd></div>
+                <div><dt>{t('highestRating')}</dt><dd>{profile.contestStatistics.highestRating ?? '—'}</dd></div>
+                <div><dt>{t('titles')}</dt><dd>{profile.contestStatistics.titles.join(', ') || '—'}</dd></div>
               </dl>
-            ) : <p className={styles.emptyState}>Chưa có dữ liệu cuộc thi.</p>}
+            ) : <p className={styles.emptyState}>{t('noContestData')}</p>}
           </section>
         </aside>
 
         <div className={styles.content}>
           <section className={styles.bioCard} aria-labelledby="bio-title">
             <header>
-              <h2 id="bio-title">Về tôi</h2>
-              {isOwner ? <Link to="/profile/edit">Chỉnh sửa</Link> : null}
+              <h2 id="bio-title">{t('aboutMe')}</h2>
+              {isOwner ? <Link to="/profile/edit">{t('edit')}</Link> : null}
             </header>
-            <p>{profile.bio || 'Chưa có phần giới thiệu.'}</p>
-            <p className={styles.education}>{profile.organization || 'Chưa cập nhật trường hoặc tổ chức.'}</p>
+            <p>{profile.bio || t('noBio')}</p>
+            <p className={styles.education}>{profile.organization || t('noOrganization')}</p>
           </section>
 
           <ProfileActivityHeatmap activity={profile.activity} />
 
           <section className={styles.section} aria-labelledby="rating-title">
-            <header className={styles.sectionHeader}><h2 id="rating-title">Tiến trình — Lịch sử rating</h2></header>
+            <header className={styles.sectionHeader}><h2 id="rating-title">{t('ratingHistory')}</h2></header>
             {profile.ratingHistory.length > 1 ? (
-              <svg className={styles.ratingPlot} viewBox="0 0 720 180" role="img" aria-label="Biểu đồ lịch sử rating">
+              <svg className={styles.ratingPlot} viewBox="0 0 720 180" role="img" aria-label={t('ratingChart')}>
                 <polyline
                   points={profile.ratingHistory.map((point, index) => {
                     const x = index * (720 / (profile.ratingHistory.length - 1))
@@ -253,24 +256,24 @@ function ProfileShowcase({
                 />
               </svg>
             ) : (
-              <p className={styles.emptyState}>Chưa có lịch sử rating. Biểu đồ sẽ xuất hiện khi có dữ liệu.</p>
+              <p className={styles.emptyState}>{t('noRatingHistory')}</p>
             )}
           </section>
 
           <section className={styles.section} aria-labelledby="achievements-title">
-            <header className={styles.sectionHeader}><h2 id="achievements-title">Thành tích</h2></header>
+            <header className={styles.sectionHeader}><h2 id="achievements-title">{t('achievements')}</h2></header>
             {profile.achievements.length ? (
               <ul className={styles.achievementList}>
                   {profile.achievements.map((achievement) => (
-                    <li key={achievement.id}><strong>{achievement.name}</strong><time>{new Date(achievement.achievedAt).toLocaleDateString('vi-VN')}</time></li>
+                    <li key={achievement.id}><strong>{achievement.name}</strong><time>{new Date(achievement.achievedAt).toLocaleDateString(locale)}</time></li>
                 ))}
               </ul>
             ) : (
-              <p className={styles.emptyState}>Chưa có thành tích được ghi nhận.</p>
+              <p className={styles.emptyState}>{t('noAchievementsRecorded')}</p>
             )}
           </section>
 
-          <div className={styles.motto}>HỌC TẬP – CHIA SẺ – BỨT PHÁ</div>
+          <div className={styles.motto}>{t('profileMotto')}</div>
         </div>
       </div>
       </div>

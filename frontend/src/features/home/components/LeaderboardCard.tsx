@@ -1,5 +1,6 @@
 import type { RankedPerson } from '../data'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { resolveAvatarUrl } from '../../auth/api'
 import FlameBorder from './FlameBorder'
 import styles from './LeaderboardCard.module.css'
@@ -23,19 +24,20 @@ function getInitials(name: string) {
 }
 
 function LeaderboardCard({ title, description, people, id, href, loading = false, error }: LeaderboardCardProps) {
+  const { t } = useTranslation('home')
   return (
     <section className={styles.card} id={id} aria-labelledby={`${id}-title`}>
       <header className={styles.cardHeader}>
         <div className={styles.headingRow}>
           <h2 className={styles.title} id={`${id}-title`}>{title}</h2>
-          {href ? <Link className={styles.viewAll} to={href}>Xem tất cả</Link> : null}
+          {href ? <Link className={styles.viewAll} to={href}>{t('viewAll', { ns: 'common' })}</Link> : null}
         </div>
         <p className={styles.description}>{description}</p>
       </header>
 
-      {loading ? <p className={styles.message} role="status">Đang tải bảng xếp hạng…</p> : null}
+      {loading ? <p className={styles.message} role="status">{t('loadingLeaderboard', { ns: 'pages' })}</p> : null}
       {error ? <p className={styles.message} role="alert">{error}</p> : null}
-      {!loading && !error && people.length === 0 ? <p className={styles.message}>Chưa có thành tích để hiển thị.</p> : null}
+      {!loading && !error && people.length === 0 ? <p className={styles.message}>{t('noAchievements')}</p> : null}
       {!loading && !error && people.length > 0 ? (
         <ol className={styles.list}>
           {people.map((person, index) => {
@@ -50,9 +52,9 @@ function LeaderboardCard({ title, description, people, id, href, loading = false
                   <Link
                     className={styles.personLink}
                     to={`/users/${encodeURIComponent(person.profileUsername)}`}
-                    aria-label={`Mở hồ sơ của ${person.name}`}
+                    aria-label={t('openProfile', { name: person.name })}
                   >
-                    <span className={styles.rank} aria-label={`Hạng ${index + 1}`}>
+                    <span className={styles.rank} aria-label={t('rankNumber', { rank: index + 1 })}>
                       {index + 1}
                     </span>
                     <span className={styles.avatar} aria-hidden="true">
@@ -69,7 +71,7 @@ function LeaderboardCard({ title, description, people, id, href, loading = false
                   </Link>
                 ) : (
                   <div className={styles.personContent}>
-                    <span className={styles.rank} aria-label={`Hạng ${index + 1}`}>
+                    <span className={styles.rank} aria-label={t('rankNumber', { rank: index + 1 })}>
                       {index + 1}
                     </span>
                     <span className={styles.avatar} aria-hidden="true">

@@ -1,7 +1,7 @@
 .adminShell {
   --admin-ink: #193437;
   --admin-muted: #687b7e;
-  --admin-border: #e3ebeb;
+  --admin-border: var(--color-border);
   --admin-bg: #f4f8f8;
   --admin-surface: #fff;
   --admin-primary: #087f82;
@@ -124,7 +124,7 @@
   justify-content: space-between;
   padding: 0 clamp(20px, 4vw, 48px);
   border-bottom: 1px solid var(--admin-border);
-  background: rgba(255, 255, 255, .96);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
   backdrop-filter: blur(12px);
 }
 
@@ -146,7 +146,7 @@
 }
 
 .profileButton:hover {
-  background: #f3f7f7;
+  background: var(--color-page);
 }
 
 .avatar {
@@ -577,7 +577,7 @@
 
 .problemTable th {
   padding: 12px 13px;
-  background: #f6f9f9;
+  background: var(--color-surface-subtle);
   color: #697b7e;
   font-size: 10px;
   font-weight: 750;
@@ -1314,7 +1314,7 @@
   padding: clamp(24px, 5vw, 34px);
   border: 1px solid rgba(218, 231, 230, .95);
   border-radius: 18px;
-  background: rgba(255, 255, 255, .97);
+  background: color-mix(in srgb, var(--color-surface) 97%, transparent);
   box-shadow: 0 20px 60px rgba(24, 51, 55, .16);
 }
 
@@ -1360,7 +1360,7 @@
   padding: 10px 12px;
   border: 1px solid #d4e1e0;
   border-radius: 9px;
-  background: #fff;
+  background: var(--color-surface);
   color: var(--admin-ink);
   font: inherit;
   transition: border-color 150ms ease, box-shadow 150ms ease;
@@ -1395,7 +1395,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #64777a;
+  color: var(--color-muted);
   cursor: pointer;
 }
 
@@ -1725,7 +1725,7 @@
 }
 
 .status_inactive { border-color: #efc9c5; background: #fff4f3; color: #9a3e38; }
-.role_admin { border-color: #b7dedd; background: #eaf7f6; color: #066a6d; }
+.role_admin { border-color: #b7dedd; background: var(--color-surface-hover); color: #066a6d; }
 .role_student { border-color: #dce3e4; background: #f4f6f6; color: #59696b; }
 
 .userTable {
@@ -1736,7 +1736,7 @@
 
 .userTable th {
   padding: 12px 13px;
-  background: #f6f9f9;
+  background: var(--color-surface-subtle);
   color: #697b7e;
   font-size: 11px;
   font-weight: 750;

@@ -63,7 +63,7 @@
   padding: 14px;
   border: 1px solid #d8e6e5;
   border-radius: 14px;
-  background: #fff;
+  background: var(--color-surface);
   color: #1d3a3c;
   box-shadow: 0 16px 40px rgba(15, 40, 42, .22);
 }

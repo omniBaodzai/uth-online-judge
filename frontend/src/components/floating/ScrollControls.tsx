@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import styles from './FloatingActions.module.css'
 
 const EDGE_TOLERANCE_PX = 4
@@ -26,6 +27,7 @@ function ArrowIcon({ direction }: { direction: 'up' | 'down' }) {
 }
 
 function ScrollControls() {
+  const { t } = useTranslation('common')
   const [state, setState] = useState(readScrollState)
 
   useEffect(() => {
@@ -49,12 +51,12 @@ function ScrollControls() {
   return (
     <>
       {state.canScrollUp && (
-        <button className={styles.fab} type="button" aria-label="Cuộn lên đầu trang" title="Lên đầu trang" onClick={() => scrollSmoothly(0)}>
+        <button className={styles.fab} type="button" aria-label={t('scrollToTop')} title={t('scrollToTopTitle')} onClick={() => scrollSmoothly(0)}>
           <ArrowIcon direction="up" />
         </button>
       )}
       {state.canScrollDown && (
-        <button className={styles.fab} type="button" aria-label="Cuộn xuống cuối trang" title="Xuống cuối trang" onClick={() => scrollSmoothly(document.documentElement.scrollHeight)}>
+        <button className={styles.fab} type="button" aria-label={t('scrollToBottom')} title={t('scrollToBottomTitle')} onClick={() => scrollSmoothly(document.documentElement.scrollHeight)}>
           <ArrowIcon direction="down" />
         </button>
       )}

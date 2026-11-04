@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ApiError, request as publicRequest } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
 import FilterDropdown from '../../problems/components/FilterDropdown'
@@ -16,6 +17,7 @@ import SubmissionPagination from './SubmissionPagination'
 import SubmissionStatsChart from './SubmissionStatsChart'
 import SubmissionTable from './SubmissionTable'
 import { submissionPageSizes, verdictFilterOptions } from '../data'
+import { submissionVerdictTranslationKeys } from '../data/submission-verdicts'
 import styles from '../pages/SubmissionsPage.module.css'
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -33,6 +35,7 @@ function SubmissionsContent({
   problemCode,
   profileUserId,
 }: SubmissionsContentProps) {
+  const { t } = useTranslation('pages')
   const isContestMode = Boolean(contestIdentifier)
   const { request: authRequest, accessToken, isLoading: isAuthLoading } = useAuth()
   const request = contestRequester ?? (accessToken ? authRequest : publicRequest)
@@ -117,7 +120,7 @@ function SubmissionsContent({
           error:
             requestError instanceof ApiError
               ? requestError.message
-              : 'Không thể tải danh sách bài nộp. Vui lòng thử lại.',
+              : t('loadSubmissionsError'),
         })
       })
     return () => controller.abort()
@@ -133,6 +136,7 @@ function SubmissionsContent({
     selectedLanguage,
     problemCode,
     profileUserId,
+    t,
   ])
 
   const languageFilterOptions = useMemo(() => {
@@ -159,7 +163,7 @@ function SubmissionsContent({
     pageSize,
     totalItems,
     pageSizes: submissionPageSizes,
-    label: 'bài nộp',
+    label: t('submissionCount'),
     onPageChange: setPage,
     onPageSizeChange: (size: number) => {
       if (size === 10 || size === 20 || size === 50) setPageSize(size)
@@ -173,14 +177,14 @@ function SubmissionsContent({
         <header className={styles.header}>
           {problemCode ? (
             <h1>
-              Danh sách bài nộp của bài{' '}
+              {t('problemSubmissionTitle')}{' '}
               <Link to={`/problems/${encodeURIComponent(globalProblem?.code ?? problemCode)}`} className={styles.problemLink}>
                 {globalProblem ? globalProblem.title : problemCode}
               </Link>
             </h1>
           ) : (
             <>
-              <h1>Danh sách bài nộp</h1>
+              <h1>{t('submissionListTitle')}</h1>
               <p>{profileUserId ? '' : ''}</p>
             </>
           )}
@@ -195,8 +199,8 @@ function SubmissionsContent({
           </svg>
           <input
             type="search"
-            aria-label="Tìm bài nộp"
-            placeholder={problemCode ? 'Tìm theo tên coder...' : 'Tìm tên bài tập, mã bài hoặc coder...'}
+            aria-label={t('searchSubmissionLabel')}
+            placeholder={problemCode ? t('searchCoder') : t('searchSubmissions')}
             maxLength={100}
             value={query}
             onChange={(event) => {
@@ -206,8 +210,11 @@ function SubmissionsContent({
           />
         </div>
         <FilterDropdown
-          label="Kết quả"
-          options={verdictFilterOptions}
+          label={t('results')}
+          options={verdictFilterOptions.map((option) => ({
+            ...option,
+            label: `${option.label.slice(0, option.label.indexOf(' — '))} — ${submissionVerdictTranslationKeys[option.value] ? t(submissionVerdictTranslationKeys[option.value]) : option.label}`,
+          }))}
           selected={verdict}
           onChange={(value) => {
             setVerdict(value)
@@ -215,7 +222,7 @@ function SubmissionsContent({
           }}
         />
         <FilterDropdown
-          label="Ngôn ngữ"
+          label={t('language', { ns: 'common' })}
           options={languageFilterOptions}
           selected={language}
           onChange={(value) => {
@@ -224,7 +231,7 @@ function SubmissionsContent({
           }}
         />
         <button type="button" className={styles.reset} onClick={resetFilters} disabled={!hasFilters}>
-          Đặt lại
+          {t('resetFilters')}
         </button>
       </form>
 
@@ -235,7 +242,7 @@ function SubmissionsContent({
         {error && (
           <div className={styles.error} role="alert">
             <span>{error}</span>
-            <button type="button" onClick={() => setRetryKey((key) => key + 1)}>Thử lại</button>
+            <button type="button" onClick={() => setRetryKey((key) => key + 1)}>{t('retry', { ns: 'common' })}</button>
           </div>
         )}
         {!error && (
@@ -245,8 +252,8 @@ function SubmissionsContent({
             hasFilters={hasFilters}
             hideProblem={Boolean(problemCode)}
             contestIdentifier={contestIdentifier}
-            emptyTitle={isContestMode && !hasFilters ? 'Chưa có bài nộp' : undefined}
-            emptyDescription={isContestMode && !hasFilters ? 'Bài nộp trong cuộc thi sẽ xuất hiện tại đây.' : undefined}
+            emptyTitle={isContestMode && !hasFilters ? t('contestNoSubmissions') : undefined}
+            emptyDescription={isContestMode && !hasFilters ? t('contestSubmissionsHint') : undefined}
           />
         )}
         <div className={styles.footer}>

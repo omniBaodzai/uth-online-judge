@@ -15,7 +15,7 @@
   padding: 0;
   border: 1px solid rgba(0, 134, 137, .22);
   border-radius: 50%;
-  background: #f5fbfa;
+  background: var(--color-surface-subtle);
   color: #008689;
   cursor: pointer;
   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
@@ -24,7 +24,7 @@
 .trigger:hover,
 .trigger[aria-expanded='true'] {
   border-color: #008689;
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
   color: #006d70;
 }
 
@@ -66,7 +66,7 @@
   overflow: hidden;
   border: 1px solid rgba(0, 134, 137, .18);
   border-radius: 14px;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 16px 42px rgba(4, 28, 35, .2);
   color: #173d40;
   animation: dropdown-enter 140ms ease-out both;
@@ -150,7 +150,7 @@
   padding: 12px 10px;
   border: 0;
   border-radius: 9px;
-  background: #fff;
+  background: var(--color-surface);
   color: inherit;
   cursor: pointer;
   font: inherit;
@@ -177,7 +177,7 @@
   place-items: center;
   border: 1px solid #cde7e4;
   border-radius: 10px;
-  background: #eaf7f6;
+  background: var(--color-surface-hover);
   color: #00777a;
 }
 
@@ -280,6 +280,45 @@
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+:global([data-theme='dark']) .trigger {
+  border-color: rgba(76, 182, 175, 0.4);
+  background: #1b3839;
+  color: #a7e4dc;
+}
+
+:global([data-theme='dark']) .dropdown {
+  border-color: #344a4c;
+  background: #1b3032;
+  color: #d7e8e6;
+}
+
+:global([data-theme='dark']) .dropdownHeader {
+  border-bottom-color: #344a4c;
+}
+
+:global([data-theme='dark']) .heading h2,
+:global([data-theme='dark']) .notificationTitle {
+  color: #e6f0ef;
+}
+
+:global([data-theme='dark']) .notificationItem {
+  background: transparent;
+}
+
+:global([data-theme='dark']) .notificationItem:hover,
+:global([data-theme='dark']) .notificationItem.unread {
+  background: #203b3d;
+}
+
+:global([data-theme='dark']) .notificationMessage {
+  color: #b6c8c8;
+}
+
+:global([data-theme='dark']) .notificationMeta,
+:global([data-theme='dark']) .disclaimer {
+  color: #a7b9ba;
 }
 
 @media (max-width: 1160px) {
