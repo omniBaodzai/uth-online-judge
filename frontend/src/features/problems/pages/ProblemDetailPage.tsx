@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/useAuth'
 import '../i18n'
 import { useBreadcrumbContestProblem } from '../../../components/navigation/useBreadcrumbContestProblem'
 import ReportModal from '../components/ReportModal'
+import ProblemComments from '../components/ProblemComments'
 import ProblemStatement from '../components/ProblemStatement'
 import ProblemPrintView from '../components/ProblemPrintView'
 import ProblemStateMessage from '../components/ProblemStateMessage'
@@ -93,8 +94,7 @@ function ProblemDetailPage() {
                 {t('problemReportIssue')}
               </button>
             </div>
-            {/* Cơ sở dữ liệu chưa có bảng bình luận nên không hiển thị bình luận giả. */}
-            <p>{t('problemCommentsUnavailable')}</p>
+            {contestId ? <p>{t('problemCommentsUnavailable')}</p> : <ProblemComments code={problem.code} />}
           </section>
         </div>
 
@@ -211,7 +211,7 @@ function ProblemDetailPage() {
         </aside>
       </div>
 
-      {reportOpen && <ReportModal onClose={() => setReportOpen(false)} />}
+      {reportOpen && <ReportModal problemCode={problem.code} onClose={() => setReportOpen(false)} />}
       <ProblemPrintView problem={problem} />
     </main>
   )

@@ -23,6 +23,7 @@ import { PaginationQueryDto } from '../community/dto/pagination.dto.js';
 import {
   ContactReplyDto,
   CreateContactMessageDto,
+  CreateProblemReportDto,
   ListContactMessagesQueryDto,
   ListNotificationsQueryDto,
   UpdateContactMessageStatusDto,
@@ -46,6 +47,26 @@ export class PublicContactMessagesController {
   create(@Body() input: CreateContactMessageDto, @Req() request: ContactRequest) {
     const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
     return this.contact.createMessage(input, request.user?.id ?? null, ipAddress);
+  }
+}
+
+@ApiTags('Problem reports')
+@Controller('problems/:code/reports')
+export class ProblemReportsController {
+  constructor(private readonly contact: ContactService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Gửi báo cáo vấn đề của bài tập vào hộp thư liên hệ của Admin' })
+  @ApiCreatedResponse({ description: 'Báo cáo đã được lưu với trạng thái NEW.' })
+  create(
+    @Param('code') code: string,
+    @Body() input: CreateProblemReportDto,
+    @Req() request: AuthenticatedContactRequest,
+  ) {
+    return this.contact.createProblemReport(code, request.user.id, input);
   }
 }
 

@@ -467,6 +467,17 @@
   }
 }
 
+/* Organizations table: 3 columns (name, score, members) */
+.tableScroll.threeColumns {
+  grid-template-columns: minmax(160px, 1fr) max-content max-content;
+}
+
+@media (max-width: 680px) {
+  .tableScroll.threeColumns {
+    grid-template-columns: minmax(112px, 1fr) max-content max-content;
+  }
+}
+
 /* Dark theme overrides (generated, Phase 3) */
 :global(:where([data-theme='dark'])) .viewerRank {
   border-color: var(--color-border);

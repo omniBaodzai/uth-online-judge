@@ -126,6 +126,7 @@ const routes: RouteDefinition[] = [
   { pattern: '/discussions/:id', build: () => [home, discussionList, { label: 'Chi tiết thảo luận' }] },
   { pattern: '/discussions', build: () => [home, { label: 'Thảo luận' }] },
   { pattern: '/leaderboard', build: () => [home, leaderboardList] },
+  { pattern: '/contributors', build: () => [home, { label: 'Top đóng góp' }] },
   { pattern: '/profile/edit', build: () => [home, { label: 'Hồ sơ', to: '/profile' }, { label: 'Chỉnh sửa hồ sơ' }] },
   { pattern: '/profile', build: () => [home, { label: 'Hồ sơ' }] },
   { pattern: '/users/id/:id', build: () => [home, { label: 'Hồ sơ công khai' }] },

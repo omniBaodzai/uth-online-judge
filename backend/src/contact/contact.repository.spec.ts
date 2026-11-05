@@ -22,6 +22,36 @@ describe('ContactRepository', () => {
     expect(rateLimitCalls[0]?.[1]?.[0]).not.toBe('203.0.113.8');
   });
 
+  it('filters the admin list by category and searches username and problem fields', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const repository = new ContactRepository({ query } as unknown as Pool);
+    await repository.listAdmin({ page: 2, pageSize: 10, q: 'hello', category: 'PROBLEM_REPORT' });
+    const [listSql, listValues] = query.mock.calls[0] as [string, unknown[]];
+    expect(listSql).toContain('m.category = $3');
+    expect(listSql).toContain('m.problem_code_snapshot ILIKE $2');
+    expect(listSql).toContain('u.username FROM public.users u');
+    expect(listValues).toEqual([null, '%hello%', 'PROBLEM_REPORT', 10, 10]);
+    expect(query.mock.calls[1]?.[1]).toEqual([null, '%hello%', 'PROBLEM_REPORT']);
+  });
+
+  it('inserts problem reports as NEW PROBLEM_REPORT rows with parameterized values', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: 'report-id' }] });
+    const repository = new ContactRepository({ query } as unknown as Pool);
+    await repository.createProblemReport({
+      userId: 'user-id',
+      fullName: 'alice',
+      email: 'alice@uth.edu.vn',
+      subject: 's',
+      content: "x'; DROP TABLE users;--",
+      reportType: 'OTHER',
+      problem: { id: 'problem-id', code: 'hello', title: 'Hello' },
+    });
+    const [sql, values] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("'PROBLEM_REPORT'");
+    expect(sql).not.toContain('DROP TABLE');
+    expect(values).toContain("x'; DROP TABLE users;--");
+  });
+
   function makeClient(queryImpl: (sql: string, values?: unknown[]) => Promise<unknown>) {
     const client = {
       query: vi.fn((sql: string, values?: unknown[]) => queryImpl(sql, values)),

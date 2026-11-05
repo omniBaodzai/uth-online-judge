@@ -12,6 +12,7 @@ const breadcrumbTranslationKeys: Record<string, string> = {
   'Tin tức': 'breadcrumbNews',
   'Thảo luận': 'breadcrumbDiscussions',
   'Bảng xếp hạng': 'breadcrumbLeaderboard',
+  'Top đóng góp': 'breadcrumbContributors',
   'Chi tiết bài tập': 'breadcrumbDetailProblem',
   'Chi tiết cuộc thi': 'breadcrumbDetailContest',
   'Nộp bài thi': 'breadcrumbSubmitContest',

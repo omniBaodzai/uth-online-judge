@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Crown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { resolveAvatarUrl } from '../../auth/api'
 import { useAuth } from '../../auth/useAuth'
-import UserAvatar from '../../profile/components/UserAvatar'
+import RankingTable from '../components/RankingTable'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
 import { useLeaderboardData } from '../useLeaderboardData'
 import styles from './LeaderboardPage.module.css'
@@ -96,63 +94,24 @@ function LeaderboardPage() {
             <p className={styles.state}>{query ? t('noMatchingCoders') : t('noCoders')}</p>
           ) : null}
           {!error && pageItems.length > 0 ? (
-            <div className={styles.tableScroll} tabIndex={0} aria-label={t('rankingList')}>
-              <div className={styles.listHeader} aria-hidden="true">
-                <span>{t('rankHeading')}</span>
-                <span>{t('pointsHeading')}</span>
-                <span>{t('coderHeading')}</span>
-                <span>{t('solvedHeading')}</span>
-              </div>
-              <ol className={styles.list}>
-                {pageItems.map((entry) => {
-                  const isViewer = entry.userId === user?.id
-                  const isTopThree = entry.rank >= 1 && entry.rank <= 3
-                  const rowContent = (
-                    <>
-                      <span className={styles.rank} aria-label={t('coderRank', { rank: entry.rank })}>
-                        {entry.rank === 1 ? <Crown className={styles.crown} size={16} aria-hidden="true" /> : null}
-                        <span className={styles.rankNumber}>{entry.rank}</span>
-                      </span>
-                      <span className={styles.points}>{entry.cumulativePoints}</span>
-                      <span className={styles.coder}>
-                        <UserAvatar
-                          source={resolveAvatarUrl(entry.avatarUrl)}
-                          username={entry.username ?? entry.displayName}
-                          label={t('userAvatar', { name: entry.displayName })}
-                        />
-                        <span className={styles.identity}>
-                          <strong>{entry.displayName}</strong>
-                          <span>@{entry.username ?? entry.userId.slice(0, 8)}</span>
-                          {entry.comparableProblems > 0 ? (
-                            <span className={styles.performance}>{formatPerformance(entry.performancePercentile, entry.comparableProblems, t)}</span>
-                          ) : null}
-                        </span>
-                      </span>
-                      <span className={styles.solvedCount}>{entry.solvedCount}</span>
-                    </>
-                  )
-                  return (
-                    <li
-                      className={`${styles.entry} ${isTopThree ? styles[`top${entry.rank}`] : ''} ${isViewer ? styles.viewer : ''}`}
-                      key={entry.userId}
-                      aria-current={isViewer ? 'true' : undefined}
-                    >
-                      {entry.username ? (
-                        <Link
-                          className={`${styles.row} ${styles.rowLink}`}
-                          to={`/users/${encodeURIComponent(entry.username)}`}
-                          aria-label={t('profileRank', { name: entry.displayName, rank: entry.rank })}
-                        >
-                          {rowContent}
-                        </Link>
-                      ) : (
-                        <div className={styles.row}>{rowContent}</div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ol>
-            </div>
+            <RankingTable
+              rows={pageItems.map((entry) => ({
+                id: entry.userId,
+                rank: entry.rank,
+                points: entry.cumulativePoints,
+                displayName: entry.displayName,
+                handle: entry.username ?? entry.userId.slice(0, 8),
+                avatarSource: resolveAvatarUrl(entry.avatarUrl),
+                count: entry.solvedCount,
+                profileUsername: entry.username,
+                detail: entry.comparableProblems > 0
+                  ? formatPerformance(entry.performancePercentile, entry.comparableProblems, t)
+                  : null,
+                isViewer: entry.userId === user?.id,
+              }))}
+              ariaLabel={t('rankingList')}
+              countHeading={t('solvedHeading')}
+            />
           ) : null}
           <div className={styles.footer}>
             <SubmissionPagination {...paginationProps} />

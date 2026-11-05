@@ -73,12 +73,33 @@
 
 .primary,
 .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 42px;
   padding: 0 18px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notice {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.error {
+  margin: 10px 0 0;
+  color: #b42318;
+  font-size: 13px;
 }
 
 .primary {
@@ -98,6 +119,9 @@
 }
 
 /* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .error {
+  color: #ff9b8f;
+}
 :global(:where([data-theme='dark'])) .success {
   background: var(--color-surface-subtle);
   color: var(--color-primary-dark);

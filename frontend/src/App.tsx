@@ -37,6 +37,8 @@ import DiscussionListPage from './features/community/pages/DiscussionListPage'
 import DiscussionDetailPage from './features/community/pages/DiscussionDetailPage'
 import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
 import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
+import ContributorsPage from './features/contributors/pages/ContributorsPage'
+import OrganizationsPage from './features/organizations/pages/OrganizationsPage'
 import ContestsPage from './features/contests/pages/ContestsPage'
 import ContestDetailPage from './features/contests/pages/ContestDetailPage'
 import ContactPage from './features/contact/pages/ContactPage'
@@ -114,13 +116,14 @@ function App() {
             element={<RequireAuth><SubmissionDetailsPage /></RequireAuth>}
           />
           <Route path="submissions" element={<SubmissionsPage />} />
-          <Route path="organizations" element={<PlaceholderPage titleKey="organizations" />} />
+          <Route path="organizations" element={<OrganizationsPage />} />
           <Route path="contact" element={<ContactPage />} />
           <Route
             path="my/contact-messages/:messageId"
             element={<RequireAuth><UserContactMessageDetailsPage /></RequireAuth>}
           />
                     <Route path="leaderboard" element={<LeaderboardPage />} />
+                    <Route path="contributors" element={<ContributorsPage />} />
           <Route path="news" element={<NewsListPage />} />
           <Route path="news/:slug" element={<NewsDetailPage />} />
           <Route path="discussions" element={<DiscussionListPage />} />

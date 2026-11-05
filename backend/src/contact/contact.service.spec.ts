@@ -12,6 +12,13 @@ describe('ContactService', () => {
         createdAt: '2026-11-02T00:00:00.000Z',
       }),
       findAdminMessage: vi.fn(),
+      findPublishedProblem: vi.fn().mockResolvedValue({ id: 'problem-id', code: 'hello', title: 'Hello' }),
+      findUserIdentity: vi.fn().mockResolvedValue({ username: 'alice', email: 'alice@uth.edu.vn' }),
+      createProblemReport: vi.fn().mockResolvedValue({
+        id: 'report-id',
+        status: 'NEW',
+        createdAt: '2026-11-02T00:00:00.000Z',
+      }),
       updateStatus: vi.fn(),
       listAdmin: vi.fn(),
       listUserMessages: vi.fn(),
@@ -64,6 +71,36 @@ describe('ContactService', () => {
     await expect(service.createMessage(input, null, '203.0.113.2'))
       .rejects.toMatchObject({ status: 429 });
     expect(repository.createMessage).toHaveBeenCalledOnce();
+  });
+
+  it('stores a problem report using the account identity and a per-user rate-limit key', async () => {
+    const { repository, service } = createService();
+    await expect(service.createProblemReport('hello', 'user-id', {
+      reportType: 'INCORRECT_TEST_DATA',
+      content: 'Test 3 sai',
+    })).resolves.toEqual({ id: 'report-id', status: 'NEW', createdAt: '2026-11-02T00:00:00.000Z' });
+    expect(repository.consumePublicSubmissionLimit).toHaveBeenCalledWith('problem-report:user-id');
+    expect(repository.createProblemReport).toHaveBeenCalledWith({
+      userId: 'user-id',
+      fullName: 'alice',
+      email: 'alice@uth.edu.vn',
+      subject: '[Báo cáo] hello – Dữ liệu kiểm thử không chính xác',
+      content: 'Test 3 sai',
+      reportType: 'INCORRECT_TEST_DATA',
+      problem: { id: 'problem-id', code: 'hello', title: 'Hello' },
+    });
+  });
+
+  it('rejects reports for unknown or unpublished problems and over-limit users', async () => {
+    const { repository, service } = createService();
+    const input = { reportType: 'OTHER' as const, content: 'x' };
+    repository.findPublishedProblem.mockResolvedValueOnce(null);
+    await expect(service.createProblemReport('missing', 'user-id', input))
+      .rejects.toBeInstanceOf(NotFoundException);
+    repository.consumePublicSubmissionLimit.mockResolvedValueOnce(false);
+    await expect(service.createProblemReport('hello', 'user-id', input))
+      .rejects.toMatchObject({ status: 429 });
+    expect(repository.createProblemReport).not.toHaveBeenCalled();
   });
 
   it('hides missing and non-owned requests behind the same not-found response', async () => {

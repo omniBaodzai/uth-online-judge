@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, MessageCircleReply, Send } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { formatDateTime } from '../../community/format'
+import { reportTypes } from '../../problems/detail-data'
+import '../../problems/i18n'
 import { ContactConversation } from '../components/ContactConversation'
 import {
   getContactApiErrorMessage,
@@ -190,6 +192,7 @@ function UserContactMessageDetailsPage() {
   }
 
   const isResolved = message.status === 'RESOLVED'
+  const reportTypeLabelKey = reportTypes.find((item) => item.value === message.reportType)?.labelKey
 
   return (
     <main className={styles.main}>
@@ -207,6 +210,22 @@ function UserContactMessageDetailsPage() {
             <div><dt>{t('contactSender')}</dt><dd>{message.fullName}</dd></div>
             <div><dt>{t('contactEmail')}</dt><dd>{message.email}</dd></div>
             <div><dt>{t('contactSentAt')}</dt><dd>{formatDateTime(message.createdAt, locale)}</dd></div>
+            {message.category === 'PROBLEM_REPORT' && (
+              <>
+                <div><dt>{t('contactRequestType')}</dt><dd>{t('contactCategoryProblemReport')}</dd></div>
+                <div>
+                  <dt>{t('contactReportedProblem')}</dt>
+                  <dd>
+                    {message.problemId && message.problemCode ? (
+                      <Link to={`/problems/${encodeURIComponent(message.problemCode)}`}>
+                        {message.problemCode} – {message.problemTitle}
+                      </Link>
+                    ) : `${message.problemCode ?? ''} – ${message.problemTitle ?? ''} (${t('contactProblemDeleted')})`}
+                  </dd>
+                </div>
+                {reportTypeLabelKey && <div><dt>{t('contactReportType')}</dt><dd>{t(reportTypeLabelKey)}</dd></div>}
+              </>
+            )}
           </dl>
           <div className={styles.originalContent}>
             <h3>{t('contactRequestContent')}</h3>
