@@ -149,8 +149,9 @@ export const resources = {
       members: 'thành viên',
     },
     home: {
-      heroTitle: 'Viết code hôm nay, tự tin bứt phá ngày mai',
-      heroDescription: 'UTH Online Judge là nền tảng luyện tập viết mã từ Zero đến Hero, giúp sinh viên từng bước rèn luyện tư duy thuật toán, nâng cao kỹ năng giải quyết vấn đề và chinh phục những thử thách lập trình.',
+      heroTitleLine1: 'Viết code. Rèn tư duy.',
+      heroTitleLine2: 'Chinh phục thử thách.',
+      heroDescription: 'Luyện tập thuật toán, thử sức với những bài toán lập trình và chinh phục các cuộc thi. UTH Online Judge đồng hành cùng bạn trên hành trình phát triển kỹ năng lập trình.',
       exploreProblems: 'Khám phá bài tập',
       joinContest: 'Tham gia kỳ thi',
       communityLeaderboard: 'Bảng xếp hạng cộng đồng',
@@ -762,8 +763,9 @@ export const resources = {
       members: 'members',
     },
     home: {
-      heroTitle: 'Code today, break through tomorrow',
-      heroDescription: 'UTH Online Judge helps students build algorithmic thinking, improve problem-solving skills, and take on programming challenges through hands-on practice.',
+      heroTitleLine1: 'Write Code. Sharpen Your Mind.',
+      heroTitleLine2: 'Conquer Every Challenge.',
+      heroDescription: 'Practice algorithms, tackle programming problems, and compete in coding contests. UTH Online Judge supports you on your journey to becoming a better programmer.',
       exploreProblems: 'Explore problems',
       joinContest: 'Join a contest',
       communityLeaderboard: 'Community leaderboard',
