@@ -14,7 +14,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
@@ -22,11 +22,13 @@ import type { Viewer } from './community.utils.js';
 import { CommentInputDto, CreateCommentDto, ReactionInputDto } from './dto/discussions.dto.js';
 import { PaginationQueryDto } from './dto/pagination.dto.js';
 import { ProblemCommentsService } from './problem-comments.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 type UserRequest = Request & { user: Viewer };
 type OptionalUserRequest = Request & { user?: Viewer | null };
 
 @ApiTags('Problem comments')
+@DocumentControllerOperations()
 @Controller()
 export class ProblemCommentsController {
   constructor(private readonly comments: ProblemCommentsService) {}
@@ -69,6 +71,7 @@ export class ProblemCommentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Bình luận đã được cập nhật; không có nội dung phản hồi.' })
   async edit(
     @Param('commentId', ParseUUIDPipe) commentId: string,
     @Body() input: CommentInputDto,
@@ -81,6 +84,7 @@ export class ProblemCommentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Bình luận đã được xóa; không có nội dung phản hồi.' })
   async remove(@Param('commentId', ParseUUIDPipe) commentId: string, @Req() request: UserRequest) {
     await this.comments.removeComment(commentId, request.user);
   }

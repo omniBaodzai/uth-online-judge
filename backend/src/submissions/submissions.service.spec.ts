@@ -394,6 +394,7 @@ describe('SubmissionsRepository', () => {
       { rows: [{ id: 'contest-1' }], rowCount: 1 },
       { rows: [{ is_ongoing: true }], rowCount: 1 },
       { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'problem-1', organization_id: null }], rowCount: 1 },
       { rows: [{ problem_id: 'problem-1', max_score: '75.50' }], rowCount: 1 },
       { rows: [{ id: 'language-1' }], rowCount: 1 },
       { rows: [{ id: 'submission-1', status: 'PENDING', submitted_at: submittedAt }], rowCount: 1 },
@@ -413,16 +414,18 @@ describe('SubmissionsRepository', () => {
       submittedAt: submittedAt.toISOString(),
     });
 
-    const contestQuery = client.query.mock.calls[1] as [string, unknown[]];
+    const contestLookup = client.query.mock.calls[1] as [string, unknown[]];
+    const contestQuery = client.query.mock.calls[2] as [string, unknown[]];
     expect(contestQuery[0]).toContain("c.publication_status = 'PUBLISHED'");
     expect(contestQuery[0]).toContain("c.visibility = 'PUBLIC'");
     expect(contestQuery[0]).toContain('FOR SHARE');
-    expect(contestQuery[1]).toEqual([null, 'public-contest']);
-    expect(client.query.mock.calls[2]?.[0]).toContain('clock_timestamp()');
+    expect(contestLookup[1]).toEqual([null, 'public-contest']);
+    expect(contestQuery[1]).toEqual(['contest-1']);
+    expect(contestQuery[0]).toContain('clock_timestamp()');
     expect(client.query.mock.calls[3]?.[0]).toContain('FOR SHARE');
     expect(client.query.mock.calls[4]?.[0]).toContain('problem_code_snapshot = $2');
 
-    const insertQuery = client.query.mock.calls[6] as [string, unknown[]];
+    const insertQuery = client.query.mock.calls[7] as [string, unknown[]];
     expect(insertQuery[0]).toContain('WITH acceptance_time AS MATERIALIZED');
     expect(insertQuery[0]).toContain('acceptance_time.submitted_at < c.ends_at');
     expect(insertQuery[0]).toContain('contest_max_score_snapshot');
@@ -434,9 +437,64 @@ describe('SubmissionsRepository', () => {
       'language-1',
       'int main() {}',
     ]);
-    expect(client.query.mock.calls[7]?.[0]).toContain('submission_test_case_snapshots');
+    expect(client.query.mock.calls[8]?.[0]).toContain('submission_test_case_snapshots');
     expect(client.query).toHaveBeenCalledWith('COMMIT');
     expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('accepts a granted Organization problem in a Global Contest without changing its submission scope', async () => {
+    const client = contestSubmissionClient([
+      { rows: [{ id: 'contest-1' }], rowCount: 1 },
+      { rows: [{ id: 'contest-1', is_ongoing: true }], rowCount: 1 },
+      { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'org-problem-1', organization_id: 'org-1' }], rowCount: 1 },
+      { rows: [{ status: 'ACTIVE' }], rowCount: 1 },
+      { rows: [{ id: 'grant-1' }], rowCount: 1 },
+      { rows: [{ problem_id: 'org-problem-1', max_score: '100.00', organization_id: 'org-1' }], rowCount: 1 },
+      { rows: [{ id: 'language-1' }], rowCount: 1 },
+      { rows: [{ id: 'submission-1', status: 'PENDING', submitted_at: new Date() }], rowCount: 1 },
+      { rows: [], rowCount: 1 },
+    ]);
+
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'contest-1',
+      problemCode: 'ORG001',
+      language: 'cpp',
+      sourceCode: 'int main() {}',
+    })).resolves.toMatchObject({ id: 'submission-1' });
+
+    expect(client.query.mock.calls[5]?.[0]).toContain("status");
+    expect(client.query.mock.calls[6]?.[0]).toContain("scope = 'GLOBAL_CONTESTS'");
+    expect(client.query.mock.calls[6]?.[0]).toContain('FOR SHARE');
+    expect(client.query.mock.calls[9]?.[0]).toContain('contest_max_score_snapshot');
+    expect(client.query.mock.calls[9]?.[0]).toContain('grant_row.revoked_at IS NULL');
+    expect(client.query.mock.calls[10]?.[0]).toContain('submission_test_case_snapshots');
+  });
+
+  it('rejects Global Contest submission when an Organization grant has been revoked', async () => {
+    const client = contestSubmissionClient([
+      { rows: [{ id: 'contest-1' }], rowCount: 1 },
+      { rows: [{ id: 'contest-1', is_ongoing: true }], rowCount: 1 },
+      { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'org-problem-1', organization_id: 'org-1' }], rowCount: 1 },
+      { rows: [{ status: 'ACTIVE' }], rowCount: 1 },
+      { rows: [], rowCount: 0 },
+      { rows: [], rowCount: 0 },
+    ]);
+
+    await expect(repository.insertContest({
+      userId: 'user-1',
+      contestIdentifier: 'contest-1',
+      problemCode: 'ORG001',
+      language: 'cpp',
+      sourceCode: 'code',
+    })).rejects.toBeInstanceOf(NotFoundException);
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO public.submissions'),
+      expect.anything(),
+    );
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
   });
 
   it('does not disclose unpublished or private contests', async () => {
@@ -500,6 +558,7 @@ describe('SubmissionsRepository', () => {
       { rows: [{ is_ongoing: true }], rowCount: 1 },
       { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
       { rows: [], rowCount: 0 },
+      { rows: [], rowCount: 0 },
     ]);
     await expect(repository.insertContest({
       userId: 'user-1',
@@ -519,6 +578,7 @@ describe('SubmissionsRepository', () => {
       { rows: [{ id: 'contest-1' }], rowCount: 1 },
       { rows: [{ is_ongoing: true }], rowCount: 1 },
       { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'problem-1', organization_id: null }], rowCount: 1 },
       { rows: [{ problem_id: 'problem-1', max_score: '100.00' }], rowCount: 1 },
       { rows: [], rowCount: 0 },
     ]);
@@ -540,6 +600,7 @@ describe('SubmissionsRepository', () => {
       { rows: [{ id: 'contest-1' }], rowCount: 1 },
       { rows: [{ is_ongoing: true }], rowCount: 1 },
       { rows: [{ registration_status: 'REGISTERED' }], rowCount: 1 },
+      { rows: [{ problem_id: 'problem-1', organization_id: null }], rowCount: 1 },
       { rows: [{ problem_id: 'problem-1', max_score: '100.00' }], rowCount: 1 },
       { rows: [{ id: 'language-1' }], rowCount: 1 },
       { rows: [], rowCount: 0 },
@@ -551,7 +612,7 @@ describe('SubmissionsRepository', () => {
       language: 'cpp',
       sourceCode: 'code',
     })).rejects.toBeInstanceOf(ConflictException);
-    expect(client.query.mock.calls[6]?.[0]).toContain('acceptance_time.submitted_at < c.ends_at');
+    expect(client.query.mock.calls[7]?.[0]).toContain('acceptance_time.submitted_at < c.ends_at');
     expect(client.query).not.toHaveBeenCalledWith(
       expect.stringContaining('submission_test_case_snapshots'),
       expect.anything(),
@@ -998,6 +1059,53 @@ describe('SubmissionsRepository', () => {
       ['case-1'],
       [testCaseFingerprint('input', 'edited output')],
     ]);
+  });
+
+  it('keeps a submitter’s Global Contest result for a granted Organization problem in historical metadata', async () => {
+    database.query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 's-global-org',
+          user_id: 'u1',
+          problem_id: 'org-problem-1',
+          problem_code: 'ORG001',
+          problem_title: 'Contest snapshot title',
+          organization_problem: true,
+          username: 'student1',
+          language: 'C++',
+          source_code: 'code',
+          status: 'ACCEPTED',
+          scoring_enabled: true,
+          score: '1',
+          max_score: '1',
+          execution_time_ms: 10,
+          memory_used_kb: 100,
+          submitted_at: new Date('2026-01-01T00:00:00.000Z'),
+          judged_at: new Date('2026-01-01T00:00:01.000Z'),
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          position: 1,
+          status: 'ACCEPTED',
+          execution_time_ms: 10,
+          memory_used_kb: 100,
+          points_awarded: '1',
+          max_points: '1',
+        }],
+      });
+
+    await expect(repository.findOwned('s-global-org', 'u1')).resolves.toMatchObject({
+      problemCode: 'ORG001',
+      problemTitle: 'Contest snapshot title',
+      sourceCode: 'code',
+      status: 'ACCEPTED',
+    });
+    const sql = database.query.mock.calls[0]?.[0] as string;
+    expect(sql).toContain('contest_problem.problem_title_snapshot');
+    expect(sql).toContain('c.organization_id IS NULL');
+    expect(sql).toContain('s.user_id = $2');
+    expect(database.query).toHaveBeenCalledTimes(2);
   });
 
   it('excludes deleted test cases from the current cumulative total', async () => {

@@ -102,21 +102,21 @@ export class ListContactMessagesQueryDto extends PaginationQueryDto {
 }
 
 export class ListNotificationsQueryDto {
-  @ApiPropertyOptional({ default: 1, minimum: 1, maximum: 100000 })
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1, maximum: 100000 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100000)
-  page = 1;
+  page: number = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 50 })
+  @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 50 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(50)
-  pageSize = 20;
+  pageSize: number = 20;
 }
 
 export function validateIdempotencyKey(value: string | undefined): string | null {

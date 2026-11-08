@@ -17,7 +17,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 import type { Request } from 'express';
 import type {} from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -32,6 +33,7 @@ import { ProblemIllustrationService, PROBLEM_ILLUSTRATION_MAX_BYTES } from '../p
 type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 
 @ApiTags('Admin')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 @Controller('admin')
@@ -78,7 +80,25 @@ export class AdminController {
 
   @Post('problems/illustrations')
   @ApiConsumes('multipart/form-data')
-  @ApiOkResponse({ description: 'Returns the public URL of the uploaded illustration.' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['image'],
+      properties: { image: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOperation({
+    summary: 'Tải ảnh minh họa cho bài tập',
+    description: 'Quản trị viên tải một tệp ảnh lên và nhận URL công khai để gắn vào bài tập.',
+  })
+  @ApiCreatedResponse({
+    description: 'Trả về URL công khai; UUID trong ví dụ chỉ là placeholder, không đại diện ảnh có sẵn.',
+    schema: {
+      example: {
+        url: '/problems/illustrations/00000000-0000-4000-8000-000000000000',
+      },
+    },
+  })
   @UseInterceptors(FileInterceptor('image', {
     limits: { fileSize: PROBLEM_ILLUSTRATION_MAX_BYTES, files: 1 },
   }))
@@ -113,6 +133,7 @@ export class AdminController {
 
   @Delete('problems/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Bài tập nháp đã được xóa; không có nội dung phản hồi.' })
   deleteProblem(@Param('id') id: string) {
     return this.admin.deleteProblem(id);
   }

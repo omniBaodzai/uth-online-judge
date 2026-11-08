@@ -54,6 +54,7 @@ describe('ProblemsRepository', () => {
       });
       const sql = database.query.mock.calls.map(([text]) => text).join('\n');
       expect(sql).toContain("p.status = 'PUBLISHED'");
+      expect(sql).toContain('p.organization_id IS NULL');
       expect(sql).not.toContain('expected_output');
       expect(sql).not.toContain('input_data');
       expect(sql).not.toContain('content_markdown');
@@ -136,6 +137,7 @@ describe('ProblemsRepository', () => {
 
     const [sql, values] = database.query.mock.calls[0];
     expect(sql).toContain("p.status = 'PUBLISHED'");
+    expect(sql).toContain('p.organization_id IS NULL');
     expect(sql).not.toContain('password_hash');
     expect(sql).not.toContain('email');
     expect(values).toEqual([null, 'NOPE']);

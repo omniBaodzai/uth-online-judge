@@ -4,11 +4,13 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AdminRoleGuard } from './admin-role.guard.js';
 import { AdminUsersService } from './admin-users.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 import { AdminUserRoleDto, AdminUserStatusDto, ListAdminUsersQueryDto } from './dto/admin-user.dto.js';
 
 type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 
 @ApiTags('Admin')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 @Controller('admin/users')

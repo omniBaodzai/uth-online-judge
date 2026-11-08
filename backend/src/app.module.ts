@@ -12,6 +12,7 @@ import { CommunityModule } from './community/community.module.js';
 import { LeaderboardModule } from './leaderboard/leaderboard.module.js';
 import { ContestsModule } from './contests/contests.module.js';
 import { ContactModule } from './contact/contact.module.js';
+import { OrganizationsModule } from './organizations/organizations.module.js';
 import { PublicStatsModule } from './public-stats/public-stats.module.js';
 
 @Module({
@@ -27,6 +28,7 @@ import { PublicStatsModule } from './public-stats/public-stats.module.js';
     LeaderboardModule,
     ContestsModule,
     ContactModule,
+    OrganizationsModule,
     PublicStatsModule,
   ],
   controllers: [AppController],

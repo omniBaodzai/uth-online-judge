@@ -23,14 +23,14 @@ const toTagList = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.split(',').filter(Boolean) : value;
 
 export class ListProblemsQueryDto {
-  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'Số trang phải là số nguyên.' })
   @Min(1, { message: 'Số trang phải lớn hơn hoặc bằng 1.' })
   page: number = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 50 })
+  @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 50 })
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'Kích thước trang phải là số nguyên.' })

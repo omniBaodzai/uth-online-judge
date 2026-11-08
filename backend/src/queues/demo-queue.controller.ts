@@ -13,9 +13,11 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { EnqueueUppercaseDto } from './dto/enqueue-uppercase.dto.js';
 import { DemoQueueService } from './demo-queue.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 // Authenticated so anonymous clients cannot fill the queue.
 @ApiTags('Demo queue')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('demo-queue')

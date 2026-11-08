@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Pool, type PoolClient } from 'pg';
 import { Inject } from '@nestjs/common';
@@ -88,9 +88,12 @@ const PROBLEM_FIELDS = `
 export class AdminRepository {
   constructor(@Inject(DATABASE_POOL) private readonly database: Pool) {}
 
-  async listProblems(query: AdminProblemListQuery): Promise<AdminProblemPage> {
-    const conditions: string[] = [];
-    const values: Array<string | number> = [];
+  async listProblems(
+    query: AdminProblemListQuery,
+    organizationId: string | null = null,
+  ): Promise<AdminProblemPage> {
+    const conditions: string[] = ['p.organization_id IS NOT DISTINCT FROM $1::uuid'];
+    const values: Array<string | number | null> = [organizationId];
     if (query.search?.trim()) {
       values.push(`%${escapeLike(query.search.trim())}%`);
       conditions.push(`(p.problem_code ILIKE $${values.length} ESCAPE '\\' OR p.title ILIKE $${values.length} ESCAPE '\\')`);
@@ -103,7 +106,7 @@ export class AdminRepository {
       values.push(query.difficulty.toUpperCase());
       conditions.push(`p.difficulty = $${values.length}`);
     }
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const where = `WHERE ${conditions.join(' AND ')}`;
     const count = await this.database.query<{ total: string }>(
       `SELECT COUNT(*)::text AS total FROM problems p ${where}`,
       values,
@@ -125,10 +128,17 @@ export class AdminRepository {
     };
   }
 
-  async findProblem(id: string): Promise<AdminProblem> {
+  async findProblem(
+    id: string,
+    organizationId: string | null = null,
+    includeUnpublishedEditorials = true,
+  ): Promise<AdminProblem> {
     const result = await this.database.query<ProblemRow>(
-      `SELECT ${PROBLEM_FIELDS} FROM problems p WHERE p.id = $1 LIMIT 1`,
-      [id],
+      `SELECT ${PROBLEM_FIELDS}
+       FROM problems p
+       WHERE p.id = $1 AND p.organization_id IS NOT DISTINCT FROM $2::uuid
+       LIMIT 1`,
+      [id, organizationId],
     );
     const row = result.rows[0];
     if (!row) throw new NotFoundException('Không tìm thấy bài tập.');
@@ -143,9 +153,9 @@ export class AdminRepository {
     const editorials = await this.database.query<EditorialRow>(
       `SELECT id, title, language, source_code
        FROM problem_editorials
-       WHERE problem_id = $1
+       WHERE problem_id = $1 AND ($2::boolean OR is_published = TRUE)
        ORDER BY created_at ASC, id ASC`,
-      [id],
+      [id, includeUnpublishedEditorials],
     );
     return {
       ...mapProblem(row),
@@ -158,18 +168,27 @@ export class AdminRepository {
     };
   }
 
-  async saveProblem(input: AdminProblemDto, userId: string, id?: string): Promise<AdminProblem> {
+  async saveProblem(
+    input: AdminProblemDto,
+    userId: string,
+    id?: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<AdminProblem> {
     const client = await this.database.connect();
     let savedId = id;
     try {
       await client.query('BEGIN');
+      if (organizationId) await this.lockActiveOrganization(client, organizationId, actor);
       let current: ProblemSettingsRow | undefined;
       if (id) {
         const existing = await client.query<ProblemSettingsRow>(
           `SELECT scoring_enabled, score::text AS score, test_case_revision,
                   illustration_url, illustration_width, illustration_aspect_ratio, illustration_alignment
-           FROM problems WHERE id = $1 FOR UPDATE`,
-          [id],
+           FROM problems
+           WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid
+           FOR UPDATE`,
+          [id, organizationId],
         );
         current = existing.rows[0];
         if (!current) throw new NotFoundException('Không tìm thấy bài tập.');
@@ -205,9 +224,9 @@ export class AdminRepository {
                  WHEN $14::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
                  ELSE published_at END,
                updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1
+           WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $19::uuid
            RETURNING id`,
-          [id, ...values],
+          [id, ...values, organizationId],
         );
         if (!updated.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
       } else {
@@ -216,12 +235,14 @@ export class AdminRepository {
              (problem_code, title, summary, statement, difficulty, input_description,
               output_description, constraints_text, time_limit_ms, memory_limit_mb,
                 score, scoring_enabled, status, illustration_url, illustration_width,
-                illustration_aspect_ratio, illustration_alignment, created_by, published_at)
+                illustration_aspect_ratio, illustration_alignment, created_by, published_at,
+                organization_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::varchar,
-                       $14, $15, $16::varchar, $17, $18,
-                       CASE WHEN $13::varchar = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END)
+                         $14, $15, $16::varchar, $17, $18,
+                         CASE WHEN $13::varchar = 'PUBLISHED' THEN CURRENT_TIMESTAMP ELSE NULL END,
+                         $19::uuid)
            RETURNING id`,
-          [...values, userId],
+          [...values, userId, organizationId],
         );
         savedId = inserted.rows[0]?.id;
         if (!savedId) throw new Error('Problem insert did not return an id');
@@ -251,16 +272,22 @@ export class AdminRepository {
     } finally {
       client.release();
     }
-    return this.findProblem(savedId);
+    return this.findProblem(savedId, organizationId);
   }
 
-  async setProblemStatus(id: string, status: AdminProblem['status']): Promise<void> {
+  async setProblemStatus(
+    id: string,
+    status: AdminProblem['status'],
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<void> {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
+      if (organizationId) await this.lockActiveOrganization(client, organizationId, actor);
       const problem = await client.query<{ id: string }>(
-        'SELECT id FROM problems WHERE id = $1 FOR UPDATE',
-        [id],
+        'SELECT id FROM problems WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid FOR UPDATE',
+        [id, organizationId],
       );
       if (!problem.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
       await this.assertNotLockedByStartedContest(client, id);
@@ -272,8 +299,8 @@ export class AdminRepository {
                WHEN $2::varchar = 'PUBLISHED' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
                ELSE published_at END,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [id, status.toUpperCase()],
+         WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $3::uuid`,
+        [id, status.toUpperCase(), organizationId],
       );
       if (!result.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
       await client.query('COMMIT');
@@ -285,23 +312,38 @@ export class AdminRepository {
     }
   }
 
-  async deleteProblem(id: string): Promise<void> {
-    let result;
+  async deleteProblem(
+    id: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<void> {
+    const client = await this.database.connect();
     try {
-      result = await this.database.query(
-        `DELETE FROM problems WHERE id = $1 AND status = 'DRAFT'`,
-        [id],
+      await client.query('BEGIN');
+      if (organizationId) await this.lockActiveOrganization(client, organizationId, actor);
+      const result = await client.query(
+        `DELETE FROM problems
+         WHERE id = $1 AND status = 'DRAFT'
+           AND organization_id IS NOT DISTINCT FROM $2::uuid`,
+        [id, organizationId],
       );
+      if (!result.rowCount) {
+        const found = await client.query(
+          'SELECT 1 FROM problems WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid',
+          [id, organizationId],
+        );
+        if (!found.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
+        throw new ConflictException('Chỉ có thể xóa bài tập ở trạng thái bản nháp.');
+      }
+      await client.query('COMMIT');
     } catch (error) {
+      await client.query('ROLLBACK');
       if (isForeignKeyViolation(error)) {
         throw new ConflictException('Bài tập đã có dữ liệu liên quan và không thể xóa.');
       }
       throw error;
-    }
-    if (!result.rowCount) {
-      const found = await this.database.query('SELECT 1 FROM problems WHERE id = $1', [id]);
-      if (!found.rowCount) throw new NotFoundException('Không tìm thấy bài tập.');
-      throw new ConflictException('Chỉ có thể xóa bài tập ở trạng thái bản nháp.');
+    } finally {
+      client.release();
     }
   }
 
@@ -356,7 +398,10 @@ export class AdminRepository {
   }> {
     const [counts, recent] = await Promise.all([
       this.database.query<{ status: string; count: string }>(
-        `SELECT status, COUNT(*)::text AS count FROM problems GROUP BY status`,
+        `SELECT status, COUNT(*)::text AS count
+         FROM problems
+         WHERE organization_id IS NULL
+         GROUP BY status`,
       ),
       this.listProblems({ page: 1, pageSize: 4 }),
     ]);
@@ -370,16 +415,38 @@ export class AdminRepository {
     };
   }
 
-  async listTestCases(problemId: string): Promise<{ revision: number; cases: AdminTestCase[] }> {
+  async listTestCases(
+    problemId: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<{ revision: number; cases: AdminTestCase[] }> {
+    const hasOrganizationScope = organizationId !== null;
+    const orgAccess = hasOrganizationScope
+      ? `AND EXISTS (
+           SELECT 1 FROM public.organizations o
+           WHERE o.id = p.organization_id
+             AND (
+               $4::boolean
+               OR (o.status = 'ACTIVE' AND EXISTS (
+                 SELECT 1 FROM public.organization_members om
+                 WHERE om.organization_id = o.id AND om.user_id = $3::uuid
+                   AND om.role IN ('OWNER', 'ADMIN')
+               ))
+             )
+         )`
+      : '';
     const result = await this.database.query<Partial<TestCaseRow> & { test_case_revision: number }>(
       `SELECT p.test_case_revision, tc.id, tc.test_name, tc.input_data,
               tc.expected_output, tc.is_sample, tc.points, tc.position, tc.is_active
        FROM problems p
        LEFT JOIN problem_test_cases tc
          ON tc.problem_id = p.id AND tc.is_active = TRUE
-       WHERE p.id = $1
+       WHERE p.id = $1 AND p.organization_id IS NOT DISTINCT FROM $2::uuid
+         ${orgAccess}
        ORDER BY tc.position ASC NULLS LAST, tc.id ASC`,
-      [problemId],
+      hasOrganizationScope
+        ? [problemId, organizationId, actor?.userId ?? null, actor?.isSystemAdmin ?? false]
+        : [problemId, organizationId],
     );
     const first = result.rows[0];
     if (!first) throw new NotFoundException('Không tìm thấy bài tập.');
@@ -395,13 +462,19 @@ export class AdminRepository {
     problemId: string,
     expectedRevision: number,
     cases: AdminTestCaseDto[],
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
   ): Promise<{ revision: number; cases: AdminTestCase[] }> {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
+      if (organizationId) await this.lockActiveOrganization(client, organizationId, actor);
       const problem = await client.query<{ test_case_revision: number; status: string }>(
-        'SELECT test_case_revision, status FROM problems WHERE id = $1 FOR UPDATE',
-        [problemId],
+        `SELECT test_case_revision, status
+         FROM problems
+         WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid
+         FOR UPDATE`,
+        [problemId, organizationId],
       );
       const current = problem.rows[0];
       if (!current) throw new NotFoundException('Không tìm thấy bài tập.');
@@ -418,7 +491,7 @@ export class AdminRepository {
     } finally {
       client.release();
     }
-    return this.listTestCases(problemId);
+    return this.listTestCases(problemId, organizationId, actor);
   }
 
   private async replaceTestCasesInTransaction(
@@ -528,6 +601,32 @@ export class AdminRepository {
     );
     if (result.rows[0]) {
       throw new ConflictException('Không thể thay đổi bài tập hoặc test case sau khi cuộc thi bắt đầu.');
+    }
+  }
+
+  private async lockActiveOrganization(
+    client: PoolClient,
+    organizationId: string,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<void> {
+    const result = await client.query<{ status: string }>(
+      'SELECT status FROM public.organizations WHERE id = $1 FOR UPDATE',
+      [organizationId],
+    );
+    if (!result.rows[0]) throw new NotFoundException('Không tìm thấy tổ chức.');
+    if (result.rows[0].status !== 'ACTIVE') {
+      throw new ConflictException('Tổ chức đã được lưu trữ. Hãy khôi phục trước khi thay đổi bài tập.');
+    }
+    if (!actor) throw new ForbiddenException('Thiếu danh tính người thao tác.');
+    if (!actor.isSystemAdmin) {
+      const membership = await client.query(
+        `SELECT 1 FROM public.organization_members
+         WHERE organization_id = $1 AND user_id = $2 AND role IN ('OWNER', 'ADMIN')`,
+        [organizationId, actor.userId],
+      );
+      if (!membership.rowCount) {
+        throw new ForbiddenException('Bạn không còn quyền quản lý bài tập của tổ chức này.');
+      }
     }
   }
 

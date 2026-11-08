@@ -13,18 +13,20 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AdminRoleGuard } from '../admin/admin-role.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AdminListNewsQueryDto, NewsInputDto, NewsSlugParamDto, NewsStatusDto } from './dto/news.dto.js';
 import { PaginationQueryDto } from './dto/pagination.dto.js';
 import { NewsService } from './news.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 
 // Công khai: chỉ đọc tin đã xuất bản. Không có guard vì không có thao tác ghi.
 @ApiTags('News')
+@DocumentControllerOperations()
 @Controller('news')
 export class NewsController {
   constructor(private readonly news: NewsService) {}
@@ -43,6 +45,7 @@ export class NewsController {
 }
 
 @ApiTags('Admin')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 @Controller('admin/news')
@@ -78,6 +81,7 @@ export class AdminNewsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Bản tin đã được xóa; không có nội dung phản hồi.' })
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     await this.news.remove(id);
   }

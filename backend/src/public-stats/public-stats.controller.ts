@@ -1,8 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PublicStatsService } from './public-stats.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 @ApiTags('Public')
+@DocumentControllerOperations()
 @Controller('public')
 export class PublicStatsController {
   constructor(private readonly stats: PublicStatsService) {}

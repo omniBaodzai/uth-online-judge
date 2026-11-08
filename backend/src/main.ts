@@ -40,8 +40,8 @@ async function bootstrap() {
 
   // Cấu hình tài liệu API bằng Swagger
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('UTH Online Judge API')
-    .setDescription('API documentation for UTH Online Judge')
+    .setTitle('API UTH Online Judge')
+    .setDescription('Tài liệu các API của hệ thống UTH Online Judge.')
     .setVersion('1.0')
     .addBearerAuth()
     .addCookieAuth(REFRESH_COOKIE_NAME, { type: 'apiKey', in: 'cookie' })

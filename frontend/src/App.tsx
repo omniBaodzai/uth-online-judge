@@ -39,6 +39,15 @@ import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
 import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
 import ContributorsPage from './features/contributors/pages/ContributorsPage'
 import OrganizationsPage from './features/organizations/pages/OrganizationsPage'
+import OrganizationDetailPage from './features/organizations/pages/OrganizationDetailPage'
+import OrganizationManagePage from './features/organizations/pages/OrganizationManagePage'
+import OrganizationPreviewPage from './features/organizations/pages/OrganizationPreviewPage'
+import OrganizationSubmitPage from './features/organizations/pages/OrganizationSubmitPage'
+import OrganizationSubmissionPage from './features/organizations/pages/OrganizationSubmissionPage'
+import OrganizationSubmissionsPanel from './features/organizations/components/OrganizationSubmissionsPanel'
+import AdminOrganizationsPage from './features/admin/organizations/AdminOrganizationsPage'
+import AdminOrganizationRequestDetailPage from './features/admin/organizations/AdminOrganizationRequestDetailPage'
+import AdminOrganizationDetailPage from './features/admin/organizations/AdminOrganizationDetailPage'
 import ContestsPage from './features/contests/pages/ContestsPage'
 import ContestDetailPage from './features/contests/pages/ContestDetailPage'
 import ContactPage from './features/contact/pages/ContactPage'
@@ -68,6 +77,9 @@ function App() {
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="contact-messages/:messageId" element={<AdminContactMessageDetailPage />} />
               <Route path="contact-messages" element={<AdminContactMessagesPage />} />
+              <Route path="organizations" element={<AdminOrganizationsPage />} />
+              <Route path="organizations/:id" element={<AdminOrganizationDetailPage />} />
+              <Route path="organization-requests/:id" element={<AdminOrganizationRequestDetailPage />} />
               <Route path="news" element={<AdminNewsPage />} />
               <Route path="news/new" element={<AdminNewsFormPage />} />
               <Route path="news/:id/edit" element={<AdminNewsFormPage />} />
@@ -117,6 +129,26 @@ function App() {
           />
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="organizations" element={<OrganizationsPage />} />
+          <Route
+            path="organizations/:organizationId/problems/:problemId/submit"
+            element={<RequireAuth><OrganizationSubmitPage /></RequireAuth>}
+          />
+          <Route
+            path="organizations/:organizationId/contests/:contestId/problems/:problemId/submit"
+            element={<RequireAuth><OrganizationSubmitPage /></RequireAuth>}
+          />
+          <Route path="organizations/:organizationId/submissions" element={<OrganizationSubmissionsPanel canViewSubmissions />} />
+          <Route
+            path="organizations/:organizationId/submissions/mine"
+            element={<RequireAuth><OrganizationSubmissionsPanel canViewSubmissions mySubmissions /></RequireAuth>}
+          />
+          <Route path="organizations/:organizationId/submissions/:submissionId" element={<OrganizationSubmissionPage />} />
+          <Route path="organizations/:organizationId" element={<OrganizationDetailPage />} />
+          <Route
+            path="organizations/:organizationId/manage"
+            element={<RequireAuth><OrganizationManagePage /></RequireAuth>}
+          />
+          {import.meta.env.DEV && <Route path="dev/organization-preview" element={<OrganizationPreviewPage />} />}
           <Route path="contact" element={<ContactPage />} />
           <Route
             path="my/contact-messages/:messageId"

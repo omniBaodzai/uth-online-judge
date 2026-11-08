@@ -135,6 +135,7 @@ describe('SubmissionsRepository.findGlobalSubmissions', () => {
 
     for (const [sql] of query.mock.calls as Array<[string]>) {
       expect(sql).toContain("p.status = 'PUBLISHED'");
+      expect(sql).toContain('p.organization_id IS NULL');
       expect(sql).not.toMatch(/source_code|judge0_token|error_message|input_data|expected_output|email|password/i);
     }
   });

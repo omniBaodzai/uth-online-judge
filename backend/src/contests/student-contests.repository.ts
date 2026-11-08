@@ -137,7 +137,7 @@ const SORT_SQL: Record<StudentContestListQuery['sort'], string> = {
 };
 
 const PUBLIC_CONTEST_CONDITION =
-  "c.publication_status = 'PUBLISHED' AND c.visibility = 'PUBLIC'";
+  "c.organization_id IS NULL AND c.publication_status = 'PUBLISHED' AND c.visibility = 'PUBLIC'";
 
 @Injectable()
 export class StudentContestsRepository {
@@ -310,6 +310,20 @@ export class StudentContestsRepository {
                     FILTER (WHERE s.status = 'ACCEPTED')::int AS solved_participants
            FROM public.submissions s
            WHERE s.contest_id = (SELECT id FROM public_contest)
+             AND EXISTS (
+               SELECT 1
+               FROM public.problems p
+               JOIN public.contest_problems contest_problem
+                 ON contest_problem.contest_id = s.contest_id
+                AND contest_problem.problem_id = p.id
+               WHERE p.id = s.problem_id
+                 AND p.status = 'PUBLISHED'
+                 AND (p.organization_id IS NULL OR EXISTS (
+                   SELECT 1 FROM public.organizations owner
+                   WHERE owner.id = p.organization_id AND owner.status = 'ACTIVE'
+                 ))
+                 AND public.contest_problem_content_accessible(s.contest_id, p.id)
+             )
            GROUP BY GROUPING SETS (
              (s.status),
              (s.problem_id, s.status),
@@ -370,7 +384,16 @@ export class StudentContestsRepository {
               AND (contest.ends_at <= CURRENT_TIMESTAMP OR account.is_active = TRUE)) AS total_participants,
            (SELECT COUNT(*)::int
             FROM public.contest_problems contest_problem
-            WHERE contest_problem.contest_id = contest.id) AS total_problems,
+            JOIN public.problems problem ON problem.id = contest_problem.problem_id
+            WHERE contest_problem.contest_id = contest.id
+              AND problem.status = 'PUBLISHED'
+              AND (problem.organization_id IS NULL OR EXISTS (
+                SELECT 1 FROM public.organizations owner
+                WHERE owner.id = problem.organization_id AND owner.status = 'ACTIVE'
+              ))
+              AND public.contest_problem_content_accessible(
+                contest_problem.contest_id, contest_problem.problem_id
+              )) AS total_problems,
            submission_rollup.total_submissions,
            submission_rollup.accepted_submissions,
            submission_rollup.wrong_answer_submissions,
@@ -402,9 +425,18 @@ export class StudentContestsRepository {
                '[]'::jsonb
              )
              FROM public.contest_problems contest_problem
+             JOIN public.problems problem ON problem.id = contest_problem.problem_id
              LEFT JOIN problem_rollup
                ON problem_rollup.problem_id = contest_problem.problem_id
              WHERE contest_problem.contest_id = contest.id
+               AND problem.status = 'PUBLISHED'
+               AND (problem.organization_id IS NULL OR EXISTS (
+                 SELECT 1 FROM public.organizations owner
+                 WHERE owner.id = problem.organization_id AND owner.status = 'ACTIVE'
+               ))
+               AND public.contest_problem_content_accessible(
+                 contest_problem.contest_id, contest_problem.problem_id
+               )
            ) AS problem_statistics,
            (
              SELECT COALESCE(
@@ -511,6 +543,12 @@ export class StudentContestsRepository {
                   COALESCE(SUM(result.points_awarded), 0)::numeric AS earned_points
            FROM public.submissions submission
            JOIN public_contest contest ON contest.id = submission.contest_id
+           JOIN public.problems problem ON problem.id = submission.problem_id
+           AND problem.status = 'PUBLISHED'
+           AND (problem.organization_id IS NULL OR EXISTS (
+             SELECT 1 FROM public.organizations owner
+             WHERE owner.id = problem.organization_id AND owner.status = 'ACTIVE'
+           ))
            JOIN public.contest_problems contest_problem
              ON contest_problem.contest_id = contest.id
             AND contest_problem.problem_id = submission.problem_id
@@ -522,6 +560,7 @@ export class StudentContestsRepository {
             AND result.snapshot_id = snapshot.id
            WHERE submission.submitted_at >= contest.starts_at
              AND submission.submitted_at < contest.ends_at
+             AND public.contest_problem_content_accessible(contest.id, problem.id)
              AND submission.status IN (
                'ACCEPTED',
                'WRONG_ANSWER',
@@ -585,7 +624,16 @@ export class StudentContestsRepository {
                     FILTER (WHERE problem.has_accepted)::int AS accepted_problems,
                   (SELECT COUNT(*)::int
                    FROM public.contest_problems contest_problem
-                   JOIN public_contest contest ON contest.id = contest_problem.contest_id)
+                  JOIN public_contest contest ON contest.id = contest_problem.contest_id
+                  JOIN public.problems problem ON problem.id = contest_problem.problem_id
+                  WHERE problem.status = 'PUBLISHED'
+                    AND (problem.organization_id IS NULL OR EXISTS (
+                      SELECT 1 FROM public.organizations owner
+                      WHERE owner.id = problem.organization_id AND owner.status = 'ACTIVE'
+                    ))
+                    AND public.contest_problem_content_accessible(
+                      contest_problem.contest_id, contest_problem.problem_id
+                    ))
                     AS total_problems,
                   MAX(problem.score_reached_at)
                     FILTER (WHERE problem.best_score > 0) AS best_score_at,
@@ -713,7 +761,18 @@ export class StudentContestsRepository {
                       FROM public.submissions submission
                       JOIN public_contest contest
                         ON contest.id = submission.contest_id
+                      JOIN public.problems problem
+                        ON problem.id = submission.problem_id
+                      JOIN public.contest_problems contest_problem
+                        ON contest_problem.contest_id = contest.id
+                       AND contest_problem.problem_id = problem.id
                       WHERE submission.user_id = participant.user_id
+                        AND problem.status = 'PUBLISHED'
+                        AND (problem.organization_id IS NULL OR EXISTS (
+                          SELECT 1 FROM public.organizations owner
+                          WHERE owner.id = problem.organization_id AND owner.status = 'ACTIVE'
+                        ))
+                        AND public.contest_problem_content_accessible(contest.id, problem.id)
                         AND submission.submitted_at >= contest.starts_at
                         AND submission.submitted_at < contest.ends_at
                     ) THEN 'participated'
@@ -815,12 +874,19 @@ export class StudentContestsRepository {
                   submission.memory_used_kb
            FROM public.submissions submission
            JOIN public_contest contest ON contest.id = submission.contest_id
+           JOIN public.problems problem ON problem.id = submission.problem_id
+           AND problem.status = 'PUBLISHED'
+           AND (problem.organization_id IS NULL OR EXISTS (
+             SELECT 1 FROM public.organizations owner
+             WHERE owner.id = problem.organization_id AND owner.status = 'ACTIVE'
+           ))
            JOIN public.contest_problems contest_problem
              ON contest_problem.contest_id = contest.id
             AND contest_problem.problem_id = submission.problem_id
            JOIN public.users account ON account.id = submission.user_id
            JOIN public.programming_languages language
              ON language.id = submission.language_id
+           WHERE public.contest_problem_content_accessible(contest.id, problem.id)
          ),
          filtered AS MATERIALIZED (
            SELECT *
@@ -961,6 +1027,7 @@ export class StudentContestsRepository {
                WHERE c.id = participant.contest_id
                  AND c.publication_status = 'PUBLISHED'
                  AND c.visibility = 'PUBLIC'
+                 AND c.organization_id IS NULL
                  AND c.allow_registration = TRUE
                  AND c.starts_at > clock_timestamp()
              )
@@ -975,6 +1042,7 @@ export class StudentContestsRepository {
            WHERE c.id = $1
              AND c.publication_status = 'PUBLISHED'
              AND c.visibility = 'PUBLIC'
+             AND c.organization_id IS NULL
              AND c.allow_registration = TRUE
              AND c.starts_at > clock_timestamp()
            RETURNING contest_id, registration_status, registered_at`,
@@ -1006,6 +1074,7 @@ export class StudentContestsRepository {
              WHERE c.id = participant.contest_id
                AND c.publication_status = 'PUBLISHED'
                AND c.visibility = 'PUBLIC'
+               AND c.organization_id IS NULL
                AND c.starts_at > clock_timestamp()
            )
          RETURNING contest_id, registration_status, registered_at`,
@@ -1050,7 +1119,7 @@ export class StudentContestsRepository {
       `SELECT starts_at > clock_timestamp() AS before_start,
               allow_registration
        FROM public.contests
-       WHERE id = $1`,
+       WHERE id = $1 AND organization_id IS NULL`,
       [contestId],
     );
     const row = result.rows[0];
@@ -1067,10 +1136,17 @@ export class StudentContestsRepository {
     contestId: string,
   ): Promise<StudentContestProblem[]> {
     const result = await client.query<ProblemRow>(
-      `SELECT problem_id, problem_code_snapshot, problem_title_snapshot, position, max_score
-       FROM public.contest_problems
-       WHERE contest_id = $1
-       ORDER BY position ASC`,
+      `SELECT cp.problem_id, cp.problem_code_snapshot, cp.problem_title_snapshot, cp.position, cp.max_score
+       FROM public.contest_problems cp
+       JOIN public.problems p ON p.id = cp.problem_id
+       WHERE cp.contest_id = $1
+         AND p.status = 'PUBLISHED'
+         AND (p.organization_id IS NULL OR EXISTS (
+           SELECT 1 FROM public.organizations owner
+           WHERE owner.id = p.organization_id AND owner.status = 'ACTIVE'
+         ))
+         AND public.contest_problem_content_accessible(cp.contest_id, cp.problem_id)
+       ORDER BY cp.position ASC`,
       [contestId],
     );
     return result.rows.map((row) => ({

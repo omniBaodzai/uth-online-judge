@@ -1753,6 +1753,52 @@
   font-size: 13px;
 }
 
+.clickableRow {
+  cursor: pointer;
+}
+
+.clickableRow:hover {
+  background: var(--color-surface-hover);
+}
+
+.clickableRow:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: -2px;
+}
+
+.requestLinks {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.requestLinkRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+}
+
+.requestLinkRow > a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--admin-primary);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .requestLinkRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .userName {
   font-weight: 650;
 }

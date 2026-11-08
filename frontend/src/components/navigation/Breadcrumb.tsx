@@ -31,6 +31,7 @@ const breadcrumbTranslationKeys: Record<string, string> = {
   'Chỉnh sửa hồ sơ': 'breadcrumbEditProfile',
   'Hồ sơ công khai': 'breadcrumbPublicProfile',
   'Tổ chức': 'breadcrumbOrganizations',
+  'Chi tiết tổ chức': 'breadcrumbOrganizationDetail',
   'Liên hệ': 'breadcrumbContact',
   'Chi tiết yêu cầu': 'breadcrumbContactDetail',
 }

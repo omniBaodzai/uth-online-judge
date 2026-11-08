@@ -30,6 +30,13 @@ export type ContestProblem = {
   testCaseRevision: number;
 };
 
+export type ContestProblemOption = {
+  id: string;
+  code: string;
+  title: string;
+  organizationName: string | null;
+};
+
 export type ContestDetail = Contest & {
   problems: ContestProblem[];
   participantCount: number;

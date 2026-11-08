@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
 import type {
@@ -7,6 +7,7 @@ import type {
   ContestOverview,
   ContestPage,
   ContestProblem,
+  ContestProblemOption,
   ContestPublicationStatus,
   ContestTimeStatus,
   ContestVisibility,
@@ -65,8 +66,8 @@ const UPDATE_FIELDS: Record<keyof UpdateContestInput, string> = {
 export class ContestsRepository {
   constructor(@Inject(DATABASE_POOL) private readonly database: Pool) {}
 
-  async list(query: ContestListQuery): Promise<ContestPage> {
-    const { where, values } = buildListWhere(query);
+  async list(query: ContestListQuery, organizationId: string | null = null): Promise<ContestPage> {
+    const { where, values } = buildListWhere(query, organizationId);
     const countResult = await this.database.query<{ total: string }>(
       `SELECT COUNT(*)::text AS total FROM public.contests c ${where}`,
       values,
@@ -138,7 +139,8 @@ export class ContestsRepository {
                 WHERE publication_status = 'PUBLISHED'
                   AND ends_at <= clock_timestamp()
               )::text AS ended
-       FROM public.contests`,
+       FROM public.contests
+       WHERE organization_id IS NULL`,
     );
     const row = result.rows[0];
     return {
@@ -152,17 +154,95 @@ export class ContestsRepository {
     };
   }
 
-  async findById(id: string): Promise<ContestDetail> {
-    return this.loadDetail(this.database, id);
+  async findById(id: string, organizationId: string | null = null): Promise<ContestDetail> {
+    return this.loadDetail(this.database, id, organizationId);
   }
 
-  async create(input: CreateContestInput, adminId: string): Promise<ContestDetail> {
+  async listProblemOptions(organizationId: string, search?: string): Promise<ContestProblemOption[]> {
+    const values: unknown[] = [organizationId];
+    let searchCondition = '';
+    if (search?.trim()) {
+      values.push(`%${escapeLike(search.trim())}%`);
+      searchCondition = `AND (p.problem_code ILIKE $2 ESCAPE '\\' OR p.title ILIKE $2 ESCAPE '\\')`;
+    }
+    const result = await this.database.query<{
+      id: string;
+      problem_code: string;
+      title: string;
+      organization_name: string | null;
+    }>(
+      `SELECT p.id, p.problem_code, p.title, source_org.name AS organization_name
+       FROM public.problems p
+       LEFT JOIN public.organizations source_org ON source_org.id = p.organization_id
+       WHERE p.status = 'PUBLISHED'
+         AND (
+           p.organization_id IS NULL
+           OR p.organization_id = $1::uuid
+           OR (
+             source_org.status = 'ACTIVE'
+             AND EXISTS (
+               SELECT 1 FROM public.organization_problem_grants g
+               WHERE g.problem_id = p.id AND g.revoked_at IS NULL
+                 AND g.scope = 'ORGANIZATION' AND g.grantee_organization_id = $1::uuid
+             )
+           )
+         )
+         ${searchCondition}
+       ORDER BY p.problem_code ASC
+       LIMIT 100`,
+      values,
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      code: row.problem_code,
+      title: row.title,
+      organizationName: row.organization_name,
+    }));
+  }
+
+  async findContestProblemContentScope(
+    contestId: string,
+    problemId: string,
+    organizationId: string,
+  ): Promise<{ problemOrganizationId: string | null; contentAccessible: boolean; sourceArchived: boolean }> {
+    const result = await this.database.query<{
+      problem_organization_id: string | null;
+      content_accessible: boolean;
+      source_archived: boolean;
+    }>(
+      `SELECT p.organization_id AS problem_organization_id,
+              public.contest_problem_content_accessible(c.id, p.id) AS content_accessible,
+              COALESCE(source_org.status = 'ARCHIVED', FALSE) AS source_archived
+       FROM public.contests c
+       JOIN public.contest_problems cp ON cp.contest_id = c.id
+       JOIN public.problems p ON p.id = cp.problem_id
+       LEFT JOIN public.organizations source_org ON source_org.id = p.organization_id
+       WHERE c.id = $1 AND c.organization_id IS NOT DISTINCT FROM $3::uuid
+         AND p.id = $2 AND p.status = 'PUBLISHED'`,
+      [contestId, problemId, organizationId],
+    );
+    const row = result.rows[0];
+    if (!row) throw new NotFoundException('Không tìm thấy bài tập đã xuất bản trong kỳ thi.');
+    return {
+      problemOrganizationId: row.problem_organization_id,
+      contentAccessible: row.content_accessible,
+      sourceArchived: row.source_archived,
+    };
+  }
+
+  async create(
+    input: CreateContestInput,
+    adminId: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
     return this.withTransaction(async (client) => {
+      if (organizationId) await this.lockActiveOrganizations(client, organizationId, actor);
       const result = await client.query<{ id: string }>(
         `INSERT INTO public.contests
            (slug, title, description, rules, starts_at, ends_at, visibility,
-            allow_registration, show_leaderboard, created_by, updated_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+            allow_registration, show_leaderboard, created_by, updated_by, organization_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11::uuid)
          RETURNING id`,
         [
           input.slug,
@@ -175,9 +255,10 @@ export class ContestsRepository {
           input.allowRegistration ?? true,
           input.showLeaderboard ?? true,
           adminId,
+          organizationId,
         ],
       );
-      return this.loadDetail(client, result.rows[0]!.id);
+      return this.loadDetail(client, result.rows[0]!.id, organizationId);
     });
   }
 
@@ -185,9 +266,12 @@ export class ContestsRepository {
     id: string,
     input: UpdateContestInput,
     adminId: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
   ): Promise<ContestDetail> {
     return this.withTransaction(async (client) => {
-      const current = await this.lockContest(client, id);
+      if (organizationId) await this.lockActiveOrganizations(client, organizationId, actor);
+      const current = await this.lockContest(client, id, organizationId);
       if (current.publication_status === 'ARCHIVED') {
         throw new ConflictException('Khôi phục cuộc thi trước khi chỉnh sửa.');
       }
@@ -197,7 +281,7 @@ export class ContestsRepository {
       if (new Date(nextStartsAt).getTime() >= new Date(nextEndsAt).getTime()) {
         throw new BadRequestException('Thời gian bắt đầu phải trước thời gian kết thúc.');
       }
-      if (input.visibility === 'PRIVATE' && current.publication_status === 'PUBLISHED') {
+      if (!organizationId && input.visibility === 'PRIVATE' && current.publication_status === 'PUBLISHED') {
         throw new BadRequestException('Không thể chuyển cuộc thi đã xuất bản sang PRIVATE trong V1.');
       }
       if (
@@ -221,29 +305,48 @@ export class ContestsRepository {
       }
       values.push(adminId);
       assignments.push(`updated_by = $${values.length}`, 'updated_at = CURRENT_TIMESTAMP');
+      values.push(organizationId);
 
       await client.query(
         `UPDATE public.contests
          SET ${assignments.join(', ')}
-         WHERE id = $1`,
+         WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $${values.length}::uuid`,
         values,
       );
-      return this.loadDetail(client, id);
+      return this.loadDetail(client, id, organizationId);
     });
   }
 
   async replaceProblems(
     contestId: string,
     problems: ReplaceContestProblemInput[],
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
   ): Promise<ContestProblem[]> {
     return this.withTransaction(async (client) => {
-      const contest = await this.lockContest(client, contestId);
+      const sourceOrganizations = problems.length
+        ? await client.query<{ organization_id: string | null }>(
+            `SELECT DISTINCT organization_id
+             FROM public.problems
+             WHERE id = ANY($1::uuid[])`,
+            [problems.map((problem) => problem.problemId)],
+          )
+        : { rows: [] as Array<{ organization_id: string | null }> };
+      await this.lockActiveOrganizations(
+        client,
+        organizationId,
+        actor,
+        sourceOrganizations.rows.flatMap((row) => row.organization_id ? [row.organization_id] : []),
+      );
+      const contest = await this.lockContest(client, contestId, organizationId);
       if (contest.publication_status === 'ARCHIVED') {
         throw new ConflictException('Không thể thay đổi bài tập của cuộc thi đã lưu trữ.');
       }
       const startState = await client.query<{ started: boolean }>(
-        'SELECT starts_at <= clock_timestamp() AS started FROM public.contests WHERE id = $1',
-        [contestId],
+        `SELECT starts_at <= clock_timestamp() AS started
+         FROM public.contests
+        WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid`,
+        [contestId, organizationId],
       );
       if (startState.rows[0]?.started) {
         throw new ConflictException('Không thể thay đổi bài tập sau khi cuộc thi bắt đầu.');
@@ -259,6 +362,23 @@ export class ContestsRepository {
            FOR SHARE`,
           [ids],
         );
+        await client.query(
+          `SELECT g.id
+           FROM public.organization_problem_grants g
+           JOIN public.problems p ON p.id = g.problem_id
+           WHERE g.problem_id = ANY($1::uuid[])
+             AND g.revoked_at IS NULL
+             AND p.organization_id IS NOT NULL
+             AND p.organization_id IS DISTINCT FROM $2::uuid
+             AND (
+               ($2::uuid IS NULL AND g.scope = 'GLOBAL_CONTESTS')
+               OR ($2::uuid IS NOT NULL AND g.scope = 'ORGANIZATION'
+                   AND g.grantee_organization_id = $2::uuid)
+             )
+           ORDER BY g.id
+           FOR SHARE OF g`,
+          [ids, organizationId],
+        );
         const available = await client.query<{
           id: string;
           problem_code: string;
@@ -272,8 +392,22 @@ export class ContestsRepository {
            LEFT JOIN public.problem_test_cases tc
              ON tc.problem_id = p.id AND tc.is_active = TRUE
            WHERE p.id = ANY($1::uuid[]) AND p.status = 'PUBLISHED'
+             AND (
+               p.organization_id IS NULL
+               OR p.organization_id IS NOT DISTINCT FROM $2::uuid
+               OR EXISTS (
+                 SELECT 1 FROM public.organization_problem_grants grant_row
+                 WHERE grant_row.problem_id = p.id
+                   AND grant_row.revoked_at IS NULL
+                   AND (
+                     ( $2::uuid IS NULL AND grant_row.scope = 'GLOBAL_CONTESTS' )
+                     OR ( $2::uuid IS NOT NULL AND grant_row.scope = 'ORGANIZATION'
+                          AND grant_row.grantee_organization_id = $2::uuid )
+                   )
+               )
+             )
            GROUP BY p.id`,
-          [ids],
+          [ids, organizationId],
         );
         if (available.rows.length !== problems.length) {
           throw new BadRequestException('Một hoặc nhiều bài không tồn tại hoặc chưa được xuất bản.');
@@ -318,13 +452,18 @@ export class ContestsRepository {
     });
   }
 
-  async publish(id: string): Promise<ContestDetail> {
+  async publish(
+    id: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
     return this.withTransaction(async (client) => {
-      const contest = await this.lockContest(client, id);
+      if (organizationId) await this.lockActiveOrganizations(client, organizationId, actor);
+      const contest = await this.lockContest(client, id, organizationId);
       if (contest.publication_status !== 'DRAFT') {
         throw new ConflictException('Chỉ cuộc thi bản nháp mới có thể xuất bản.');
       }
-      if (contest.visibility !== 'PUBLIC') {
+      if (!organizationId && contest.visibility !== 'PUBLIC') {
         throw new BadRequestException('V1 chưa hỗ trợ xuất bản cuộc thi PRIVATE.');
       }
 
@@ -349,6 +488,7 @@ export class ContestsRepository {
                 COUNT(cp.problem_id) FILTER (
                   WHERE p.id IS NULL
                      OR p.status <> 'PUBLISHED'
+                     OR NOT public.contest_problem_content_accessible(c.id, p.id)
                      OR p.test_case_revision <> cp.test_case_revision
                      OR COALESCE(test_cases.active_count, 0) = 0
                 )::int AS invalid_problem_count
@@ -360,9 +500,9 @@ export class ContestsRepository {
            FROM public.problem_test_cases tc
            WHERE tc.problem_id = cp.problem_id AND tc.is_active = TRUE
          ) test_cases ON TRUE
-         WHERE c.id = $1
+         WHERE c.id = $1 AND c.organization_id IS NOT DISTINCT FROM $2::uuid
          GROUP BY c.id`,
-        [id],
+        [id, organizationId],
       );
       const row = validation.rows[0];
       if (!row?.starts_in_future || !row.ends_in_future) {
@@ -380,55 +520,69 @@ export class ContestsRepository {
          SET publication_status = 'PUBLISHED',
              published_at = CURRENT_TIMESTAMP,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [id],
+         WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid`,
+        [id, organizationId],
       );
-      return this.loadDetail(client, id);
+      return this.loadDetail(client, id, organizationId);
     });
   }
 
-  async archive(id: string): Promise<ContestDetail> {
+  async archive(
+    id: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
     return this.withTransaction(async (client) => {
-      const contest = await this.lockContest(client, id);
+      if (organizationId) await this.lockActiveOrganizations(client, organizationId, actor);
+      const contest = await this.lockContest(client, id, organizationId);
       if (contest.publication_status !== 'PUBLISHED') {
         throw new ConflictException('Chỉ cuộc thi đã xuất bản mới có thể lưu trữ.');
       }
       await client.query(
         `UPDATE public.contests
          SET publication_status = 'ARCHIVED', updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [id],
+         WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid`,
+        [id, organizationId],
       );
-      return this.loadDetail(client, id);
+      return this.loadDetail(client, id, organizationId);
     });
   }
 
-  async restore(id: string): Promise<ContestDetail> {
+  async restore(
+    id: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
     return this.withTransaction(async (client) => {
-      const contest = await this.lockContest(client, id);
+      if (organizationId) await this.lockActiveOrganizations(client, organizationId, actor);
+      const contest = await this.lockContest(client, id, organizationId);
       if (contest.publication_status !== 'ARCHIVED') {
         throw new ConflictException('Chỉ cuộc thi đã lưu trữ mới có thể khôi phục.');
       }
-      if (contest.visibility !== 'PUBLIC') {
+      if (!organizationId && contest.visibility !== 'PUBLIC') {
         throw new ConflictException('Không thể khôi phục cuộc thi PRIVATE thành đã xuất bản trong V1.');
       }
       await client.query(
         `UPDATE public.contests
          SET publication_status = 'PUBLISHED', updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [id],
+         WHERE id = $1 AND organization_id IS NOT DISTINCT FROM $2::uuid`,
+        [id, organizationId],
       );
-      return this.loadDetail(client, id);
+      return this.loadDetail(client, id, organizationId);
     });
   }
 
-  private async lockContest(client: PoolClient, id: string): Promise<ContestRow> {
+  private async lockContest(
+    client: PoolClient,
+    id: string,
+    organizationId: string | null = null,
+  ): Promise<ContestRow> {
     const result = await client.query<ContestRow>(
       `SELECT ${CONTEST_SELECT}
        FROM public.contests c
-       WHERE c.id = $1
+       WHERE c.id = $1 AND c.organization_id IS NOT DISTINCT FROM $2::uuid
        FOR UPDATE`,
-      [id],
+      [id, organizationId],
     );
     const contest = result.rows[0];
     if (!contest) throw new NotFoundException('Không tìm thấy cuộc thi.');
@@ -438,6 +592,7 @@ export class ContestsRepository {
   private async loadDetail(
     client: Pick<PoolClient, 'query'>,
     id: string,
+    organizationId: string | null = null,
   ): Promise<ContestDetail> {
     const result = await client.query<ContestRow & { participant_count: number }>(
       `SELECT ${CONTEST_SELECT},
@@ -446,8 +601,8 @@ export class ContestsRepository {
                WHERE participant.contest_id = c.id
                  AND participant.registration_status = 'REGISTERED') AS participant_count
        FROM public.contests c
-       WHERE c.id = $1`,
-      [id],
+       WHERE c.id = $1 AND c.organization_id IS NOT DISTINCT FROM $2::uuid`,
+      [id, organizationId],
     );
     const row = result.rows[0];
     if (!row) throw new NotFoundException('Không tìm thấy cuộc thi.');
@@ -488,11 +643,53 @@ export class ContestsRepository {
       client.release();
     }
   }
+
+  private async lockActiveOrganizations(
+    client: PoolClient,
+    organizationId: string | null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+    relatedOrganizationIds: string[] = [],
+  ): Promise<void> {
+    const ids = [...new Set([
+      ...(organizationId ? [organizationId] : []),
+      ...relatedOrganizationIds,
+    ])].sort();
+    if (ids.length === 0) return;
+    const organizations = await client.query<{ id: string; status: string }>(
+      `SELECT id, status
+       FROM public.organizations
+       WHERE id = ANY($1::uuid[])
+       ORDER BY id
+       FOR SHARE`,
+      [ids],
+    );
+    if (organizations.rowCount !== ids.length) {
+      throw new NotFoundException('Không tìm thấy tổ chức trong phạm vi bài tập.');
+    }
+    if (organizations.rows.some((organization) => organization.status !== 'ACTIVE')) {
+      throw new ConflictException('Tổ chức đã được lưu trữ; không thể thay đổi kỳ thi hoặc thêm bài tập.');
+    }
+    if (!organizationId) return;
+    if (!actor) throw new ForbiddenException('Thiếu danh tính người thao tác.');
+    if (!actor.isSystemAdmin) {
+      const membership = await client.query(
+        `SELECT 1 FROM public.organization_members
+         WHERE organization_id = $1 AND user_id = $2 AND role IN ('OWNER', 'ADMIN')`,
+        [organizationId, actor.userId],
+      );
+      if (!membership.rowCount) {
+        throw new ForbiddenException('Bạn không còn quyền quản lý kỳ thi của tổ chức này.');
+      }
+    }
+  }
 }
 
-function buildListWhere(query: ContestListQuery): { where: string; values: unknown[] } {
-  const conditions: string[] = [];
-  const values: unknown[] = [];
+function buildListWhere(
+  query: ContestListQuery,
+  organizationId: string | null = null,
+): { where: string; values: unknown[] } {
+  const conditions: string[] = ['c.organization_id IS NOT DISTINCT FROM $1::uuid'];
+  const values: unknown[] = [organizationId];
   if (query.search?.trim()) {
     values.push(`%${escapeLike(query.search.trim())}%`);
     conditions.push(`(c.title ILIKE $${values.length} ESCAPE '\\' OR c.slug ILIKE $${values.length} ESCAPE '\\')`);

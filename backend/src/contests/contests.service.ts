@@ -19,27 +19,44 @@ import type {
 export class ContestsService {
   constructor(private readonly repository: ContestsRepository) {}
 
-  list(query: ContestListQuery): Promise<ContestPage> {
-    return this.withDatabaseErrors(() => this.repository.list(query));
+  list(query: ContestListQuery, organizationId: string | null = null): Promise<ContestPage> {
+    return this.withDatabaseErrors(() => this.repository.list(query, organizationId));
   }
 
   overview(): Promise<ContestOverview> {
     return this.withDatabaseErrors(() => this.repository.overview());
   }
 
-  get(id: string): Promise<ContestDetail> {
-    return this.withDatabaseErrors(() => this.repository.findById(id));
+  get(id: string, organizationId: string | null = null): Promise<ContestDetail> {
+    return this.withDatabaseErrors(() => this.repository.findById(id, organizationId));
   }
 
-  create(input: CreateContestInput, adminId: string): Promise<ContestDetail> {
+  getContestProblemContentScope(contestId: string, problemId: string, organizationId: string) {
+    return this.withDatabaseErrors(() =>
+      this.repository.findContestProblemContentScope(contestId, problemId, organizationId),
+    );
+  }
+
+  listProblemOptions(organizationId: string, search?: string) {
+    return this.withDatabaseErrors(() => this.repository.listProblemOptions(organizationId, search));
+  }
+
+  create(
+    input: CreateContestInput,
+    adminId: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
     validateTimeWindow(input.startsAt, input.endsAt);
-    return this.withDatabaseErrors(() => this.repository.create(input, adminId));
+    return this.withDatabaseErrors(() => this.repository.create(input, adminId, organizationId, actor));
   }
 
   update(
     id: string,
     input: UpdateContestInput,
     adminId: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
   ): Promise<ContestDetail> {
     if (input.startsAt !== undefined && input.endsAt !== undefined) {
       validateTimeWindow(input.startsAt, input.endsAt);
@@ -47,12 +64,14 @@ export class ContestsService {
     if (Object.keys(input).length === 0) {
       throw new BadRequestException('Cần cung cấp ít nhất một trường để cập nhật.');
     }
-    return this.withDatabaseErrors(() => this.repository.update(id, input, adminId));
+    return this.withDatabaseErrors(() => this.repository.update(id, input, adminId, organizationId, actor));
   }
 
   replaceProblems(
     id: string,
     problems: ReplaceContestProblemInput[],
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
   ) {
     const seen = new Set<string>();
     for (const problem of problems) {
@@ -64,19 +83,31 @@ export class ContestsService {
         throw new BadRequestException('Điểm tối đa của mỗi bài phải lớn hơn 0.');
       }
     }
-    return this.withDatabaseErrors(() => this.repository.replaceProblems(id, problems));
+    return this.withDatabaseErrors(() => this.repository.replaceProblems(id, problems, organizationId, actor));
   }
 
-  publish(id: string): Promise<ContestDetail> {
-    return this.withDatabaseErrors(() => this.repository.publish(id));
+  publish(
+    id: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
+    return this.withDatabaseErrors(() => this.repository.publish(id, organizationId, actor));
   }
 
-  archive(id: string): Promise<ContestDetail> {
-    return this.withDatabaseErrors(() => this.repository.archive(id));
+  archive(
+    id: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
+    return this.withDatabaseErrors(() => this.repository.archive(id, organizationId, actor));
   }
 
-  restore(id: string): Promise<ContestDetail> {
-    return this.withDatabaseErrors(() => this.repository.restore(id));
+  restore(
+    id: string,
+    organizationId: string | null = null,
+    actor?: { userId: string; isSystemAdmin: boolean },
+  ): Promise<ContestDetail> {
+    return this.withDatabaseErrors(() => this.repository.restore(id, organizationId, actor));
   }
 
   private async withDatabaseErrors<T>(operation: () => Promise<T>): Promise<T> {

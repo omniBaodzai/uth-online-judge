@@ -19,12 +19,15 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiConsumes,
   ApiCookieAuth,
+  ApiNoContentResponse,
   ApiBadRequestResponse,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -67,6 +70,7 @@ import {
   githubOAuthStateCookieName,
   type GitHubOAuthMode,
 } from './github-oauth-state.store.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 export const REFRESH_COOKIE_NAME = 'uth_refresh_token';
 export const REMEMBER_LOGIN_COOKIE_NAME = 'uth_remember_login';
@@ -78,6 +82,7 @@ type AuthenticatedRequest = Request & {
 };
 
 @ApiTags('Authentication')
+@DocumentControllerOperations()
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
@@ -111,6 +116,7 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Mật khẩu đã được cập nhật; không có nội dung phản hồi.' })
   @ApiOperation({ summary: 'Đặt mật khẩu mới bằng reset token đã xác minh' })
   async resetPassword(
     @Body() input: ResetPasswordDto,
@@ -122,8 +128,48 @@ export class AuthController {
   }
 
   @Post('register')
-  @ApiOperation({ summary: 'Đăng ký bằng tên người dùng, email và mật khẩu' })
-  @ApiCreatedResponse({ description: 'Tạo tài khoản và đăng nhập' })
+  @ApiBody({
+    type: RegisterDto,
+    examples: {
+      example: {
+        summary: 'Thông tin đăng ký minh họa',
+        value: {
+          username: 'example_student',
+          email: 'student@example.com',
+          password: 'ExamplePass123!',
+        },
+      },
+    },
+  })
+  @ApiOperation({
+    summary: 'Đăng ký bằng tên người dùng, email và mật khẩu',
+    description:
+      'Tạo tài khoản sinh viên và đăng nhập; access token nằm trong phản hồi, refresh token được đặt trong cookie HttpOnly.',
+  })
+  @ApiCreatedResponse({
+    description: 'Tạo tài khoản và đăng nhập; giá trị token và UUID trong ví dụ là placeholder.',
+    schema: {
+      example: {
+        user: {
+          id: '00000000-0000-4000-8000-000000000000',
+          username: 'example_student',
+          email: 'student@example.com',
+          full_name: null,
+          avatar_url: null,
+          cover_image_url: null,
+          cover_crop: null,
+          bio: null,
+          organization: null,
+          is_active: true,
+          role: 'STUDENT',
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-01T00:00:00.000Z',
+        },
+        accessToken: 'ACCESS_TOKEN_PLACEHOLDER',
+        expiresIn: 900,
+      },
+    },
+  })
   async register(
     @Body() input: RegisterDto,
     @Res({ passthrough: true }) response: Response,
@@ -135,7 +181,11 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Đăng nhập bằng tên người dùng hoặc email' })
+  @ApiOperation({
+    summary: 'Đăng nhập bằng tên người dùng hoặc email',
+    description:
+      'Đăng nhập công khai bằng thông tin tài khoản; access token nằm trong phản hồi và refresh token được đặt trong cookie HttpOnly.',
+  })
   @ApiOkResponse({ description: 'Đã đăng nhập' })
   @ApiUnauthorizedResponse({ description: 'Thông tin đăng nhập không hợp lệ' })
   async login(
@@ -148,6 +198,18 @@ export class AuthController {
   }
 
   @Get('google')
+  @ApiQuery({
+    name: 'mode',
+    required: false,
+    enum: ['login', 'register'],
+    description: 'Mặc định là login; register bắt đầu luồng đăng ký.',
+  })
+  @ApiQuery({
+    name: 'rememberLogin',
+    required: false,
+    enum: ['true', 'false'],
+    description: 'Mặc định ghi nhớ đăng nhập; giá trị false tắt tùy chọn này.',
+  })
   @ApiOperation({
     summary:
       'Bắt đầu đăng nhập hoặc đăng ký Google bằng Authorization Code Flow',
@@ -184,6 +246,9 @@ export class AuthController {
   }
 
   @Get('google/callback')
+  @ApiQuery({ name: 'state', required: false, description: 'Tham số state do nhà cung cấp OAuth trả về.' })
+  @ApiQuery({ name: 'code', required: false, description: 'Mã ủy quyền do Google trả về.' })
+  @ApiQuery({ name: 'error', required: false, description: 'Mã lỗi nếu người dùng hoặc nhà cung cấp từ chối luồng.' })
   @ApiOperation({
     summary: 'Xác minh callback Google và tạo phiên đăng nhập hiện tại',
   })
@@ -222,6 +287,18 @@ export class AuthController {
   }
 
   @Get('github')
+  @ApiQuery({
+    name: 'mode',
+    required: false,
+    enum: ['login', 'register'],
+    description: 'Mặc định là login; register bắt đầu luồng đăng ký.',
+  })
+  @ApiQuery({
+    name: 'rememberLogin',
+    required: false,
+    enum: ['true', 'false'],
+    description: 'Mặc định ghi nhớ đăng nhập; giá trị false tắt tùy chọn này.',
+  })
   @ApiOperation({
     summary:
       'Bắt đầu đăng nhập hoặc đăng ký GitHub bằng Authorization Code Flow',
@@ -260,6 +337,9 @@ export class AuthController {
   }
 
   @Get('github/callback')
+  @ApiQuery({ name: 'state', required: false, description: 'Tham số state do nhà cung cấp OAuth trả về.' })
+  @ApiQuery({ name: 'code', required: false, description: 'Mã ủy quyền do GitHub trả về.' })
+  @ApiQuery({ name: 'error', required: false, description: 'Mã lỗi nếu người dùng hoặc nhà cung cấp từ chối luồng.' })
   @ApiOperation({
     summary: 'Xác minh callback GitHub và tạo phiên đăng nhập hiện tại',
   })
@@ -304,6 +384,8 @@ export class AuthController {
   @ApiOperation({
     summary:
       'Cập nhật cookie làm mới (refresh cookie) và cấp mã truy cập (access token) mới',
+    description:
+      'Yêu cầu cookie uth_refresh_token HttpOnly hợp lệ. Xoay vòng cookie phiên và trả về access token mới.',
   })
   @ApiCookieAuth(REFRESH_COOKIE_NAME)
   @ApiOkResponse({
@@ -322,8 +404,12 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Hủy phiên làm việc hiện tại và xóa cookie của nó' })
-  @ApiCookieAuth(REFRESH_COOKIE_NAME)
+  @ApiNoContentResponse({ description: 'Phiên đã được xử lý và cookie đã bị xóa.' })
+  @ApiOperation({
+    summary: 'Hủy phiên làm việc hiện tại và xóa cookie của nó',
+    description:
+      'Không yêu cầu đăng nhập. Nếu có refresh cookie HttpOnly hợp lệ, thu hồi phiên tương ứng; phản hồi luôn xóa cookie hiện tại.',
+  })
   async logout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
@@ -358,12 +444,16 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiCookieAuth(REFRESH_COOKIE_NAME)
-  @ApiOperation({ summary: 'Đổi mật khẩu của người dùng hiện tại' })
+  @ApiOperation({
+    summary: 'Đổi mật khẩu của người dùng hiện tại',
+    description:
+      'Yêu cầu access token Bearer. Nếu có refresh cookie HttpOnly, hệ thống dùng cookie đó để kết thúc phiên hiện tại.',
+  })
   @ApiBadRequestResponse({
     description:
       'Thông tin mật khẩu không hợp lệ hoặc mật khẩu hiện tại không đúng',
   })
+  @ApiNoContentResponse({ description: 'Mật khẩu đã được đổi; không có nội dung phản hồi.' })
   async changePassword(
     @Req() request: AuthenticatedRequest,
     @Body() input: ChangePasswordDto,
@@ -417,8 +507,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiCookieAuth(REFRESH_COOKIE_NAME)
-  @ApiOperation({ summary: 'Lưu mật khẩu sau khi xác minh email' })
+  @ApiOperation({
+    summary: 'Lưu mật khẩu sau khi xác minh email',
+    description:
+      'Yêu cầu access token Bearer và setup token hợp lệ. Refresh cookie HttpOnly là tùy chọn để nhận diện phiên hiện tại.',
+  })
   async completePasswordSetup(
     @Req() request: AuthenticatedRequest,
     @Body() input: CompletePasswordSetupDto,
@@ -443,6 +536,20 @@ export class AuthController {
   )
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['avatar'],
+      properties: {
+        avatar: { type: 'string', format: 'binary' },
+        fullName: { type: 'string', nullable: true },
+        avatarUrl: { type: 'string', nullable: true },
+        coverImageUrl: { type: 'string', nullable: true },
+        bio: { type: 'string', nullable: true },
+        organization: { type: 'string', nullable: true },
+      },
+    },
+  })
   @ApiOperation({
     summary: 'Tải ảnh đại diện (PNG, JPEG, WebP, GIF, tối đa 2 MB)',
   })
@@ -467,6 +574,21 @@ export class AuthController {
   )
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['cover'],
+      properties: {
+        cover: { type: 'string', format: 'binary' },
+        crop: {
+          type: 'string',
+          description: 'JSON CoverCropMetadataDto đã tuần tự hóa; bắt buộc khi tải ảnh bìa.',
+          example:
+            '{"x":100,"y":50,"width":800,"height":400,"sourceWidth":1600,"sourceHeight":900,"aspect":2}',
+        },
+      },
+    },
+  })
   @ApiOperation({
     summary:
       'Tải ảnh bìa đã cắt cho hồ sơ hiện tại (PNG, JPEG, WebP hoặc GIF, tối đa 5 MB)',

@@ -41,7 +41,9 @@ export class ProblemCommentsRepository {
   // Chỉ bài tập đã xuất bản mới cho phép xem/bình luận, giống quy tắc của trang chi tiết bài tập.
   async findPublishedProblemId(code: string): Promise<string | null> {
     const result = await this.pool.query<{ id: string }>(
-      `SELECT id FROM public.problems WHERE problem_code = $1 AND status = 'PUBLISHED'`,
+      `SELECT id FROM public.problems
+       WHERE problem_code = $1 AND status = 'PUBLISHED'
+         AND organization_id IS NULL`,
       [code],
     );
     return result.rows[0]?.id ?? null;
@@ -108,7 +110,9 @@ export class ProblemCommentsRepository {
       `SELECT c.id, c.author_id AS "authorId", c.problem_id AS "problemId",
               c.parent_id AS "parentId", (c.deleted_at IS NOT NULL) AS "isDeleted"
        FROM public.problem_comments c
-       JOIN public.problems p ON p.id = c.problem_id AND p.status = 'PUBLISHED'
+       JOIN public.problems p ON p.id = c.problem_id
+                            AND p.status = 'PUBLISHED'
+                            AND p.organization_id IS NULL
        WHERE c.id = $1`,
       [id],
     );

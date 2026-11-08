@@ -154,7 +154,9 @@ export class ContactRepository {
   async findPublishedProblem(code: string): Promise<{ id: string; code: string; title: string } | null> {
     const result = await this.pool.query<{ id: string; code: string; title: string }>(
       `SELECT id, problem_code AS code, title
-       FROM public.problems WHERE problem_code = $1 AND status = 'PUBLISHED'`,
+       FROM public.problems
+       WHERE problem_code = $1 AND status = 'PUBLISHED'
+         AND organization_id IS NULL`,
       [code],
     );
     return result.rows[0] ?? null;

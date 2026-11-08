@@ -68,6 +68,10 @@ export class SubmissionsService {
     return this.enqueue(created, startedAt);
   }
 
+  enqueueCreatedSubmission(created: CreatedSubmission): Promise<CreatedSubmission> {
+    return this.enqueue(created, performance.now());
+  }
+
   private async enqueue(
     created: CreatedSubmission,
     startedAt: number,

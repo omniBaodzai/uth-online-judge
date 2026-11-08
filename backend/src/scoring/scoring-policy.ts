@@ -33,6 +33,7 @@ export async function getProblemScoringConfiguration(
      FROM problems p
      LEFT JOIN problem_test_cases test_case ON test_case.problem_id = p.id
      WHERE p.id = $1
+       AND p.organization_id IS NULL
      GROUP BY p.id, p.score`,
     [problemId],
   );

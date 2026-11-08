@@ -29,7 +29,9 @@ export class LeaderboardRepository {
                  'UTF8'
                )), 'hex') AS content_fingerprint
         FROM public.problem_test_cases tc
-        JOIN public.problems p ON p.id = tc.problem_id AND p.status = 'PUBLISHED'
+        JOIN public.problems p ON p.id = tc.problem_id
+                               AND p.status = 'PUBLISHED'
+                               AND p.organization_id IS NULL
         WHERE tc.is_active = TRUE
       ),
       cumulative_progress AS (
@@ -46,7 +48,9 @@ export class LeaderboardRepository {
       valid_accepted_submissions AS (
         SELECT s.id, s.user_id, s.problem_id, s.judged_at
         FROM public.submissions s
-        JOIN public.problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+        JOIN public.problems p ON p.id = s.problem_id
+                               AND p.status = 'PUBLISHED'
+                               AND p.organization_id IS NULL
         JOIN public.submission_test_case_snapshots snapshot ON snapshot.submission_id = s.id
         LEFT JOIN public.submission_test_results result
           ON result.submission_id = s.id AND result.snapshot_id = snapshot.id
@@ -106,7 +110,9 @@ export class LeaderboardRepository {
                MAX(result.memory_used_kb)::int AS peak_memory_kb
         FROM valid_accepted_submissions accepted
         JOIN public.submissions s ON s.id = accepted.id
-        JOIN public.problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+        JOIN public.problems p ON p.id = s.problem_id
+                               AND p.status = 'PUBLISHED'
+                               AND p.organization_id IS NULL
         JOIN public.programming_languages language ON language.id = s.language_id
         JOIN public.submission_test_case_snapshots snapshot ON snapshot.submission_id = s.id
         JOIN snapshot_context context ON context.submission_id = s.id

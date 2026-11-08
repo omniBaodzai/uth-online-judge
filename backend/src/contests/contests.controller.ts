@@ -36,10 +36,12 @@ import {
   ContestProblemResponseDto,
 } from './dto/contest-response.dto.js';
 import { ContestsService } from './contests.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 
 @ApiTags('Admin Contests')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 @Controller('admin/contests')
