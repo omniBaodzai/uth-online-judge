@@ -55,7 +55,130 @@ describe('AdminRepository', () => {
     });
     const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
     expect(sql).not.toContain('DROP TABLE');
-    expect(values).toEqual([`%x\\%'; DROP TABLE problems; --%`, 'DRAFT', 'EASY']);
+    expect(values).toEqual([null, `%x\\%'; DROP TABLE problems; --%`, 'DRAFT', 'EASY']);
+  });
+
+  it('rechecks organization manager membership after locking the organization row', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT status FROM public.organizations')) {
+          return { rows: [{ status: 'ACTIVE' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM public.organization_members')) return { rows: [], rowCount: 0 };
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+    const repository = new AdminRepository({ connect: vi.fn().mockResolvedValue(client) } as never);
+
+    await expect(repository.saveProblem(
+      { code: 'uth011', title: 'T', statement: 'S', tags: [], languages: [] } as never,
+      'user-1',
+      undefined,
+      'organization-id',
+      { userId: 'user-1', isSystemAdmin: false },
+    )).rejects.toThrow(/không còn quyền quản lý/i);
+
+    const sqls = client.query.mock.calls.map(([sql]) => String(sql));
+    expect(sqls.indexOf('BEGIN')).toBeLessThan(sqls.findIndex((sql) => sql.includes('SELECT status FROM public.organizations')));
+    expect(sqls.findIndex((sql) => sql.includes('FROM public.organization_members')))
+      .toBeGreaterThan(sqls.findIndex((sql) => sql.includes('SELECT status FROM public.organizations')));
+    expect(sqls.some((sql) => sql.includes('INSERT INTO problems'))).toBe(false);
+    expect(sqls.at(-1)).toBe('ROLLBACK');
+  });
+
+  it('persists organization-created problems with the resolved organization ID', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT status FROM public.organizations')) {
+          return { rows: [{ status: 'ACTIVE' }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO problems')) {
+          return { rows: [{ id: 'organization-problem-id' }], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+    const repository = new AdminRepository({ connect: vi.fn().mockResolvedValue(client) } as never);
+    vi.spyOn(repository, 'findProblem').mockResolvedValue({ id: 'organization-problem-id' } as never);
+
+    await repository.saveProblem({
+      code: 'navi_task_1',
+      title: 'NAVI task',
+      statement: 'Solve the problem.',
+      tags: [],
+      languages: [],
+      timeLimitSeconds: 2,
+      memoryLimitMb: 256,
+      status: 'draft',
+    } as never, 'system-admin-id', undefined, 'navi-organization-id', {
+      userId: 'system-admin-id',
+      isSystemAdmin: true,
+    });
+
+    const insert = client.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO problems'));
+    expect(insert?.[0]).toContain('organization_id)');
+    expect(insert?.[1]).toContain('navi-organization-id');
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('does not expose organization hidden test cases unless the actor is a manager', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.listTestCases('problem-id', 'organization-id')).rejects.toThrow(
+      /không tìm thấy bài tập/i,
+    );
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("om.role IN ('OWNER', 'ADMIN')");
+    expect(sql).toContain("o.status = 'ACTIVE'");
+    expect(values).toEqual(['problem-id', 'organization-id', null, false]);
+  });
+
+  it('uses only global-scope placeholders and parameters for global test cases', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{ test_case_revision: 2, id: null }],
+        rowCount: 1,
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await repository.listTestCases('global-problem-id');
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain('p.organization_id IS NOT DISTINCT FROM $2::uuid');
+    expect(sql).not.toContain('public.organization_members');
+    expect(values).toEqual(['global-problem-id', null]);
+    expectSqlPlaceholdersMatchValues(sql, values);
+  });
+
+  it('keeps Organization scope and manager authorization placeholders aligned', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{ test_case_revision: 4, id: null }],
+        rowCount: 1,
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await repository.listTestCases('organization-problem-id', 'organization-id', {
+      userId: 'owner-id',
+      isSystemAdmin: false,
+    });
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain('p.organization_id IS NOT DISTINCT FROM $2::uuid');
+    expect(sql).toContain('WHERE o.id = p.organization_id');
+    expect(sql).toContain('$3::uuid');
+    expect(sql).toContain('$4::boolean');
+    expect(sql).toContain("om.role IN ('OWNER', 'ADMIN')");
+    expect(values).toEqual(['organization-problem-id', 'organization-id', 'owner-id', false]);
+    expectSqlPlaceholdersMatchValues(sql, values);
   });
 
   it('casts the status parameter consistently when creating and updating problems', async () => {
@@ -177,6 +300,7 @@ describe('AdminRepository', () => {
       60,
       '4:3',
       'right',
+      null,
     ]);
   });
 
@@ -385,3 +509,14 @@ describe('AdminRepository', () => {
     expect(client.query).toHaveBeenCalledWith('COMMIT');
   });
 });
+
+function expectSqlPlaceholdersMatchValues(sql: string, values: unknown[]) {
+  const placeholders = [...sql.matchAll(/\$(\d+)/g)].map((match) => Number(match[1]));
+  const maxPlaceholder = Math.max(...placeholders);
+  const uniquePlaceholders = [...new Set(placeholders)].sort((left, right) => left - right);
+
+  expect(maxPlaceholder).toBe(values.length);
+  expect(uniquePlaceholders).toEqual(
+    Array.from({ length: values.length }, (_value, index) => index + 1),
+  );
+}

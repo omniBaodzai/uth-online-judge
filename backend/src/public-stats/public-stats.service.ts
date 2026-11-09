@@ -25,8 +25,12 @@ export class PublicStatsService {
     const result = await this.database.query<PublicStatsRow>(`
       SELECT
         (SELECT COUNT(*) FROM users WHERE is_active = TRUE)::text AS members,
-        (SELECT COUNT(*) FROM problems WHERE status = 'PUBLISHED')::text AS problems,
-        (SELECT COUNT(*) FROM submissions)::text AS submissions
+        (SELECT COUNT(*) FROM problems
+         WHERE status = 'PUBLISHED' AND organization_id IS NULL)::text AS problems,
+        (SELECT COUNT(*)
+         FROM submissions s
+         JOIN problems p ON p.id = s.problem_id
+         WHERE p.organization_id IS NULL)::text AS submissions
     `);
     const row = result.rows[0];
     if (!row) {

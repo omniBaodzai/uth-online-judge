@@ -10,13 +10,18 @@ function HeroBanner() {
   return (
     <section
       className={styles.hero}
-      style={{ backgroundImage: `url("${heroBackground}")` }}
       aria-labelledby="hero-title"
     >
+      <div
+        className={styles.background}
+        style={{ backgroundImage: `url("${heroBackground}")` }}
+        aria-hidden="true"
+      />
       <FloatingCodeParticles />
       <div className={styles.heroContent}>
         <h1 className={styles.title} id="hero-title">
-          {t('heroTitle')}
+          <span className={styles.titleLine}>{t('heroTitleLine1')}</span>
+          <span className={`${styles.titleLine} ${styles.titleAccent}`}>{t('heroTitleLine2')}</span>
         </h1>
         <p className={styles.description}>
           {t('heroDescription')}

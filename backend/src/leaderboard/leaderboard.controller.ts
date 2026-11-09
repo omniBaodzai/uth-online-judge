@@ -4,10 +4,12 @@ import type { Request } from 'express';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import { LeaderboardQueryDto } from './leaderboard.dto.js';
 import { LeaderboardService } from './leaderboard.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 type OptionalAuthRequest = Request & { user?: { id: string } | null };
 
 @ApiTags('Leaderboard')
+@DocumentControllerOperations()
 @Controller('leaderboard')
 export class LeaderboardController {
   constructor(private readonly leaderboard: LeaderboardService) {}

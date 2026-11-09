@@ -3,16 +3,27 @@ import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
 import { escapeLikePattern } from '../submissions/global-submissions.js';
-import type { ContactMessageStatus, ContactReplySenderRole } from './contact.dto.js';
+import type {
+  ContactMessageCategory,
+  ContactMessageStatus,
+  ContactReplySenderRole,
+  ProblemReportType,
+} from './contact.dto.js';
 
 export type ContactMessageRecord = {
   id: string;
   userId: string | null;
+  username: string | null;
   fullName: string;
   email: string;
   subject: string;
   content: string;
   status: ContactMessageStatus;
+  category: ContactMessageCategory;
+  reportType: ProblemReportType | null;
+  problemId: string | null;
+  problemCode: string | null;
+  problemTitle: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -34,6 +45,7 @@ export type ContactMessageListQuery = {
   pageSize: number;
   q?: string;
   status?: ContactMessageStatus;
+  category?: ContactMessageCategory;
 };
 
 export type ContactMessagePage = {
@@ -57,14 +69,22 @@ export type NotificationRecord = {
 
 export type ContactReplyResult = { reply: ContactReplyRecord; created: boolean };
 
+const USERNAME_SQL = `(SELECT u.username FROM public.users u WHERE u.id = m.user_id)`;
+
 const CONTACT_MESSAGE_COLUMNS = `
   m.id,
   m.user_id AS "userId",
+  ${USERNAME_SQL} AS username,
   m.full_name AS "fullName",
   m.email,
   m.subject,
   m.content,
   m.status,
+  m.category,
+  m.report_type AS "reportType",
+  m.problem_id AS "problemId",
+  m.problem_code_snapshot AS "problemCode",
+  m.problem_title_snapshot AS "problemTitle",
   m.created_at AS "createdAt",
   m.updated_at AS "updatedAt"`;
 
@@ -131,28 +151,84 @@ export class ContactRepository {
     return message;
   }
 
+  async findPublishedProblem(code: string): Promise<{ id: string; code: string; title: string } | null> {
+    const result = await this.pool.query<{ id: string; code: string; title: string }>(
+      `SELECT id, problem_code AS code, title
+       FROM public.problems
+       WHERE problem_code = $1 AND status = 'PUBLISHED'
+         AND organization_id IS NULL`,
+      [code],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async findUserIdentity(userId: string): Promise<{ username: string | null; email: string } | null> {
+    const result = await this.pool.query<{ username: string | null; email: string }>(
+      `SELECT username, email FROM public.users WHERE id = $1`,
+      [userId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async createProblemReport(input: {
+    userId: string;
+    fullName: string;
+    email: string;
+    subject: string;
+    content: string;
+    reportType: ProblemReportType;
+    problem: { id: string; code: string; title: string };
+  }): Promise<ContactMessageRecord> {
+    const result = await this.pool.query<ContactMessageRecord>(
+      `INSERT INTO public.contact_messages AS m
+         (user_id, full_name, email, subject, content, category, report_type,
+          problem_id, problem_code_snapshot, problem_title_snapshot)
+       VALUES ($1, $2, $3, $4, $5, 'PROBLEM_REPORT', $6, $7, $8, $9)
+       RETURNING ${CONTACT_MESSAGE_COLUMNS}`,
+      [
+        input.userId,
+        input.fullName,
+        input.email,
+        input.subject,
+        input.content,
+        input.reportType,
+        input.problem.id,
+        input.problem.code,
+        input.problem.title,
+      ],
+    );
+    const message = result.rows[0];
+    if (!message) throw new Error('Problem report insert returned no record.');
+    return message;
+  }
+
   async listAdmin(query: ContactMessageListQuery): Promise<ContactMessagePage> {
     const status = query.status ?? null;
     const search = query.q?.trim()
       ? `%${escapeLikePattern(query.q.trim())}%`
       : null;
     const filter = `($1::text IS NULL OR m.status = $1)
+      AND ($3::text IS NULL OR m.category = $3)
       AND ($2::text IS NULL OR m.full_name ILIKE $2 ESCAPE '\\'
-        OR m.email ILIKE $2 ESCAPE '\\' OR m.subject ILIKE $2 ESCAPE '\\')`;
+        OR m.email ILIKE $2 ESCAPE '\\' OR m.subject ILIKE $2 ESCAPE '\\'
+        OR m.problem_code_snapshot ILIKE $2 ESCAPE '\\'
+        OR m.problem_title_snapshot ILIKE $2 ESCAPE '\\'
+        OR ${USERNAME_SQL} ILIKE $2 ESCAPE '\\')`;
+    const category = query.category ?? null;
     const [items, count, stats] = await Promise.all([
       this.pool.query<ContactMessageRecord>(
         `SELECT ${CONTACT_MESSAGE_COLUMNS}
          FROM public.contact_messages m
          WHERE ${filter}
          ORDER BY m.created_at DESC, m.id DESC
-         LIMIT $3 OFFSET $4`,
-        [status, search, query.pageSize, (query.page - 1) * query.pageSize],
+         LIMIT $4 OFFSET $5`,
+        [status, search, category, query.pageSize, (query.page - 1) * query.pageSize],
       ),
       this.pool.query<{ total: number }>(
         `SELECT COUNT(*)::int AS total
          FROM public.contact_messages m
          WHERE ${filter}`,
-        [status, search],
+        [status, search, category],
       ),
       this.pool.query<{ status: ContactMessageStatus; count: number }>(
         `SELECT status, COUNT(*)::int AS count

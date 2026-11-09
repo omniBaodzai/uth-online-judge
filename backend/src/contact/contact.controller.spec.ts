@@ -7,9 +7,25 @@ import {
   MyContactMessagesController,
   MyNotificationsController,
   PublicContactMessagesController,
+  ProblemReportsController,
 } from './contact.controller.js';
 
 describe('Contact controllers access controls', () => {
+  it('requires JWT for problem report creation and takes the user from the token', () => {
+    expect(Reflect.getMetadata(
+      GUARDS_METADATA,
+      Object.getOwnPropertyDescriptor(ProblemReportsController.prototype, 'create')?.value,
+    )).toEqual([JwtAuthGuard]);
+    const contact = { createProblemReport: vi.fn() };
+    new ProblemReportsController(contact as never).create(
+      'hello',
+      { reportType: 'OTHER', content: 'x' },
+      { user: { id: 'jwt-user', role: 'STUDENT' } } as never,
+    );
+    expect(contact.createProblemReport)
+      .toHaveBeenCalledWith('hello', 'jwt-user', { reportType: 'OTHER', content: 'x' });
+  });
+
   it('allows optional JWT identity only on public contact creation', () => {
     expect(Reflect.getMetadata(
       GUARDS_METADATA,

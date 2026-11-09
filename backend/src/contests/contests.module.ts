@@ -19,5 +19,6 @@ import { StudentContestsService } from './student-contests.service.js';
     StudentContestsRepository,
     StudentContestsService,
   ],
+  exports: [ContestsService],
 })
 export class ContestsModule {}

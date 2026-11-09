@@ -15,9 +15,10 @@ describe('PublicStatsService', () => {
 
     const sql = String(query.mock.calls[0]?.[0]);
     expect(sql).toContain('FROM users WHERE is_active = TRUE');
-    expect(sql).toContain("FROM problems WHERE status = 'PUBLISHED'");
-    expect(sql).toContain('FROM submissions');
-    expect(sql).not.toMatch(/FROM submissions\s+WHERE/i);
+    expect(sql).toContain("WHERE status = 'PUBLISHED' AND organization_id IS NULL");
+    expect(sql).toContain('FROM submissions s');
+    expect(sql).toContain('JOIN problems p ON p.id = s.problem_id');
+    expect(sql).toContain('WHERE p.organization_id IS NULL');
   });
 
   it('returns zero for empty tables', async () => {

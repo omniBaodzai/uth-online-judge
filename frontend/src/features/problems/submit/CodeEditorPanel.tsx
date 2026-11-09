@@ -6,6 +6,10 @@ import { describeLanguage } from './languages'
 import { useAuth } from '../../auth/useAuth'
 import { describeSubmissionFailure } from './submission-failure'
 import { submitContestSolution, submitSolution } from './submission-service'
+import {
+  submitOrganizationContestSolution,
+  submitOrganizationSolution,
+} from '../../organizations/organizations-api'
 import '../i18n'
 import styles from './CodeEditorPanel.module.css'
 
@@ -24,6 +28,8 @@ type CodeEditorPanelProps = {
   contestIdentifier?: string
   contestTitle?: string
   contestProblemTitle?: string
+  organizationSlug?: string
+  organizationContestId?: string
 }
 
 class EditorBoundary extends Component<{ children: ReactNode; errorMessage: string; retryLabel: string }, { failed: boolean }> {
@@ -44,8 +50,10 @@ class EditorBoundary extends Component<{ children: ReactNode; errorMessage: stri
   }
 }
 
-function draftKey(userId: string, problemCode: string) {
-  return `uth_draft:${userId}:${problemCode}`
+function draftKey(userId: string, problemCode: string, scope?: string) {
+  return scope
+    ? `uth_draft:${userId}:${scope}:${problemCode}`
+    : `uth_draft:${userId}:${problemCode}`
 }
 
 // Chỉ giữ lại bản nháp của những ngôn ngữ bài tập hiện đang cho phép.
@@ -73,9 +81,14 @@ function CodeEditorPanel({
   contestIdentifier,
   contestTitle,
   contestProblemTitle,
+  organizationSlug,
+  organizationContestId,
 }: CodeEditorPanelProps) {
   const { t } = useTranslation('pages')
-  const key = draftKey(userId, problemCode)
+  const organizationScope = organizationSlug
+    ? `organization:${organizationSlug}${organizationContestId ? `:contest:${organizationContestId}` : ''}`
+    : undefined
+  const key = draftKey(userId, problemCode, organizationScope)
   const [initialDraft] = useState(() => loadDraft(key, languages))
   const [language, setLanguage] = useState<string>(initialDraft?.language ?? languages[0]?.slug ?? '')
   const [codes, setCodes] = useState<Drafts>(initialDraft?.codes ?? {})
@@ -164,13 +177,19 @@ function CodeEditorPanel({
     setUncertainSubmissionId(undefined)
     try {
       const payload = { problemCode, language: selected.slug, sourceCode: code }
-      const result = contestIdentifier
-        ? await submitContestSolution(request, contestIdentifier, payload)
-        : await submitSolution(request, payload)
+      const result = organizationSlug
+        ? organizationContestId
+          ? await submitOrganizationContestSolution(request, organizationSlug, organizationContestId, payload)
+          : await submitOrganizationSolution(request, organizationSlug, payload)
+        : contestIdentifier
+          ? await submitContestSolution(request, contestIdentifier, payload)
+          : await submitSolution(request, payload)
       if (!result || typeof result.id !== 'string' || !result.id.trim()) {
         throw new Error(t('problemSubmissionServerInvalidId'))
       }
-      navigate(`/submissions/${encodeURIComponent(result.id)}`, {
+      navigate(organizationSlug
+        ? `/organizations/${encodeURIComponent(organizationSlug)}/submissions/${encodeURIComponent(result.id)}`
+        : `/submissions/${encodeURIComponent(result.id)}`, {
         state: contestIdentifier
           ? {
               contestSubmissionOrigin: {
@@ -260,7 +279,9 @@ function CodeEditorPanel({
           )}
           {uncertainSubmissionId && (
             <Link
-              to={`/submissions/${encodeURIComponent(uncertainSubmissionId)}`}
+              to={organizationSlug
+                ? `/organizations/${encodeURIComponent(organizationSlug)}/submissions/${encodeURIComponent(uncertainSubmissionId)}`
+                : `/submissions/${encodeURIComponent(uncertainSubmissionId)}`}
               state={contestIdentifier
                 ? {
                     contestSubmissionOrigin: {
@@ -303,7 +324,7 @@ function CodeEditorPanel({
                 ? t('problemSubmitting')
                 : submissionOutcomeUnknown
                   ? t('problemCheckSubmissionStatus')
-                  : contestIdentifier
+                  : contestIdentifier || organizationContestId
                     ? t('problemSubmitContest')
                     : t('problemSubmitSolution')}
             </button>

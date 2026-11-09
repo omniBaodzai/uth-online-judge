@@ -182,7 +182,9 @@ export class SubmissionsRepository {
 
   async findPublishedProblemId(code: string): Promise<string | null> {
     const result = await this.database.query<{ id: string }>(
-      "SELECT id FROM problems WHERE problem_code = $1 AND status = 'PUBLISHED'",
+      `SELECT id FROM problems
+       WHERE problem_code = $1 AND status = 'PUBLISHED'
+         AND organization_id IS NULL`,
       [code],
     );
     return result.rows[0]?.id ?? null;
@@ -229,6 +231,7 @@ export class SubmissionsRepository {
          JOIN problem_languages pl ON pl.problem_id = p.id AND pl.language_id = $3
          JOIN programming_languages l ON l.id = pl.language_id AND l.is_enabled = TRUE
          WHERE p.id = $2 AND p.status = 'PUBLISHED'
+           AND p.organization_id IS NULL
          RETURNING id, status, submitted_at`,
         [input.userId, input.problemId, input.languageId, input.sourceCode],
       );
@@ -264,28 +267,33 @@ export class SubmissionsRepository {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
-      const contestResult = await client.query<{ id: string }>(
+      const contestLookup = await client.query<{ id: string }>(
         `SELECT c.id
          FROM public.contests c
          WHERE (c.id = $1::uuid OR c.slug = $2)
            AND c.publication_status = 'PUBLISHED'
            AND c.visibility = 'PUBLIC'
+           AND c.organization_id IS NULL
          ORDER BY (c.id = $1::uuid) DESC
-         LIMIT 1
-         FOR SHARE`,
+         LIMIT 1`,
         [isUuid(input.contestIdentifier) ? input.contestIdentifier : null, input.contestIdentifier],
       );
-      const contest = contestResult.rows[0];
+      const contest = contestLookup.rows[0];
       if (!contest) throw new NotFoundException('Không tìm thấy cuộc thi.');
 
-      const timeResult = await client.query<{ is_ongoing: boolean }>(
-        `SELECT c.starts_at <= clock.now AND c.ends_at > clock.now AS is_ongoing
+      const lockedContest = await client.query<{ id: string; is_ongoing: boolean }>(
+        `SELECT c.id, c.starts_at <= clock.now AND c.ends_at > clock.now AS is_ongoing
          FROM public.contests c
          CROSS JOIN (SELECT clock_timestamp() AS now) clock
-         WHERE c.id = $1`,
+         WHERE c.id = $1
+           AND c.publication_status = 'PUBLISHED'
+           AND c.visibility = 'PUBLIC'
+           AND c.organization_id IS NULL
+         FOR SHARE OF c`,
         [contest.id],
       );
-      if (timeResult.rows[0]?.is_ongoing !== true) {
+      if (!lockedContest.rows[0]) throw new NotFoundException('Không tìm thấy cuộc thi.');
+      if (!lockedContest.rows[0].is_ongoing) {
         throw new ConflictException('Cuộc thi chưa bắt đầu hoặc đã kết thúc.');
       }
 
@@ -300,18 +308,67 @@ export class SubmissionsRepository {
         throw new ForbiddenException('Bạn chưa đăng ký tham gia cuộc thi này.');
       }
 
-      const problemResult = await client.query<{
+      const problemLookup = await client.query<{
         problem_id: string;
-        max_score: string;
+        organization_id: string | null;
       }>(
-        `SELECT cp.problem_id, cp.max_score::text AS max_score
+        `SELECT cp.problem_id, p.organization_id
          FROM public.contest_problems cp
          JOIN public.problems p ON p.id = cp.problem_id
          WHERE cp.contest_id = $1
            AND cp.problem_code_snapshot = $2
            AND p.status = 'PUBLISHED'
-         FOR SHARE OF cp, p`,
+         LIMIT 1`,
         [contest.id, input.problemCode],
+      );
+      const candidate = problemLookup.rows[0];
+      if (!candidate) throw new NotFoundException('Không tìm thấy bài tập trong cuộc thi.');
+
+      if (candidate.organization_id) {
+        const owner = await client.query<{ status: string }>(
+          `SELECT status
+           FROM public.organizations
+           WHERE id = $1
+           FOR SHARE`,
+          [candidate.organization_id],
+        );
+        if (owner.rows[0]?.status !== 'ACTIVE') {
+          throw new NotFoundException('Không tìm thấy bài tập trong cuộc thi.');
+        }
+        await client.query(
+          `SELECT id
+           FROM public.organization_problem_grants
+           WHERE problem_id = $1
+             AND scope = 'GLOBAL_CONTESTS'
+             AND grantee_organization_id IS NULL
+             AND revoked_at IS NULL
+           FOR SHARE`,
+          [candidate.problem_id],
+        );
+      }
+
+      const problemResult = await client.query<{
+        problem_id: string;
+        max_score: string;
+        organization_id: string | null;
+      }>(
+        `SELECT cp.problem_id, cp.max_score::text AS max_score, p.organization_id
+         FROM public.contest_problems cp
+         JOIN public.problems p ON p.id = cp.problem_id
+         WHERE cp.contest_id = $1
+           AND cp.problem_id = $2
+           AND cp.problem_code_snapshot = $3
+           AND p.status = 'PUBLISHED'
+           AND (p.organization_id IS NULL OR EXISTS (
+             SELECT 1
+             FROM public.organization_problem_grants grant_row
+             WHERE grant_row.problem_id = p.id
+               AND grant_row.scope = 'GLOBAL_CONTESTS'
+               AND grant_row.grantee_organization_id IS NULL
+               AND grant_row.revoked_at IS NULL
+           ))
+         FOR SHARE OF cp, p`,
+        [contest.id, candidate.problem_id, input.problemCode],
       );
       const problem = problemResult.rows[0];
       if (!problem) throw new NotFoundException('Không tìm thấy bài tập trong cuộc thi.');
@@ -351,6 +408,14 @@ export class SubmissionsRepository {
           AND participant.user_id = $1
           AND participant.registration_status = 'REGISTERED'
          JOIN public.problems p ON p.id = $3 AND p.status = 'PUBLISHED'
+          AND (p.organization_id IS NULL OR EXISTS (
+            SELECT 1
+            FROM public.organization_problem_grants grant_row
+            WHERE grant_row.problem_id = p.id
+              AND grant_row.scope = 'GLOBAL_CONTESTS'
+              AND grant_row.grantee_organization_id IS NULL
+              AND grant_row.revoked_at IS NULL
+          ))
          JOIN public.contest_problems cp
            ON cp.contest_id = c.id AND cp.problem_id = p.id
          JOIN public.problem_languages pl ON pl.problem_id = p.id AND pl.language_id = $4
@@ -360,6 +425,7 @@ export class SubmissionsRepository {
          WHERE c.id = $2
            AND c.publication_status = 'PUBLISHED'
            AND c.visibility = 'PUBLIC'
+           AND c.organization_id IS NULL
            AND c.starts_at <= acceptance_time.submitted_at
            AND acceptance_time.submitted_at < c.ends_at
          RETURNING id, status, submitted_at`,
@@ -370,7 +436,7 @@ export class SubmissionsRepository {
         throw new ConflictException('Cuộc thi đã kết thúc trước khi nhận bài nộp.');
       }
 
-      await this.insertTestCaseSnapshots(client, submission.id, problem.problem_id);
+      await this.insertTestCaseSnapshots(client, submission.id, problem.problem_id, true);
       await client.query('COMMIT');
       return {
         id: submission.id,
@@ -389,6 +455,7 @@ export class SubmissionsRepository {
     client: Pick<PoolClient, 'query'>,
     submissionId: string,
     problemId: string,
+    allowOrganizationProblem = false,
   ): Promise<void> {
     const snapshots = await client.query(
       `INSERT INTO submission_test_case_snapshots
@@ -400,8 +467,9 @@ export class SubmissionsRepository {
        FROM problem_test_cases tc
        JOIN problems p ON p.id = tc.problem_id
        WHERE tc.problem_id = $2 AND tc.is_active = TRUE
+         AND ($3::boolean OR p.organization_id IS NULL)
        ORDER BY tc.position`,
-      [submissionId, problemId],
+      [submissionId, problemId, allowOrganizationProblem],
     );
     if (snapshots.rowCount === 0) {
       throw new BadRequestException('Bài tập chưa có test case đang hoạt động.');
@@ -435,16 +503,32 @@ export class SubmissionsRepository {
       memory_used_kb: number | null;
       submitted_at: Date;
       judged_at: Date | null;
+      organization_problem: boolean;
     }>(
-      `SELECT s.id, s.user_id, s.problem_id, p.problem_code, p.title AS problem_title, u.username,
+      `SELECT s.id, s.user_id, s.problem_id,
+              COALESCE(contest_problem.problem_code_snapshot, p.problem_code) AS problem_code,
+              COALESCE(contest_problem.problem_title_snapshot, p.title) AS problem_title,
+              (p.organization_id IS NOT NULL) AS organization_problem,
+              u.username,
               l.name AS language,
               s.source_code, s.status, s.scoring_enabled, s.score, s.max_score,
               s.execution_time_ms, s.memory_used_kb, s.submitted_at, s.judged_at
        FROM submissions s
        JOIN problems p ON p.id = s.problem_id
+       LEFT JOIN contests c ON c.id = s.contest_id
+       LEFT JOIN contest_problems contest_problem
+         ON contest_problem.contest_id = s.contest_id
+        AND contest_problem.problem_id = s.problem_id
        JOIN programming_languages l ON l.id = s.language_id
        JOIN users u ON u.id = s.user_id
-       WHERE s.id = $1 AND s.user_id = $2`,
+       WHERE s.id = $1 AND s.user_id = $2
+         AND (
+           (p.organization_id IS NULL
+            AND (s.contest_id IS NULL OR c.organization_id IS NULL))
+           OR (p.organization_id IS NOT NULL
+               AND s.contest_id IS NOT NULL
+               AND c.organization_id IS NULL)
+         )`,
       [id, userId],
     );
     const row = submission.rows[0];
@@ -468,10 +552,9 @@ export class SubmissionsRepository {
        ORDER BY snapshot.position`,
       [id],
     );
-    const cumulative = await this.findCumulativeProgress(
-      row.user_id,
-      row.problem_id,
-    );
+    const cumulative = row.organization_problem
+      ? { score: 0, total: 0 }
+      : await this.findCumulativeProgress(row.user_id, row.problem_id);
 
     return {
       id: row.id,
@@ -516,7 +599,8 @@ export class SubmissionsRepository {
         title: string;
       }>(
         `SELECT problem_code, title FROM problems
-         WHERE UPPER(problem_code) = UPPER($1) AND status = 'PUBLISHED'`,
+         WHERE UPPER(problem_code) = UPPER($1) AND status = 'PUBLISHED'
+           AND organization_id IS NULL`,
         [query.problemCode],
       );
       const row = found.rows[0];
@@ -536,6 +620,7 @@ export class SubmissionsRepository {
                   s.execution_time_ms, s.memory_used_kb
            FROM submissions s
            JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+            AND p.organization_id IS NULL
            JOIN users u ON u.id = s.user_id
            JOIN programming_languages l ON l.id = s.language_id
            WHERE ($1::text IS NULL OR s.status = $1)
@@ -582,6 +667,7 @@ export class SubmissionsRepository {
         `SELECT s.status, COUNT(*)::int AS count
          FROM submissions s
          JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+          AND p.organization_id IS NULL
          WHERE ($1::text IS NULL OR p.problem_code = $1)
            AND ($2::uuid IS NULL OR s.user_id = $2)
          GROUP BY s.status`,
@@ -591,6 +677,7 @@ export class SubmissionsRepository {
         `SELECT DISTINCT l.name
          FROM submissions s
          JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+          AND p.organization_id IS NULL
          JOIN programming_languages l ON l.id = s.language_id
          WHERE ($1::text IS NULL OR p.problem_code = $1)
            AND ($2::uuid IS NULL OR s.user_id = $2)
@@ -642,7 +729,8 @@ export class SubmissionsRepository {
     }>(
       `SELECT id, problem_code, title, scoring_enabled
        FROM problems
-       WHERE UPPER(problem_code) = UPPER($1) AND status = 'PUBLISHED'`,
+       WHERE UPPER(problem_code) = UPPER($1) AND status = 'PUBLISHED'
+         AND organization_id IS NULL`,
       [problemCode],
     );
     const problem = problemResult.rows[0];
@@ -830,6 +918,7 @@ export class SubmissionsRepository {
                   p.title AS problem_title, l.name AS language
            FROM submissions s
            JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+            AND p.organization_id IS NULL
            JOIN users u ON u.id = s.user_id
            JOIN programming_languages l ON l.id = s.language_id
            WHERE s.problem_id = $1 AND s.status = 'ACCEPTED'
@@ -924,7 +1013,10 @@ async function lockPublishedProblem(
   problemId: string,
 ): Promise<void> {
   const published = await client.query(
-    "SELECT id FROM problems WHERE id = $1 AND status = 'PUBLISHED' FOR SHARE",
+    `SELECT id FROM problems
+     WHERE id = $1 AND status = 'PUBLISHED'
+       AND organization_id IS NULL
+     FOR SHARE`,
     [problemId],
   );
   if (!published.rowCount) {

@@ -42,6 +42,7 @@ function HomePage() {
               id="contributors"
               title={t('topContributors')}
               description={t('contributorsDescription')}
+              href="/contributors"
               people={topContributors.map((person) => ({
                 ...person,
                 scoreLabel: t('contributionScoreLabel'),

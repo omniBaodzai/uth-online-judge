@@ -39,16 +39,16 @@ const particleConfigs = [
 ] as const
 
 function FloatingCodeParticles({
-  count = 16,
-  maxOpacity = 0.35,
+  count = 24,
+  maxOpacity = 0.50,
   speed = 1,
 }: FloatingCodeParticlesProps) {
   const safeCount = Number.isFinite(count)
     ? Math.min(Math.max(Math.floor(count), 0), particleConfigs.length)
     : particleConfigs.length
   const safeOpacity = Number.isFinite(maxOpacity)
-    ? Math.min(Math.max(maxOpacity, 0), 0.35)
-    : 0.35
+    ? Math.min(Math.max(maxOpacity, 0), 1)
+    : 0.50
   const safeSpeed = Number.isFinite(speed) && speed > 0 ? speed : 1
 
   return (
@@ -57,7 +57,7 @@ function FloatingCodeParticles({
         const style: ParticleStyle = {
           '--particle-x': `${particle.x}%`,
           '--particle-opacity': safeOpacity * particle.opacity,
-          '--particle-duration': `${particle.duration / safeSpeed}s`,
+          '--particle-duration': `${(particle.duration + 3) / safeSpeed}s`,
           '--particle-delay': `${particle.delay}s`,
           '--particle-drift-mid': `${particle.driftMid}px`,
           '--particle-drift-end': `${particle.driftEnd}px`,

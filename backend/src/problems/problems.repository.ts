@@ -66,6 +66,7 @@ const LIST_BASE_SQL = `
       GROUP BY problem_id
     ) st ON st.problem_id = p.id
     WHERE p.status = 'PUBLISHED'
+      AND p.organization_id IS NULL
   )`;
 
 type ListRow = {
@@ -206,7 +207,8 @@ export class ProblemsRepository {
     const result = await this.database.query<{ id: string; code: string; title: string }>(
       `SELECT id, problem_code AS code, title
        FROM problems
-       WHERE problem_code = $1 AND status = 'PUBLISHED'`,
+       WHERE problem_code = $1 AND status = 'PUBLISHED'
+         AND organization_id IS NULL`,
       [code],
     );
     return result.rows[0] ?? null;
@@ -263,7 +265,8 @@ export class ProblemsRepository {
               ${USER_STATUS_SQL} AS user_status
        FROM problems p
        JOIN users u ON u.id = p.created_by
-       WHERE p.problem_code = $2 AND p.status = 'PUBLISHED'`,
+       WHERE p.problem_code = $2 AND p.status = 'PUBLISHED'
+         AND p.organization_id IS NULL`,
       [userId, code],
     );
     const row = result.rows[0];

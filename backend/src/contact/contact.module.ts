@@ -6,6 +6,7 @@ import {
   MyContactMessagesController,
   MyNotificationsController,
   PublicContactMessagesController,
+  ProblemReportsController,
 } from './contact.controller.js';
 import { ContactRepository } from './contact.repository.js';
 import { ContactService } from './contact.service.js';
@@ -14,6 +15,7 @@ import { ContactService } from './contact.service.js';
   imports: [AuthModule],
   controllers: [
     PublicContactMessagesController,
+    ProblemReportsController,
     AdminContactMessagesController,
     MyContactMessagesController,
     MyNotificationsController,

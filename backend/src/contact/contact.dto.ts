@@ -50,6 +50,30 @@ export class CreateContactMessageDto {
   content!: string;
 }
 
+export const CONTACT_MESSAGE_CATEGORIES = ['CONTACT', 'PROBLEM_REPORT'] as const;
+export type ContactMessageCategory = (typeof CONTACT_MESSAGE_CATEGORIES)[number];
+
+export const PROBLEM_REPORT_TYPES = [
+  'INCORRECT_STATEMENT',
+  'INCORRECT_TEST_DATA',
+  'DISPLAY_ISSUE',
+  'OTHER',
+] as const;
+export type ProblemReportType = (typeof PROBLEM_REPORT_TYPES)[number];
+
+export class CreateProblemReportDto {
+  @ApiProperty({ enum: PROBLEM_REPORT_TYPES })
+  @IsIn(PROBLEM_REPORT_TYPES, { message: 'Loại vấn đề không hợp lệ.' })
+  reportType!: ProblemReportType;
+
+  @ApiProperty({ example: 'Ví dụ đầu ra không khớp với đề bài.', maxLength: 1000 })
+  @CleanText()
+  @IsString()
+  @IsNotEmpty({ message: 'Vui lòng mô tả vấn đề.' })
+  @MaxLength(1000)
+  content!: string;
+}
+
 export class ContactReplyDto {
   @ApiProperty({ example: 'Chung toi da ghi nhan yeu cau cua ban.', maxLength: 5000 })
   @CleanText()
@@ -70,24 +94,29 @@ export class ListContactMessagesQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(CONTACT_MESSAGE_STATUSES, { message: 'Trạng thái lọc không hợp lệ.' })
   status?: ContactMessageStatus;
+
+  @ApiPropertyOptional({ enum: CONTACT_MESSAGE_CATEGORIES })
+  @IsOptional()
+  @IsIn(CONTACT_MESSAGE_CATEGORIES, { message: 'Loại yêu cầu lọc không hợp lệ.' })
+  category?: ContactMessageCategory;
 }
 
 export class ListNotificationsQueryDto {
-  @ApiPropertyOptional({ default: 1, minimum: 1, maximum: 100000 })
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1, maximum: 100000 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100000)
-  page = 1;
+  page: number = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 50 })
+  @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 50 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(50)
-  pageSize = 20;
+  pageSize: number = 20;
 }
 
 export function validateIdempotencyKey(value: string | undefined): string | null {

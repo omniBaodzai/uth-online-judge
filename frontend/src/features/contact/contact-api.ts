@@ -1,5 +1,6 @@
 import type {
   ContactMessage,
+  ContactMessageCategory,
   ContactMessageStatus,
   ContactReply,
 } from '../admin/contact-messages/contact-messages.types'
@@ -17,11 +18,17 @@ export type CreateContactMessageResponse = {
 export type ContactMessageResponse = {
   id: string
   userId: string | null
+  username?: string | null
   fullName: string
   email: string
   subject: string
   content: string
   status: ContactMessageStatus
+  category?: ContactMessageCategory
+  reportType?: string | null
+  problemId?: string | null
+  problemCode?: string | null
+  problemTitle?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -79,11 +86,17 @@ export function toContactMessage(record: ContactMessageResponse): ContactMessage
   return {
     id: record.id,
     ownerUserId: record.userId ?? undefined,
+    username: record.username ?? undefined,
     fullName: record.fullName,
     email: record.email,
     subject: record.subject,
     message: record.content,
     status: record.status,
+    category: record.category ?? 'CONTACT',
+    reportType: record.reportType ?? undefined,
+    problemId: record.problemId ?? undefined,
+    problemCode: record.problemCode ?? undefined,
+    problemTitle: record.problemTitle ?? undefined,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }
@@ -106,6 +119,19 @@ export function submitContactMessage(
   signal?: AbortSignal,
 ): Promise<CreateContactMessageResponse> {
   return apiRequest<CreateContactMessageResponse>('/contact-messages', {
+    method: 'POST',
+    body: JSON.stringify(input),
+    signal,
+  })
+}
+
+export function submitProblemReport(
+  apiRequest: ContactApiRequest,
+  problemCode: string,
+  input: { reportType: string; content: string },
+  signal?: AbortSignal,
+): Promise<{ id: string; status: ContactMessageStatus; createdAt: string }> {
+  return apiRequest(`/problems/${encodeURIComponent(problemCode)}/reports`, {
     method: 'POST',
     body: JSON.stringify(input),
     signal,
@@ -181,7 +207,13 @@ export function markAllMyNotificationsRead(
 
 export async function listAdminContactMessages(
   apiRequest: ContactApiRequest,
-  query: { page: number; pageSize: number; q?: string; status?: ContactMessageStatus },
+  query: {
+    page: number
+    pageSize: number
+    q?: string
+    status?: ContactMessageStatus
+    category?: ContactMessageCategory
+  },
   signal?: AbortSignal,
 ): Promise<AdminContactMessageListResponse> {
   const search = new URLSearchParams({
@@ -190,6 +222,7 @@ export async function listAdminContactMessages(
   })
   if (query.q) search.set('q', query.q)
   if (query.status) search.set('status', query.status)
+  if (query.category) search.set('category', query.category)
   return apiRequest<AdminContactMessageListResponse>(
     `/admin/contact-messages?${search.toString()}`,
     { signal },

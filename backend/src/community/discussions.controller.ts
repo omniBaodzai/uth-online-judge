@@ -14,7 +14,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AdminRoleGuard } from '../admin/admin-role.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -29,11 +29,13 @@ import {
 } from './dto/discussions.dto.js';
 import { PaginationQueryDto } from './dto/pagination.dto.js';
 import { DiscussionsService } from './discussions.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 type UserRequest = Request & { user: Viewer };
 type OptionalUserRequest = Request & { user?: Viewer | null };
 
 @ApiTags('Discussions')
+@DocumentControllerOperations()
 @Controller()
 export class DiscussionsController {
   constructor(private readonly discussions: DiscussionsService) {}
@@ -70,6 +72,7 @@ export class DiscussionsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Chủ đề đã được xóa; không có nội dung phản hồi.' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @Req() request: UserRequest) {
     await this.discussions.remove(id, request.user);
   }
@@ -140,6 +143,7 @@ export class DiscussionsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Bình luận đã được cập nhật; không có nội dung phản hồi.' })
   async editComment(
     @Param('commentId', ParseUUIDPipe) commentId: string,
     @Body() input: CommentInputDto,
@@ -152,6 +156,7 @@ export class DiscussionsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Bình luận đã được xóa; không có nội dung phản hồi.' })
   async removeComment(@Param('commentId', ParseUUIDPipe) commentId: string, @Req() request: UserRequest) {
     await this.discussions.removeComment(commentId, request.user);
   }

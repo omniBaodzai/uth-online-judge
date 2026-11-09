@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, Send } from 'lucide-react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAdmin } from '../useAdmin'
 import styles from '../admin.module.css'
 import { formatDateTime } from '../../community/format'
+import { ContactMessageCategoryBadge } from './ContactMessageCategoryBadge'
+import { reportTypeLabels } from './report-type-labels'
 import { ContactMessageStatusBadge } from './ContactMessageStatusBadge'
 import { ContactConversation } from '../../contact/components/ContactConversation'
 import type {
@@ -241,7 +243,24 @@ function AdminContactMessageDetailPage() {
           <h3 className={pageStyles.subjectHeading}>{message.subject}</h3>
           <dl className={pageStyles.senderDetails}>
             <div><dt>Người gửi</dt><dd>{message.fullName}</dd></div>
+            {message.username && <div><dt>Username</dt><dd>{message.username}</dd></div>}
             <div><dt>Email</dt><dd><a href={`mailto:${message.email}`}>{message.email}</a></dd></div>
+            {message.category === 'PROBLEM_REPORT' && (
+              <>
+                <div><dt>Loại yêu cầu</dt><dd><ContactMessageCategoryBadge category="PROBLEM_REPORT" /></dd></div>
+                <div>
+                  <dt>Bài tập</dt>
+                  <dd>
+                    {message.problemId && message.problemCode ? (
+                      <Link to={`/problems/${encodeURIComponent(message.problemCode)}`} target="_blank" rel="noreferrer">
+                        {message.problemCode} – {message.problemTitle}
+                      </Link>
+                    ) : `${message.problemCode ?? ''} – ${message.problemTitle ?? ''} (đã xóa)`}
+                  </dd>
+                </div>
+                <div><dt>Loại vấn đề</dt><dd>{reportTypeLabels[message.reportType ?? ''] ?? message.reportType}</dd></div>
+              </>
+            )}
             <div><dt>Ngày giờ gửi</dt><dd>{formatDateTime(message.createdAt)}</dd></div>
           </dl>
           <div className={pageStyles.requestContent}>

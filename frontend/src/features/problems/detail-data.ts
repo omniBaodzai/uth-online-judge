@@ -33,11 +33,13 @@ export type ProblemDetail = {
 }
 
 export const reportTypes = [
-  'Đề bài sai hoặc thiếu thông tin',
-  'Dữ liệu kiểm thử không chính xác',
-  'Lỗi hiển thị',
-  'Vấn đề khác',
-]
+  { value: 'INCORRECT_STATEMENT', labelKey: 'problemReportTypeMissingInfo' },
+  { value: 'INCORRECT_TEST_DATA', labelKey: 'problemReportTypeIncorrectTestData' },
+  { value: 'DISPLAY_ISSUE', labelKey: 'problemReportTypeDisplayIssue' },
+  { value: 'OTHER', labelKey: 'problemReportTypeOther' },
+] as const
+
+export type ReportTypeCode = (typeof reportTypes)[number]['value']
 
 export function formatTimeLimit(ms: number, locale = 'vi-VN', secondsLabel = 'giây'): string {
   const format = new Intl.NumberFormat(locale)

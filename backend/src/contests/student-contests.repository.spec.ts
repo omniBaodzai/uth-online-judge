@@ -152,6 +152,7 @@ describe('StudentContestsRepository', () => {
     expect(client.query.mock.calls[1]?.[0]).toContain(
       '(c.ends_at <= db_clock.now OR account.is_active = TRUE)',
     );
+    expect(client.query.mock.calls[1]?.[0]).toContain('c.organization_id IS NULL');
     expect(client.query).not.toHaveBeenCalledWith(
       expect.stringContaining('FROM public.contest_problems'),
       expect.anything(),
@@ -189,6 +190,9 @@ describe('StudentContestsRepository', () => {
     expect(client.query.mock.calls[1]?.[1]).toEqual([contestId, contestId, userId]);
     expect(client.query.mock.calls[2]?.[0]).not.toMatch(
       /test_case_revision|test_case|answer|source_code/i,
+    );
+    expect(client.query.mock.calls[2]?.[0]).toContain(
+      'contest_problem_content_accessible(cp.contest_id, cp.problem_id)',
     );
   });
 
@@ -335,6 +339,8 @@ describe('StudentContestsRepository', () => {
     const [sql, values] = client.query.mock.calls[1] as [string, unknown[]];
     expect(sql).toContain("c.publication_status = 'PUBLISHED' AND c.visibility = 'PUBLIC'");
     expect(sql).toContain('s.contest_id = (SELECT id FROM public_contest)');
+    expect(sql).toContain('public.contest_problem_content_accessible(s.contest_id, p.id)');
+    expect(sql).toContain("owner.status = 'ACTIVE'");
     expect(sql).toContain("s.status IN ('PENDING', 'QUEUED', 'RUNNING')");
     expect(sql).toContain("participant.registration_status = 'REGISTERED'");
     expect(sql).toContain(
@@ -477,6 +483,8 @@ describe('StudentContestsRepository', () => {
     expect(sql).toContain('submission.submitted_at < contest.ends_at');
     expect(sql).toContain('submission.contest_id');
     expect(sql).toContain('contest_problem.problem_id = submission.problem_id');
+    expect(sql).toContain('public.contest_problem_content_accessible(contest.id, problem.id)');
+    expect(sql).toContain("owner.status = 'ACTIVE'");
     expect(sql).toContain('submission.contest_max_score_snapshot');
     expect(sql).toContain('snapshot.points');
     expect(sql).toContain('result.points_awarded');

@@ -4,6 +4,7 @@ import { validateSync } from 'class-validator';
 import {
   ContactReplyDto,
   CreateContactMessageDto,
+  CreateProblemReportDto,
   ListContactMessagesQueryDto,
   UpdateContactMessageStatusDto,
   validateIdempotencyKey,
@@ -48,6 +49,26 @@ describe('contact DTO validation', () => {
       status: 'NEW',
     }))).toHaveLength(0);
     expect(validateSync(plainToInstance(ListContactMessagesQueryDto, { status: 'CLOSED' })).length)
+      .toBeGreaterThan(0);
+  });
+
+  it('validates problem report type, trims content and bounds its length', () => {
+    const valid = plainToInstance(CreateProblemReportDto, {
+      reportType: 'DISPLAY_ISSUE',
+      content: '  Sai ví dụ  ',
+    });
+    expect(valid.content).toBe('Sai ví dụ');
+    expect(validateSync(valid)).toHaveLength(0);
+    for (const body of [
+      { reportType: 'Lỗi hiển thị', content: 'x' },
+      { reportType: 'OTHER', content: '   ' },
+      { reportType: 'OTHER', content: 'x'.repeat(1001) },
+    ]) {
+      expect(validateSync(plainToInstance(CreateProblemReportDto, body)).length).toBeGreaterThan(0);
+    }
+    expect(validateSync(plainToInstance(ListContactMessagesQueryDto, { category: 'PROBLEM_REPORT' })))
+      .toHaveLength(0);
+    expect(validateSync(plainToInstance(ListContactMessagesQueryDto, { category: 'X' })).length)
       .toBeGreaterThan(0);
   });
 

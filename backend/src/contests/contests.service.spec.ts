@@ -57,7 +57,7 @@ describe('ContestsService', () => {
     repository.create.mockResolvedValue({ id: 'contest-id' });
 
     await expect(service.create(input, 'admin-id')).resolves.toEqual({ id: 'contest-id' });
-    expect(repository.create).toHaveBeenCalledWith(input, 'admin-id');
+    expect(repository.create).toHaveBeenCalledWith(input, 'admin-id', null, undefined);
   });
 
   it('maps known PostgreSQL uniqueness failures to a conflict response', async () => {

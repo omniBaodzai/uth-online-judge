@@ -19,8 +19,9 @@ describe('ContestsRepository', () => {
 
     const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
     expect(sql).not.toContain('DROP TABLE');
-    expect(values).toEqual(["%x\\%\\_'; DROP TABLE contests; --%", 'DRAFT']);
+    expect(values).toEqual([null, "%x\\%\\_'; DROP TABLE contests; --%", 'DRAFT']);
     expect(database.query.mock.calls[1]?.[1]).toEqual([
+      null,
       "%x\\%\\_'; DROP TABLE contests; --%",
       'DRAFT',
       10,

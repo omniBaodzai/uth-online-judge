@@ -43,11 +43,13 @@ import {
 } from './dto/student-contest-submissions.dto.js';
 import { ListStudentContestsQueryDto, StudentContestLeaderboardQueryDto } from './dto/student-contests.dto.js';
 import { StudentContestsService } from './student-contests.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 type OptionalUserRequest = Request & { user?: { id: string } | null };
 type AuthenticatedUserRequest = Request & { user: { id: string } };
 
 @ApiTags('Student Contests')
+@DocumentControllerOperations()
 @Controller('contests')
 export class StudentContestsController {
   constructor(

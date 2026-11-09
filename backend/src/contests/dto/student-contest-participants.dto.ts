@@ -14,15 +14,15 @@ import type { StudentContestParticipantsQuery } from '../student-contests.types.
 export class StudentContestParticipantsQueryDto
   implements StudentContestParticipantsQuery
 {
-  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100000)
-  page = 1;
+  page: number = 1;
 
-  @ApiPropertyOptional({ enum: [10, 20, 50], default: 10 })
+  @ApiPropertyOptional({ type: Number, enum: [10, 20, 50], default: 10 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

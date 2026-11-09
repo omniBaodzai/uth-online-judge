@@ -17,6 +17,16 @@
   box-shadow: 0 24px 60px rgba(4, 28, 35, 0.3);
 }
 
+.backdropOverlay {
+  z-index: 1000;
+}
+
+.dialogScrollable {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .dialog h2 {
   margin: 0 0 16px;
   color: var(--color-ink);
@@ -33,6 +43,7 @@
 }
 
 .dialog select,
+.dialog input,
 .dialog textarea {
   width: 100%;
   padding: 10px 12px;
@@ -49,6 +60,7 @@
 }
 
 .dialog select:focus,
+.dialog input:focus,
 .dialog textarea:focus {
   border-color: var(--color-primary);
   outline: none;
@@ -73,12 +85,44 @@
 
 .primary,
 .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 42px;
   padding: 0 18px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fieldError {
+  margin: 4px 0 0;
+  color: #b42318;
+  font-size: 12px;
+}
+
+.dialog input[aria-invalid='true'],
+.dialog textarea[aria-invalid='true'] {
+  border-color: #b42318;
+}
+
+.notice {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.error {
+  margin: 10px 0 0;
+  color: #b42318;
+  font-size: 13px;
 }
 
 .primary {
@@ -98,6 +142,10 @@
 }
 
 /* Dark theme overrides (generated, Phase 3) */
+:global(:where([data-theme='dark'])) .error,
+:global(:where([data-theme='dark'])) .fieldError {
+  color: #ff9b8f;
+}
 :global(:where([data-theme='dark'])) .success {
   background: var(--color-surface-subtle);
   color: var(--color-primary-dark);

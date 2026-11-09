@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAdmin } from '../useAdmin'
 import { useAuth } from '../../auth/useAuth'
 import { AdminIcon } from '../components/AdminIcons'
-import { Mail, Trophy } from 'lucide-react'
+import { Building2, Mail, Trophy } from 'lucide-react'
 import Breadcrumb from '../../../components/navigation/Breadcrumb'
 import uthLogo from '../../../assets/uth_logo.png'
 import styles from '../admin.module.css'
@@ -94,6 +94,9 @@ function AdminLayout() {
           </NavLink>
           <NavLink to="/admin/users" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
             <AdminIcon name="users" /><span>Người dùng</span>
+          </NavLink>
+          <NavLink to="/admin/organizations" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
+            <Building2 size={18} aria-hidden="true" /><span>Tổ chức</span>
           </NavLink>
           <NavLink to="/admin/contact-messages" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navActive : ''}`} onClick={() => setSidebarOpen(false)}>
             <Mail size={18} aria-hidden="true" /><span>Liên hệ</span>

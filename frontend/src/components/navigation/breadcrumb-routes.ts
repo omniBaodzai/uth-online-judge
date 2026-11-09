@@ -126,6 +126,7 @@ const routes: RouteDefinition[] = [
   { pattern: '/discussions/:id', build: () => [home, discussionList, { label: 'Chi tiết thảo luận' }] },
   { pattern: '/discussions', build: () => [home, { label: 'Thảo luận' }] },
   { pattern: '/leaderboard', build: () => [home, leaderboardList] },
+  { pattern: '/contributors', build: () => [home, { label: 'Top đóng góp' }] },
   { pattern: '/profile/edit', build: () => [home, { label: 'Hồ sơ', to: '/profile' }, { label: 'Chỉnh sửa hồ sơ' }] },
   { pattern: '/profile', build: () => [home, { label: 'Hồ sơ' }] },
   { pattern: '/users/id/:id', build: () => [home, { label: 'Hồ sơ công khai' }] },
@@ -143,6 +144,27 @@ const routes: RouteDefinition[] = [
     },
   },
   { pattern: '/organizations', build: () => [home, { label: 'Tổ chức' }] },
+  {
+    pattern: '/organizations/:organizationId/manage',
+    build: ({ organizationId }) => {
+      return [
+        home,
+        { label: 'Tổ chức', to: '/organizations' },
+        { label: 'Chi tiết tổ chức', to: `/organizations/${organizationId}` },
+        { label: 'Quản lý' },
+      ]
+    },
+  },
+  {
+    pattern: '/organizations/:organizationId',
+    build: () => {
+      return [
+        home,
+        { label: 'Tổ chức', to: '/organizations' },
+        { label: 'Chi tiết tổ chức' },
+      ]
+    },
+  },
   { pattern: '/contact', build: () => [home, { label: 'Liên hệ' }] },
   { pattern: '/my/contact-messages/:messageId', build: () => [home, { label: 'Liên hệ', to: '/contact' }, { label: 'Chi tiết yêu cầu' }] },
   { pattern: '/admin/problems/new', build: () => [admin, adminProblemList, { label: 'Tạo bài tập' }] },
@@ -158,6 +180,20 @@ const routes: RouteDefinition[] = [
   { pattern: '/admin/news', build: () => [admin, { label: 'Tin tức' }] },
   { pattern: '/admin/users', build: () => [admin, { label: 'Người dùng' }] },
   { pattern: '/admin/contact-messages', build: () => [admin, { label: 'Quản lý liên hệ' }] },
+  {
+    pattern: '/admin/organization-requests/:id',
+    build: () => [
+      admin,
+      { label: 'Quản lý tổ chức', to: '/admin/organizations' },
+      { label: 'Yêu cầu tạo tổ chức', to: '/admin/organizations?tab=requests' },
+      { label: 'Chi tiết yêu cầu' },
+    ],
+  },
+  {
+    pattern: '/admin/organizations/:id',
+    build: () => [admin, { label: 'Quản lý tổ chức', to: '/admin/organizations' }, { label: 'Chi tiết tổ chức' }],
+  },
+  { pattern: '/admin/organizations', build: () => [admin, { label: 'Quản lý tổ chức' }] },
   { pattern: '/admin', build: () => [admin, { label: 'Tổng quan' }] },
 ]
 

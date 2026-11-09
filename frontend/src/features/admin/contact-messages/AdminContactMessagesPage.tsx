@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Mail, X } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AdminIcon } from '../components/AdminIcons'
 import { useAdmin } from '../useAdmin'
 import { formatDateTime } from '../../community/format'
+import { ContactMessageCategoryBadge } from './ContactMessageCategoryBadge'
+import { reportTypeLabels } from './report-type-labels'
 import { ContactMessageStatusBadge } from './ContactMessageStatusBadge'
 import type {
   ContactMessage,
+  ContactMessageCategory,
   ContactMessageListState,
   ContactMessageRouteState,
   ContactMessageStatus,
@@ -30,6 +33,12 @@ const statusOptions: Array<{ value: ContactMessageStatus | 'all'; label: string 
   { value: 'NEW', label: 'Mới' },
   { value: 'IN_PROGRESS', label: 'Đang xử lý' },
   { value: 'RESOLVED', label: 'Đã xử lý' },
+]
+
+const categoryOptions: Array<{ value: ContactMessageCategory | 'all'; label: string }> = [
+  { value: 'all', label: 'Tất cả loại' },
+  { value: 'CONTACT', label: 'Liên hệ' },
+  { value: 'PROBLEM_REPORT', label: 'Báo cáo vấn đề' },
 ]
 
 function ContactMessageDrawer({
@@ -140,10 +149,38 @@ function ContactMessageDrawer({
                 <dt>Người gửi</dt>
                 <dd>{details.fullName}</dd>
               </div>
+              {details.username && (
+                <div>
+                  <dt>Username</dt>
+                  <dd>{details.username}</dd>
+                </div>
+              )}
               <div>
                 <dt>Email</dt>
                 <dd><a href={`mailto:${details.email}`}>{details.email}</a></dd>
               </div>
+              {details.category === 'PROBLEM_REPORT' && (
+                <>
+                  <div>
+                    <dt>Loại yêu cầu</dt>
+                    <dd><ContactMessageCategoryBadge category="PROBLEM_REPORT" /></dd>
+                  </div>
+                  <div>
+                    <dt>Bài tập</dt>
+                    <dd>
+                      {details.problemId && details.problemCode ? (
+                        <Link to={`/problems/${encodeURIComponent(details.problemCode)}`} target="_blank" rel="noreferrer">
+                          {details.problemCode} – {details.problemTitle}
+                        </Link>
+                      ) : `${details.problemCode ?? ''} – ${details.problemTitle ?? ''} (đã xóa)`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Loại vấn đề</dt>
+                    <dd>{reportTypeLabels[details.reportType ?? ''] ?? details.reportType}</dd>
+                  </div>
+                </>
+              )}
               <div>
                 <dt>Tiêu đề</dt>
                 <dd>{details.subject}</dd>
@@ -215,6 +252,7 @@ function AdminContactMessagesPage() {
   const initialListState = routeState?.listState
   const [search, setSearch] = useState(initialListState?.search ?? '')
   const [statusFilter, setStatusFilter] = useState<ContactMessageStatus | 'all'>(initialListState?.statusFilter ?? 'all')
+  const [categoryFilter, setCategoryFilter] = useState<ContactMessageCategory | 'all'>(initialListState?.categoryFilter ?? 'all')
   const [page, setPage] = useState(initialListState?.page ?? 1)
   const [pageSize, setPageSize] = useState<PageSize>(initialListState?.pageSize ?? 10)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -226,7 +264,7 @@ function AdminContactMessagesPage() {
   const [loadError, setLoadError] = useState<{ key: string; message: string } | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
 
-  const queryKey = JSON.stringify([search.trim(), statusFilter, page, pageSize, refreshVersion])
+  const queryKey = JSON.stringify([search.trim(), statusFilter, categoryFilter, page, pageSize, refreshVersion])
   const visibleData = data?.key === queryKey ? data.response : null
   const visibleError = loadError?.key === queryKey ? loadError.message : ''
   const loading = !visibleData && !visibleError
@@ -235,7 +273,7 @@ function AdminContactMessagesPage() {
   const total = visibleData?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const currentPage = Math.min(page, pageCount)
-  const hasFilters = Boolean(search.trim()) || statusFilter !== 'all'
+  const hasFilters = Boolean(search.trim()) || statusFilter !== 'all' || categoryFilter !== 'all'
   const firstItem = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const lastItem = Math.min(currentPage * pageSize, total)
 
@@ -247,6 +285,7 @@ function AdminContactMessagesPage() {
         pageSize,
         q: search.trim() || undefined,
         status: statusFilter === 'all' ? undefined : statusFilter,
+        category: categoryFilter === 'all' ? undefined : categoryFilter,
       }, controller.signal      )
         .then((response) => {
           const lastPage = Math.max(1, Math.ceil(response.total / pageSize))
@@ -270,11 +309,12 @@ function AdminContactMessagesPage() {
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [page, pageSize, queryKey, refreshVersion, request, search, statusFilter])
+  }, [categoryFilter, page, pageSize, queryKey, refreshVersion, request, search, statusFilter])
 
   function clearFilters() {
     setSearch('')
     setStatusFilter('all')
+    setCategoryFilter('all')
     setPage(1)
   }
 
@@ -287,6 +327,7 @@ function AdminContactMessagesPage() {
     const listState: ContactMessageListState = {
       search,
       statusFilter,
+      categoryFilter,
       page: currentPage,
       pageSize,
     }
@@ -329,8 +370,8 @@ function AdminContactMessagesPage() {
           <label className={styles.searchField}>
             <AdminIcon name="search" size={18} />
             <input
-              aria-label="Tìm theo tên, email hoặc tiêu đề"
-              placeholder="Tìm theo tên, email hoặc tiêu đề..."
+              aria-label="Tìm theo tên, email, tiêu đề hoặc mã bài tập"
+              placeholder="Tìm theo tên, email, tiêu đề, mã bài tập..."
               value={search}
               maxLength={200}
               onChange={(event) => {
@@ -348,6 +389,18 @@ function AdminContactMessagesPage() {
             }}
           >
             {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Lọc tin nhắn theo loại yêu cầu"
+            value={categoryFilter}
+            onChange={(event) => {
+              setCategoryFilter(event.target.value as ContactMessageCategory | 'all')
+              setPage(1)
+            }}
+          >
+            {categoryOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
@@ -393,10 +446,11 @@ function AdminContactMessagesPage() {
                       {(currentPage - 1) * pageSize + index + 1}
                     </td>
                     <td>
-                      <strong className={pageStyles.senderName}>{message.fullName}</strong>
+                      <strong className={pageStyles.senderName}>{message.username ?? message.fullName}</strong>
                       <span className={pageStyles.senderEmail}>{message.email}</span>
                     </td>
                     <td className={pageStyles.subjectCell}>
+                      <ContactMessageCategoryBadge category={message.category} />
                       <button
                         type="button"
                         className={pageStyles.subjectButton}
@@ -405,6 +459,11 @@ function AdminContactMessagesPage() {
                       >
                         {message.subject}
                       </button>
+                      {message.category === 'PROBLEM_REPORT' && (
+                        <span className={pageStyles.problemRef}>
+                          {message.problemCode} – {message.problemTitle}
+                        </span>
+                      )}
                     </td>
                     <td className={pageStyles.dateCell}>{formatDateTime(message.createdAt)}</td>
                     <td><ContactMessageStatusBadge status={message.status} /></td>

@@ -5,12 +5,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
 import { ListProblemsQueryDto } from './dto/list-problems-query.dto.js';
 import { ProblemsService } from './problems.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 import { ProblemIllustrationService } from './problem-illustration.service.js';
 
 type MaybeAuthenticatedRequest = Request & { user?: { id: string } | null };
 type AuthenticatedRequest = Request & { user: { id: string } };
 
 @ApiTags('Problems')
+@DocumentControllerOperations()
 @Controller('problems')
 export class ProblemsController {
   constructor(

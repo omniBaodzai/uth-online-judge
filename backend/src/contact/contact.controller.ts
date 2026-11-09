@@ -14,7 +14,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AdminRoleGuard } from '../admin/admin-role.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -23,17 +23,20 @@ import { PaginationQueryDto } from '../community/dto/pagination.dto.js';
 import {
   ContactReplyDto,
   CreateContactMessageDto,
+  CreateProblemReportDto,
   ListContactMessagesQueryDto,
   ListNotificationsQueryDto,
   UpdateContactMessageStatusDto,
   validateIdempotencyKey,
 } from './contact.dto.js';
 import { ContactService } from './contact.service.js';
+import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 
 type ContactRequest = Request & { user?: { id: string; role: 'STUDENT' | 'ADMIN' } | null };
 type AuthenticatedContactRequest = Request & { user: { id: string; role: 'STUDENT' | 'ADMIN' } };
 
 @ApiTags('Contact messages')
+@DocumentControllerOperations()
 @Controller('contact-messages')
 export class PublicContactMessagesController {
   constructor(private readonly contact: ContactService) {}
@@ -49,7 +52,29 @@ export class PublicContactMessagesController {
   }
 }
 
+@ApiTags('Problem reports')
+@DocumentControllerOperations()
+@Controller('problems/:code/reports')
+export class ProblemReportsController {
+  constructor(private readonly contact: ContactService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Gửi báo cáo vấn đề của bài tập vào hộp thư liên hệ của Admin' })
+  @ApiCreatedResponse({ description: 'Báo cáo đã được lưu với trạng thái NEW.' })
+  create(
+    @Param('code') code: string,
+    @Body() input: CreateProblemReportDto,
+    @Req() request: AuthenticatedContactRequest,
+  ) {
+    return this.contact.createProblemReport(code, request.user.id, input);
+  }
+}
+
 @ApiTags('Admin contact messages')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 @Controller('admin/contact-messages')
@@ -79,6 +104,12 @@ export class AdminContactMessagesController {
 
   @Post(':id/replies')
   @HttpCode(HttpStatus.CREATED)
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description: 'UUID v4 tùy chọn để nhận diện yêu cầu lặp lại.',
+    schema: { type: 'string', format: 'uuid' },
+  })
   @ApiOperation({ summary: 'Admin phản hồi yêu cầu liên hệ' })
   reply(
     @Param('id', ParseUUIDPipe) id: string,
@@ -97,6 +128,7 @@ export class AdminContactMessagesController {
 }
 
 @ApiTags('My contact messages')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('my/contact-messages')
@@ -120,6 +152,12 @@ export class MyContactMessagesController {
 
   @Post(':id/replies')
   @HttpCode(HttpStatus.CREATED)
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description: 'UUID v4 tùy chọn để nhận diện yêu cầu lặp lại.',
+    schema: { type: 'string', format: 'uuid' },
+  })
   @ApiOperation({ summary: 'Chủ sở hữu phản hồi yêu cầu chưa được xử lý' })
   reply(
     @Param('id', ParseUUIDPipe) id: string,
@@ -142,6 +180,7 @@ export class MyContactMessagesController {
 }
 
 @ApiTags('My notifications')
+@DocumentControllerOperations()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('my/notifications')

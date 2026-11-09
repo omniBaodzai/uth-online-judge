@@ -1,13 +1,20 @@
 export type ContactMessageStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED'
+export type ContactMessageCategory = 'CONTACT' | 'PROBLEM_REPORT'
 
 export type ContactMessage = {
   id: string
   ownerUserId?: string
+  username?: string
   fullName: string
   email: string
   subject: string
   message: string
   status: ContactMessageStatus
+  category: ContactMessageCategory
+  reportType?: string
+  problemId?: string
+  problemCode?: string
+  problemTitle?: string
   createdAt: string
   updatedAt: string
 }
@@ -26,6 +33,7 @@ export type ContactReply = {
 export type ContactMessageListState = {
   search: string
   statusFilter: ContactMessageStatus | 'all'
+  categoryFilter?: ContactMessageCategory | 'all'
   page: number
   pageSize: 10 | 20 | 50
 }

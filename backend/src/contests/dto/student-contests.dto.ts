@@ -16,20 +16,20 @@ import type {
 } from '../student-contests.types.js';
 
 export class ListStudentContestsQueryDto {
-  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page = 1;
+  page: number = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  pageSize = 20;
+  pageSize: number = 20;
 
   @ApiPropertyOptional({ maxLength: 120, description: 'Tìm theo tên hoặc slug.' })
   @IsOptional()
@@ -58,14 +58,14 @@ export class ListStudentContestsQueryDto {
 }
 
 export class StudentContestLeaderboardQueryDto implements StudentContestLeaderboardQuery {
-  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page = 1;
+  page: number = 1;
 
-  @ApiPropertyOptional({ enum: [10, 20, 50], default: 10 })
+  @ApiPropertyOptional({ type: Number, enum: [10, 20, 50], default: 10 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
