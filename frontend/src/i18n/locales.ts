@@ -311,6 +311,10 @@ export const resources = {
       passwordResetError: 'Không thể đổi mật khẩu. Vui lòng thử lại.',
     },
     pages: {
+      notFoundDocumentTitle: '404 — Không tìm thấy trang | UTH Online Judge',
+      notFoundHeading: 'Ối! Bạn đi lạc rồi!',
+      notFoundDescription: 'Có vẻ trang bạn tìm kiếm đã biến mất khỏi bản đồ. Hãy quay về trang chủ hoặc tiếp tục khám phá những bài tập lập trình.',
+      notFoundIllustrationAlt: 'Chú gấu trúc đỏ cầm bản đồ, đang bối rối tìm đường.',
       problemList: 'Danh sách bài tập',
       searchProblems: 'Tìm kiếm bài tập theo tên hoặc mã bài tập...',
       searchProblemsLabel: 'Tìm kiếm bài tập',
@@ -1200,6 +1204,10 @@ export const resources = {
       passwordResetError: 'Could not change your password. Please try again.',
     },
     pages: {
+      notFoundDocumentTitle: '404 — Page not found | UTH Online Judge',
+      notFoundHeading: "Oops! You're lost!",
+      notFoundDescription: "It looks like the page you're looking for has disappeared from the map. Head home or keep exploring programming problems.",
+      notFoundIllustrationAlt: 'A red panda holding a map and looking for the way.',
       problemList: 'Problem list',
       searchProblems: 'Search problems by name or code...',
       searchProblemsLabel: 'Search problems',

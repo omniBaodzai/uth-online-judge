@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom'
 import HomePage from './features/home/pages/HomePage'
 import AuthPage from './features/auth/pages/AuthPage'
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
@@ -17,6 +17,7 @@ import PublicProfilePage from './features/profile/pages/PublicProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
 import AppLayout from './components/layout/AppLayout'
 import PlaceholderPage from './components/layout/PlaceholderPage'
+import NotFoundPage from './components/layout/NotFoundPage'
 import AdminLayout from './features/admin/layouts/AdminLayout'
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage'
 import AdminLoginPage from './features/admin/pages/AdminLoginPage'
@@ -161,7 +162,7 @@ function App() {
           <Route path="discussions" element={<DiscussionListPage />} />
           <Route path="discussions/new" element={<RequireAuth><DiscussionNewPage /></RequireAuth>} />
           <Route path="discussions/:id" element={<DiscussionDetailPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
       </ToastProvider>
