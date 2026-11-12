@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { request } from '../../auth/api'
 import styles from './PlatformStats.module.css'
 
@@ -10,6 +11,11 @@ type PlatformStatsData = {
 }
 
 const statKeys: Array<keyof PlatformStatsData> = ['members', 'problems', 'submissions']
+const statRoutes: Record<keyof PlatformStatsData, string> = {
+  members: '/leaderboard',
+  problems: '/problems',
+  submissions: '/submissions',
+}
 const COUNT_UP_MS = 1000
 
 function prefersReducedMotion() {
@@ -86,25 +92,25 @@ function PlatformStats() {
   }, [])
 
   return (
-    <dl
+    <nav
       className={styles.stats}
       aria-label={error ? t('platformStatsError') : t('platformStats')}
       aria-busy={!stats && !error}
     >
       {statKeys.map((key) => (
-        <div className={styles.stat} key={key}>
-          <dt className={styles.value}>
+        <Link className={styles.stat} key={key} to={statRoutes[key]}>
+          <span className={styles.value}>
             {stats ? (
               <CountUpValue
                 value={stats[key]}
                 locale={i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'}
               />
             ) : '—'}
-          </dt>
-          <dd className={styles.label}>{t(key)}</dd>
-        </div>
+          </span>
+          <span className={styles.label}>{t(key)}</span>
+        </Link>
       ))}
-    </dl>
+    </nav>
   )
 }
 

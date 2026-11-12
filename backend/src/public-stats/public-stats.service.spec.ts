@@ -1,7 +1,7 @@
 import { PublicStatsService } from './public-stats.service.js';
 
 describe('PublicStatsService', () => {
-  it('counts active users, published problems, and all submission statuses', async () => {
+  it('counts active users, published problems, and submissions for published Global problems', async () => {
     const query = vi.fn().mockResolvedValue({
       rows: [{ members: '3', problems: '2', submissions: '7' }],
     });
@@ -17,8 +17,9 @@ describe('PublicStatsService', () => {
     expect(sql).toContain('FROM users WHERE is_active = TRUE');
     expect(sql).toContain("WHERE status = 'PUBLISHED' AND organization_id IS NULL");
     expect(sql).toContain('FROM submissions s');
-    expect(sql).toContain('JOIN problems p ON p.id = s.problem_id');
-    expect(sql).toContain('WHERE p.organization_id IS NULL');
+    expect(sql).toContain("JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'");
+    expect(sql).toContain('AND p.organization_id IS NULL');
+    expect(sql.slice(sql.indexOf('FROM submissions s'))).not.toContain('s.status');
   });
 
   it('returns zero for empty tables', async () => {

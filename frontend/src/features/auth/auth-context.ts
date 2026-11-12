@@ -36,6 +36,7 @@ export type AuthContextValue = {
   uploadAvatar: (file: File, fullName: string | null) => Promise<AuthUser>
   uploadCover: (file: File, crop: CoverCrop) => Promise<AuthUser>
   request: <T>(path: string, init?: RequestInit) => Promise<T>
+  requestBlob: (path: string, init?: RequestInit) => Promise<Blob>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

@@ -21,4 +21,24 @@ describe('AdminController illustration upload', () => {
     )).resolves.toEqual({ url: '/problems/illustrations/image-id' });
     expect(illustrations.save).toHaveBeenCalledWith(Buffer.from('png'), 'admin-1');
   });
+
+  it('delegates dashboard chart requests to the guarded Admin statistics service', async () => {
+    const admin = {
+      dashboardStatistics: vi.fn().mockResolvedValue({
+        timezone: 'Asia/Ho_Chi_Minh',
+        days: 7,
+        submissionScope: 'GLOBAL',
+        submissions: { total: 0, daily: [] },
+        users: { total: 0, daily: [] },
+      }),
+    };
+    const controller = new AdminController(admin as never, {} as never);
+    const query = { days: 7, submissionScope: 'GLOBAL' } as const;
+
+    await expect(controller.dashboardStatistics(query)).resolves.toMatchObject({
+      timezone: 'Asia/Ho_Chi_Minh',
+      days: 7,
+    });
+    expect(admin.dashboardStatistics).toHaveBeenCalledWith(query);
+  });
 });

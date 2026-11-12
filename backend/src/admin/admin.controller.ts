@@ -29,6 +29,7 @@ import { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.j
 import { AdminRoleGuard } from './admin-role.guard.js';
 import { AdminService } from './admin.service.js';
 import { ProblemIllustrationService, PROBLEM_ILLUSTRATION_MAX_BYTES } from '../problems/problem-illustration.service.js';
+import { AdminDashboardStatisticsQueryDto } from './dto/admin-dashboard-statistics.dto.js';
 
 type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 
@@ -46,6 +47,11 @@ export class AdminController {
   @Get('dashboard')
   dashboard() {
     return this.admin.dashboard();
+  }
+
+  @Get('dashboard/statistics')
+  dashboardStatistics(@Query() query: AdminDashboardStatisticsQueryDto) {
+    return this.admin.dashboardStatistics(query);
   }
 
   @Get('catalog')

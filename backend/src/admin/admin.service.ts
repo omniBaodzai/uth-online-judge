@@ -12,6 +12,7 @@ import type { AdminProblemDto } from './dto/admin-problem.dto.js';
 import type { AdminTestCaseDto } from './dto/admin-test-case.dto.js';
 import type { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.js';
 import type { AdminProblemListQuery } from './admin.types.js';
+import type { AdminDashboardStatisticsQueryDto } from './dto/admin-dashboard-statistics.dto.js';
 
 @Injectable()
 export class AdminService {
@@ -91,6 +92,10 @@ export class AdminService {
 
   dashboard() {
     return this.repository.dashboard();
+  }
+
+  dashboardStatistics(query: AdminDashboardStatisticsQueryDto) {
+    return this.repository.dashboardStatistics(query.days, query.submissionScope);
   }
 
   listTestCases(problemId: string) {

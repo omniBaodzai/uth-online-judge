@@ -320,6 +320,41 @@
   border-bottom: 0;
 }
 
+.commentTargetHighlight {
+  border-radius: 8px;
+  animation: comment-target-highlight 2600ms ease-out both;
+}
+
+.commentTargetHighlight:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.commentTargetNotice {
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+@keyframes comment-target-highlight {
+  0%,
+  58% {
+    background-color: rgba(0, 134, 137, 0.14);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commentTargetHighlight {
+    animation: none;
+    background-color: rgba(0, 134, 137, 0.14);
+  }
+}
+
 .commentHead {
   display: flex;
   flex-wrap: wrap;
@@ -332,6 +367,51 @@
 
 .commentHead strong {
   color: var(--color-ink);
+}
+
+.commentIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.commentAuthorDetails {
+  min-width: 0;
+  flex: 1;
+}
+
+.commentMention {
+  color: var(--color-primary-dark);
+  font-weight: 650;
+}
+
+.commentProfileLink,
+.commentMention {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.commentProfileLink:hover,
+.commentMention:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.commentProfileLink:focus-visible,
+.commentMention:focus-visible,
+.commentAvatarLink:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.commentAvatarLink {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 .form {

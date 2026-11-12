@@ -1,6 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { Pool } from 'pg';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { Pool, PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
+import { insertNotification } from '../notifications/notification-writer.js';
 import type { PageResult } from './community.utils.js';
 import { buildReactionSummaries, type ReactionSummary, type ReactionType } from './reactions.repository.js';
 
@@ -10,6 +17,8 @@ export interface ProblemCommentRecord {
   parentId: string | null;
   authorId: string;
   authorName: string;
+  authorUsername: string | null;
+  avatarUrl: string | null;
   content: string;
   isDeleted: boolean;
   createdAt: string;
@@ -30,9 +39,43 @@ export interface ProblemCommentPageQuery {
 }
 
 const COMMENT_COLUMNS = `c.id, c.problem_id AS "problemId", c.parent_id AS "parentId",
-                c.author_id AS "authorId", COALESCE(u.username, 'Ẩn danh') AS "authorName", c.content,
+                c.author_id AS "authorId", COALESCE(u.username, 'Ẩn danh') AS "authorName",
+                u.username AS "authorUsername", u.avatar_url AS "avatarUrl", c.content,
                 (c.deleted_at IS NOT NULL) AS "isDeleted",
                 c.created_at AS "createdAt", c.updated_at AS "updatedAt"`;
+
+async function findIdempotentComment(
+  client: PoolClient,
+  problemId: string,
+  authorId: string,
+  idempotencyKey: string,
+): Promise<{ id: string; content: string; parentId: string | null } | null> {
+  const result = await client.query<{ id: string; content: string; parentId: string | null }>(
+    `SELECT id, content, parent_id AS "parentId"
+     FROM public.problem_comments
+     WHERE problem_id = $1 AND author_id = $2 AND idempotency_key = $3`,
+    [problemId, authorId, idempotencyKey],
+  );
+  return result.rows[0] ?? null;
+}
+
+function assertSameCommentRequest(
+  existing: { content: string; parentId: string | null },
+  content: string,
+  parentId: string | null,
+): void {
+  if (existing.content !== content || existing.parentId !== parentId) {
+    throw new ConflictException('Idempotency-Key đã được dùng cho một bình luận khác.');
+  }
+}
+
+async function rollback(client: PoolClient): Promise<void> {
+  try {
+    await client.query('ROLLBACK');
+  } catch {
+    // Keep the original database error.
+  }
+}
 
 @Injectable()
 export class ProblemCommentsRepository {
@@ -92,17 +135,131 @@ export class ProblemCommentsRepository {
   }
 
   async createComment(
-    problemId: string,
+    problemCode: string,
     authorId: string,
     content: string,
     parentId: string | null = null,
+    idempotencyKey: string | null = null,
   ): Promise<string> {
-    const result = await this.pool.query<{ id: string }>(
-      `INSERT INTO public.problem_comments (problem_id, author_id, content, parent_id)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [problemId, authorId, content, parentId],
-    );
-    return result.rows[0].id;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const problemResult = await client.query<{ id: string; title: string }>(
+        `SELECT id, title
+         FROM public.problems
+         WHERE problem_code = $1 AND status = 'PUBLISHED'
+           AND organization_id IS NULL
+         FOR SHARE`,
+        [problemCode],
+      );
+      const problem = problemResult.rows[0];
+      if (!problem) throw new NotFoundException('Không tìm thấy bài tập.');
+
+      if (idempotencyKey) {
+        const existing = await findIdempotentComment(client, problem.id, authorId, idempotencyKey);
+        if (existing) {
+          assertSameCommentRequest(existing, content, parentId);
+          await client.query('COMMIT');
+          return existing.id;
+        }
+      }
+
+      let parentAuthorId: string | null = null;
+      let rootCommentId: string | null = null;
+      if (parentId) {
+        const parentResult = await client.query<{ authorId: string; isDeleted: boolean }>(
+          `SELECT author_id AS "authorId", (deleted_at IS NOT NULL) AS "isDeleted"
+           FROM public.problem_comments
+           WHERE id = $1 AND problem_id = $2
+           FOR SHARE`,
+          [parentId, problem.id],
+        );
+        const parent = parentResult.rows[0];
+        if (!parent) throw new NotFoundException('Không tìm thấy bình luận.');
+        if (parent.isDeleted) throw new BadRequestException('Bình luận này đã bị xóa nên không thể trả lời.');
+        parentAuthorId = parent.authorId;
+
+        const rootResult = await client.query<{ id: string }>(
+          `WITH RECURSIVE ancestors(id, parent_id) AS (
+             SELECT id, parent_id
+             FROM public.problem_comments
+             WHERE id = $1 AND problem_id = $2
+             UNION ALL
+             SELECT parent.id, parent.parent_id
+             FROM public.problem_comments parent
+             JOIN ancestors child ON parent.id = child.parent_id
+             WHERE parent.problem_id = $2
+           )
+           SELECT id FROM ancestors WHERE parent_id IS NULL LIMIT 1`,
+          [parentId, problem.id],
+        );
+        rootCommentId = rootResult.rows[0]?.id ?? parentId;
+      }
+
+      const recipientIds = parentAuthorId ? [parentAuthorId] : [];
+      const lockedUserIds = [...new Set([authorId, ...recipientIds])].sort();
+      const users = await client.query<{ id: string; name: string }>(
+        `SELECT id, COALESCE(NULLIF(full_name, ''), NULLIF(username, ''), 'Người dùng') AS name
+         FROM public.users
+         WHERE id = ANY($1::uuid[]) AND is_active = TRUE
+         ORDER BY id
+         FOR SHARE`,
+        [lockedUserIds],
+      );
+      const actorName = users.rows.find((user) => user.id === authorId)?.name;
+      if (!actorName) throw new NotFoundException('Không tìm thấy tài khoản người bình luận.');
+
+      const inserted = await client.query<{ id: string }>(
+        `INSERT INTO public.problem_comments
+           (problem_id, author_id, content, parent_id, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (problem_id, author_id, idempotency_key)
+           WHERE idempotency_key IS NOT NULL
+         DO NOTHING
+         RETURNING id`,
+        [problem.id, authorId, content, parentId, idempotencyKey],
+      );
+      let commentId = inserted.rows[0]?.id;
+      if (!commentId && idempotencyKey) {
+        const existing = await findIdempotentComment(client, problem.id, authorId, idempotencyKey);
+        if (existing) {
+          assertSameCommentRequest(existing, content, parentId);
+          await client.query('COMMIT');
+          return existing.id;
+        }
+      }
+      if (!commentId) throw new Error('Problem comment insert returned no record.');
+
+      const recipient = users.rows.find((user) => user.id === parentAuthorId && user.id !== authorId);
+      if (parentId && recipient) {
+        await insertNotification(client, {
+          recipientUserId: recipient.id,
+          actorUserId: authorId,
+          type: 'PROBLEM_REPLY',
+          title: 'Có phản hồi mới',
+          content: `${actorName} đã trả lời bình luận của bạn trong bài tập "${problem.title}".`,
+          referenceId: null,
+          sourceType: 'PROBLEM_COMMENT',
+          sourceId: commentId,
+          targetType: 'PROBLEM_COMMENT',
+          targetId: commentId,
+          metadata: {
+            problemCode,
+            problemId: problem.id,
+            commentId,
+            rootCommentId: rootCommentId ?? commentId,
+          },
+        });
+      }
+
+      await client.query('COMMIT');
+      return commentId;
+    } catch (error) {
+      await rollback(client);
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async findComment(id: string): Promise<ProblemCommentLookup | null> {

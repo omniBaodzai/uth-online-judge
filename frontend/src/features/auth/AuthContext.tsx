@@ -262,6 +262,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken])
 
+  const requestBlob = useCallback(async (path: string, init?: RequestInit): Promise<Blob> => {
+    if (!accessToken) throw new authApi.ApiError('Vui lòng đăng nhập để tiếp tục.', 401)
+    const revision = authRevision.current
+    try {
+      return await authApi.requestProtectedBlob(path, accessToken, (token) => {
+        if (revision === authRevision.current) setAccessToken(token)
+      }, init)
+    } catch (error) {
+      if (revision === authRevision.current && error instanceof authApi.ApiError && error.status === 401) {
+        setAccessToken(null)
+        setUser(null)
+      }
+      throw error
+    }
+  }, [accessToken])
+
   const value = useMemo(
     () => ({
       accessToken,
@@ -280,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       uploadAvatar,
       uploadCover,
       request,
+      requestBlob,
     }),
     [
       accessToken,
@@ -297,6 +314,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       uploadAvatar,
       uploadCover,
       request,
+      requestBlob,
     ],
   )
 

@@ -12,6 +12,10 @@ import type {
   AdminProblemPage,
   AdminTestCase,
 } from './admin.types.js';
+import type {
+  AdminDashboardStatistics,
+  AdminDashboardSubmissionScope,
+} from './admin-dashboard-statistics.types.js';
 
 type ProblemRow = {
   id: string;
@@ -412,6 +416,91 @@ export class AdminRepository {
       draft: byStatus.get('DRAFT') ?? 0,
       archived: byStatus.get('ARCHIVED') ?? 0,
       recent: recent.items,
+    };
+  }
+
+  async dashboardStatistics(
+    days: 7 | 30 | 90,
+    submissionScope: AdminDashboardSubmissionScope,
+  ): Promise<AdminDashboardStatistics> {
+    const result = await this.database.query<{
+      date: string;
+      submissions_count: string;
+      users_count: string;
+    }>(
+      `WITH bounds AS (
+         SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS today
+       ),
+       calendar AS (
+         SELECT generate_series(
+           bounds.today - ($1::int - 1),
+           bounds.today,
+           INTERVAL '1 day'
+         )::date AS day
+         FROM bounds
+       ),
+       daily_submissions AS (
+         SELECT (submission.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS day,
+                COUNT(*)::text AS count
+         FROM public.submissions submission
+         JOIN public.problems problem ON problem.id = submission.problem_id
+         LEFT JOIN public.contests contest ON contest.id = submission.contest_id
+         CROSS JOIN bounds
+         WHERE submission.submitted_at >=
+                 ((bounds.today - ($1::int - 1))::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+           AND submission.submitted_at <
+                 ((bounds.today + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+           AND (
+             ($2::text = 'GLOBAL'
+               AND COALESCE(contest.organization_id, problem.organization_id) IS NULL)
+             OR
+             ($2::text = 'ORGANIZATION'
+               AND COALESCE(contest.organization_id, problem.organization_id) IS NOT NULL)
+           )
+         GROUP BY (submission.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+       ),
+       daily_users AS (
+         SELECT (user_account.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS day,
+                COUNT(*)::text AS count
+         FROM public.users user_account
+         CROSS JOIN bounds
+         WHERE user_account.created_at >=
+                 ((bounds.today - ($1::int - 1))::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+           AND user_account.created_at <
+                 ((bounds.today + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+         GROUP BY (user_account.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+       )
+       SELECT TO_CHAR(calendar.day, 'YYYY-MM-DD') AS date,
+              COALESCE(daily_submissions.count, '0') AS submissions_count,
+              COALESCE(daily_users.count, '0') AS users_count
+       FROM calendar
+       LEFT JOIN daily_submissions ON daily_submissions.day = calendar.day
+       LEFT JOIN daily_users ON daily_users.day = calendar.day
+       ORDER BY calendar.day ASC`,
+      [days, submissionScope],
+    );
+
+    const submissions = result.rows.map((row) => ({
+      date: row.date,
+      count: Number(row.submissions_count),
+    }));
+    const users = result.rows.map((row) => ({
+      date: row.date,
+      count: Number(row.users_count),
+    }));
+
+    return {
+      timezone: 'Asia/Ho_Chi_Minh',
+      days,
+      submissionScope,
+      submissions: {
+        total: submissions.reduce((total, point) => total + point.count, 0),
+        daily: submissions,
+      },
+      users: {
+        total: users.reduce((total, point) => total + point.count, 0),
+        daily: users,
+      },
     };
   }
 

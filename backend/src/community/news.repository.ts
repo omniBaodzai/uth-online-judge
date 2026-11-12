@@ -1,9 +1,15 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { Pool } from 'pg';
+import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import { Pool, type PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
 import { escapeLikePattern } from '../submissions/global-submissions.js';
 import type { NewsStatus } from './dto/news.dto.js';
 import type { PageResult } from './community.utils.js';
+import {
+  NEWS_RICH_CONTENT_FORMAT,
+  newsRichImageIds,
+  type NewsContentFormat,
+  type NewsRichDocument,
+} from './news-rich-content.js';
 
 export interface NewsListItem {
   id: string;
@@ -17,6 +23,8 @@ export interface NewsListItem {
 
 export interface NewsArticle extends NewsListItem {
   content: string;
+  contentFormat: NewsContentFormat;
+  contentJson: NewsRichDocument | null;
   status: NewsStatus;
   createdAt: string;
   updatedAt: string;
@@ -28,6 +36,18 @@ export interface NewsWriteInput {
   category: string;
   summary: string;
   content: string;
+  contentFormat: NewsContentFormat;
+  contentJson: NewsRichDocument | null;
+}
+
+export interface NewsPatchInput {
+  title?: string;
+  slug?: string;
+  category?: string;
+  summary?: string;
+  content?: string;
+  contentFormat?: NewsContentFormat;
+  contentJson?: NewsRichDocument | null;
 }
 
 export interface NewsListQuery {
@@ -45,7 +65,7 @@ const LIST_COLUMNS = `
   n.published_at AS "publishedAt"`;
 
 const FULL_COLUMNS = `${LIST_COLUMNS},
-  n.content, n.status,
+  n.content, n.content_format AS "contentFormat", n.content_json AS "contentJson", n.status,
   n.created_at AS "createdAt", n.updated_at AS "updatedAt"`;
 
 const SEARCH_FILTER = `
@@ -128,30 +148,126 @@ export class NewsRepository {
   }
 
   async create(authorId: string, input: NewsWriteInput): Promise<string> {
+    const client = await this.pool.connect();
+    let transactionStarted = false;
     try {
-      const result = await this.pool.query<{ id: string }>(
-        `INSERT INTO public.news_articles (title, slug, summary, content, category, author_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'DRAFT')
+      await client.query('BEGIN');
+      transactionStarted = true;
+      const result = await client.query<{ id: string }>(
+        `INSERT INTO public.news_articles
+           (title, slug, summary, content, category, author_id, status, content_format, content_json)
+         VALUES ($1, $2, $3, $4, $5, $6, 'DRAFT', $7, $8::jsonb)
          RETURNING id`,
-        [input.title, input.slug, input.summary, input.content, input.category, authorId],
+        [
+          input.title,
+          input.slug,
+          input.summary,
+          input.content,
+          input.category,
+          authorId,
+          input.contentFormat,
+          input.contentJson === null ? null : JSON.stringify(input.contentJson),
+        ],
       );
-      return result.rows[0].id;
+      const id = result.rows[0]?.id;
+      if (!id) throw new Error('News article insert did not return an id');
+      const mediaIds =
+        input.contentFormat === NEWS_RICH_CONTENT_FORMAT && input.contentJson
+          ? newsRichImageIds(input.contentJson)
+          : [];
+      if (mediaIds.length > 0) await this.syncMediaReferences(client, id, mediaIds);
+      await client.query('COMMIT');
+      transactionStarted = false;
+      return id;
     } catch (error) {
+      if (transactionStarted) await client.query('ROLLBACK').catch(() => undefined);
       throw this.translateError(error);
+    } finally {
+      client.release();
     }
   }
 
-  async update(id: string, input: NewsWriteInput): Promise<boolean> {
+  async update(id: string, input: NewsPatchInput): Promise<boolean> {
+    const client = await this.pool.connect();
+    let transactionStarted = false;
     try {
-      const result = await this.pool.query(
-        `UPDATE public.news_articles
-         SET title = $2, slug = $3, summary = $4, content = $5, category = $6, updated_at = NOW()
-         WHERE id = $1`,
-        [id, input.title, input.slug, input.summary, input.content, input.category],
+      await client.query('BEGIN');
+      transactionStarted = true;
+      const current = await client.query<{
+        content_format: NewsContentFormat;
+        content_json: NewsRichDocument | null;
+      }>(
+        `SELECT content_format, content_json
+         FROM public.news_articles
+         WHERE id = $1
+         FOR UPDATE`,
+        [id],
       );
+      if (!current.rows[0]) {
+        await client.query('ROLLBACK');
+        transactionStarted = false;
+        return false;
+      }
+
+      const hasContentPatch =
+        input.contentFormat !== undefined || input.content !== undefined || input.contentJson !== undefined;
+      const implicitMarkdownWrite = input.contentFormat === undefined && input.content !== undefined;
+      if (current.rows[0].content_format === NEWS_RICH_CONTENT_FORMAT && implicitMarkdownWrite) {
+        throw new ConflictException(
+          'Bài viết đang dùng Rich Text; cần tải và gửi lại contentJson hoặc chuyển định dạng rõ ràng sang Markdown.',
+        );
+      }
+
+      const contentFormat = input.contentFormat ?? (implicitMarkdownWrite ? 'markdown' : undefined);
+      const contentJson = contentFormat === NEWS_RICH_CONTENT_FORMAT ? input.contentJson : null;
+      if (hasContentPatch) {
+        const nextMediaIds =
+          contentFormat === NEWS_RICH_CONTENT_FORMAT && input.contentJson
+            ? newsRichImageIds(input.contentJson)
+            : [];
+        const currentMediaIds =
+          current.rows[0].content_format === NEWS_RICH_CONTENT_FORMAT && current.rows[0].content_json
+            ? newsRichImageIds(current.rows[0].content_json)
+            : [];
+        if (nextMediaIds.length > 0 || currentMediaIds.length > 0) {
+          await this.syncMediaReferences(client, id, nextMediaIds, currentMediaIds);
+        }
+      }
+      const result = await client.query(
+        `UPDATE public.news_articles
+         SET title = CASE WHEN $2 THEN $3 ELSE title END,
+             slug = CASE WHEN $4 THEN $5 ELSE slug END,
+             summary = CASE WHEN $6 THEN $7 ELSE summary END,
+             category = CASE WHEN $8 THEN $9 ELSE category END,
+             content = CASE WHEN $10 THEN $11 ELSE content END,
+             content_format = CASE WHEN $10 THEN $12 ELSE content_format END,
+             content_json = CASE WHEN $10 THEN $13::jsonb ELSE content_json END,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [
+          id,
+          input.title !== undefined,
+          input.title ?? null,
+          input.slug !== undefined,
+          input.slug ?? null,
+          input.summary !== undefined,
+          input.summary ?? null,
+          input.category !== undefined,
+          input.category ?? null,
+          hasContentPatch,
+          input.content ?? null,
+          contentFormat ?? null,
+          contentJson === null || contentJson === undefined ? null : JSON.stringify(contentJson),
+        ],
+      );
+      await client.query('COMMIT');
+      transactionStarted = false;
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
+      if (transactionStarted) await client.query('ROLLBACK').catch(() => undefined);
       throw this.translateError(error);
+    } finally {
+      client.release();
     }
   }
 
@@ -171,6 +287,51 @@ export class NewsRepository {
   async delete(id: string): Promise<boolean> {
     const result = await this.pool.query('DELETE FROM public.news_articles WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
+  }
+
+  private async syncMediaReferences(
+    client: PoolClient,
+    articleId: string,
+    mediaIds: string[],
+    previousMediaIds: string[] = [],
+  ): Promise<void> {
+    const idsToLock = [...new Set([...mediaIds, ...previousMediaIds])].sort();
+    if (idsToLock.length > 0) {
+      const available = await client.query<{ id: string }>(
+        `SELECT id
+         FROM public.news_media
+         WHERE id = ANY($1::uuid[])
+         ORDER BY id
+         FOR UPDATE`,
+        [idsToLock],
+      );
+      const availableIds = new Set(available.rows.map((row) => row.id.toLowerCase()));
+      if (mediaIds.some((mediaId) => !availableIds.has(mediaId.toLowerCase()))) {
+        throw new BadRequestException('Một hoặc nhiều ảnh tin tức không tồn tại hoặc đã hết hạn. Hãy tải lại ảnh trước khi lưu.');
+      }
+    }
+
+    await client.query(
+      `DELETE FROM public.news_article_media
+       WHERE news_article_id = $1
+         AND NOT (news_media_id = ANY($2::uuid[]))`,
+      [articleId, mediaIds],
+    );
+    if (mediaIds.length === 0) return;
+
+    await client.query(
+      `INSERT INTO public.news_article_media (news_article_id, news_media_id)
+       SELECT $1, image_id
+       FROM unnest($2::uuid[]) AS ids(image_id)
+       ON CONFLICT (news_article_id, news_media_id) DO NOTHING`,
+      [articleId, mediaIds],
+    );
+    await client.query(
+      `UPDATE public.news_media
+       SET orphaned_at = NULL
+       WHERE id = ANY($1::uuid[])`,
+      [mediaIds],
+    );
   }
 
   private translateError(error: unknown): unknown {

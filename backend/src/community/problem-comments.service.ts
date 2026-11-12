@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { PageResult, Viewer } from './community.utils.js';
 import {
   ProblemCommentsRepository,
@@ -47,10 +47,14 @@ export class ProblemCommentsService {
   }
 
   // authorId luôn lấy từ token đã xác thực, không nhận từ client.
-  async addComment(code: string, viewer: Viewer, content: string, parentId: string | null = null): Promise<void> {
-    const problemId = await this.requireProblem(code);
-    if (parentId) await this.assertCanReplyTo(problemId, parentId);
-    await this.comments.createComment(problemId, viewer.id, content, parentId);
+  async addComment(
+    code: string,
+    viewer: Viewer,
+    content: string,
+    parentId: string | null = null,
+    idempotencyKey: string | null = null,
+  ): Promise<void> {
+    await this.comments.createComment(code, viewer.id, content, parentId, idempotencyKey);
   }
 
   async editComment(commentId: string, viewer: Viewer, content: string): Promise<void> {
@@ -97,16 +101,6 @@ export class ProblemCommentsService {
     return comment;
   }
 
-  // Cha phải tồn tại, cùng bài tập và chưa bị xóa.
-  private async assertCanReplyTo(problemId: string, parentId: string): Promise<void> {
-    const parent = await this.comments.findComment(parentId);
-    if (!parent) throw new NotFoundException(COMMENT_NOT_FOUND);
-    if (parent.problemId !== problemId) {
-      throw new BadRequestException('Bình luận cần trả lời không thuộc bài tập này.');
-    }
-    if (parent.isDeleted) throw new BadRequestException('Bình luận này đã bị xóa nên không thể trả lời.');
-  }
-
   private toView(
     comment: ProblemCommentRecord,
     viewer: Viewer | null,
@@ -122,6 +116,8 @@ export class ProblemCommentsService {
       return {
         ...rest,
         authorName: 'Người dùng đã xóa',
+        authorUsername: null,
+        avatarUrl: null,
         content: '',
         reactions: emptyReactionSummary(),
         replies,

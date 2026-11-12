@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { request as publicRequest } from '../auth/api'
 import { useAuth } from '../auth/useAuth'
 import type { ReactionSummary } from './reactions'
+import type { NewsRichDocument } from './news-rich-content'
 
 export type PageResult<T> = { items: T[]; total: number; page: number; pageSize: number }
 
@@ -19,18 +20,30 @@ export type NewsStatus = 'DRAFT' | 'PUBLISHED'
 
 export type NewsArticle = NewsListItem & {
   content: string
+  contentFormat?: 'markdown' | 'tiptap-json'
+  contentJson?: NewsRichDocument | null
   status: NewsStatus
   createdAt: string
   updatedAt: string
 }
 
-export type NewsInput = {
+type NewsMetadataInput = {
   title: string
   slug?: string
   category: string
   summary: string
-  content: string
 }
+
+export type NewsInput = NewsMetadataInput & (
+  | { content: string; contentFormat?: 'markdown'; contentJson?: never }
+  | { contentFormat: 'tiptap-json'; contentJson: NewsRichDocument; content?: never }
+)
+
+export type NewsPatchInput = Partial<NewsMetadataInput> & (
+  | { content: string; contentFormat?: 'markdown'; contentJson?: never }
+  | { contentFormat: 'tiptap-json'; contentJson: NewsRichDocument; content?: never }
+  | { content?: never; contentFormat?: never; contentJson?: never }
+)
 
 export type DiscussionListItem = {
   id: string
@@ -58,6 +71,8 @@ export type DiscussionComment = {
   parentId: string | null
   isDeleted: boolean
   authorName: string
+  authorUsername?: string | null
+  avatarUrl?: string | null
   content: string
   createdAt: string
   updatedAt: string

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -23,6 +24,7 @@ import { CommentInputDto, CreateCommentDto, ReactionInputDto } from './dto/discu
 import { PaginationQueryDto } from './dto/pagination.dto.js';
 import { ProblemCommentsService } from './problem-comments.service.js';
 import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
+import { validateIdempotencyKey } from '../common/idempotency-key.js';
 
 type UserRequest = Request & { user: Viewer };
 type OptionalUserRequest = Request & { user?: Viewer | null };
@@ -45,8 +47,19 @@ export class ProblemCommentsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Gửi bình luận hoặc trả lời (parentId) cho bài tập' })
   @HttpCode(HttpStatus.CREATED)
-  async add(@Param('code') code: string, @Body() input: CreateCommentDto, @Req() request: UserRequest) {
-    await this.comments.addComment(code, request.user, input.content, input.parentId ?? null);
+  async add(
+    @Param('code') code: string,
+    @Body() input: CreateCommentDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() request: UserRequest,
+  ) {
+    await this.comments.addComment(
+      code,
+      request.user,
+      input.content,
+      input.parentId ?? null,
+      validateIdempotencyKey(idempotencyKey),
+    );
   }
 
   @Put('problem-comments/:commentId/reaction')

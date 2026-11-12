@@ -1,6 +1,53 @@
 import { AdminRepository } from './admin.repository.js';
 
 describe('AdminRepository', () => {
+  it.each([
+    [7, 'GLOBAL'],
+    [30, 'ORGANIZATION'],
+    [90, 'GLOBAL'],
+  ] as const)('returns %s days of zero-filled %s dashboard series in Vietnam time', async (days, scope) => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          { date: '2026-11-09', submissions_count: '0', users_count: '1' },
+          { date: '2026-11-10', submissions_count: '3', users_count: '0' },
+        ],
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.dashboardStatistics(days, scope)).resolves.toEqual({
+      timezone: 'Asia/Ho_Chi_Minh',
+      days,
+      submissionScope: scope,
+      submissions: {
+        total: 3,
+        daily: [
+          { date: '2026-11-09', count: 0 },
+          { date: '2026-11-10', count: 3 },
+        ],
+      },
+      users: {
+        total: 1,
+        daily: [
+          { date: '2026-11-09', count: 1 },
+          { date: '2026-11-10', count: 0 },
+        ],
+      },
+    });
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(values).toEqual([days, scope]);
+    expect(sql).toContain("AT TIME ZONE 'Asia/Ho_Chi_Minh'");
+    expect(sql).toContain('generate_series(');
+    expect(sql).toContain("COALESCE(contest.organization_id, problem.organization_id) IS NULL");
+    expect(sql).toContain("COALESCE(contest.organization_id, problem.organization_id) IS NOT NULL");
+    expect(sql).toContain("COALESCE(daily_submissions.count, '0')");
+    expect(sql).toContain("COALESCE(daily_users.count, '0')");
+    expect(sql).toContain('submission.submitted_at >=');
+    expect(sql).toContain('user_account.created_at >=');
+  });
+
   it('uses bound parameters for admin list filters and maps persisted values', async () => {
     const database = {
       query: vi.fn()

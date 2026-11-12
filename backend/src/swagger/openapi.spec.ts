@@ -107,7 +107,8 @@ describe('OpenAPI contract', () => {
 
     expect(new Set(registered).size).toBe(registered.length);
     expect(new Set(operations).size).toBe(operations.length);
-    expect(registered).toHaveLength(171);
+    expect(registered).toHaveLength(175);
+    expect(registered).toContain('GET /admin/dashboard/statistics');
     expect([...operations].sort()).toEqual([...registered].sort());
 
     for (const [path, item] of Object.entries(document.paths)) {
@@ -160,6 +161,9 @@ describe('OpenAPI contract', () => {
     });
     expect(document.paths['/problems']?.get?.security).toBeUndefined();
     expect(document.paths['/news']?.get?.security).toBeUndefined();
+    expect(document.paths['/news/media/{id}']?.get?.security).toBeUndefined();
+    expect(document.paths['/admin/news/media']?.post?.security).toContainEqual({ bearer: [] });
+    expect(document.paths['/admin/news/media/{id}']?.get?.security).toContainEqual({ bearer: [] });
     expect(document.paths['/auth/refresh']?.post?.security).toContainEqual({
       uth_refresh_token: [],
     });
@@ -299,6 +303,15 @@ describe('OpenAPI contract', () => {
       },
     });
     expect(document.paths['/admin/problems/illustrations']?.post?.requestBody).toMatchObject({
+      content: {
+        'multipart/form-data': {
+          schema: {
+            properties: { image: { type: 'string', format: 'binary' } },
+          },
+        },
+      },
+    });
+    expect(document.paths['/admin/news/media']?.post?.requestBody).toMatchObject({
       content: {
         'multipart/form-data': {
           schema: {

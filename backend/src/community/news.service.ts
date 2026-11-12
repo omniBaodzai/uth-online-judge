@@ -1,11 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { slugify, type PageResult } from './community.utils.js';
-import type { NewsInputDto, NewsStatus } from './dto/news.dto.js';
+import type { NewsInputDto, NewsPatchDto, NewsStatus } from './dto/news.dto.js';
+import {
+  isNewsRichDocument,
+  NEWS_RICH_CONTENT_FORMAT,
+  newsRichDocumentToMarkdown,
+  type NewsContentFormat,
+} from './news-rich-content.js';
 import {
   NewsRepository,
   type NewsArticle,
   type NewsListItem,
   type NewsListQuery,
+  type NewsPatchInput,
   type NewsWriteInput,
 } from './news.repository.js';
 
@@ -37,12 +44,27 @@ export class NewsService {
   }
 
   async create(authorId: string, input: NewsInputDto): Promise<NewsArticle> {
-    const id = await this.news.create(authorId, this.toWriteInput(input));
+    const content = this.createContent(input);
+    const id = await this.news.create(authorId, {
+      title: input.title,
+      slug: this.slugForCreate(input),
+      category: input.category,
+      summary: input.summary,
+      ...content,
+    });
     return this.getForAdmin(id);
   }
 
-  async update(id: string, input: NewsInputDto): Promise<NewsArticle> {
-    if (!(await this.news.update(id, this.toWriteInput(input)))) throw new NotFoundException(NOT_FOUND);
+  async update(id: string, input: NewsPatchDto): Promise<NewsArticle> {
+    const content = this.patchContent(input);
+    const patch: NewsPatchInput = {
+      title: input.title,
+      slug: input.slug ?? (input.title ? slugify(input.title) : undefined),
+      category: input.category,
+      summary: input.summary,
+      ...content,
+    };
+    if (!(await this.news.update(id, patch))) throw new NotFoundException(NOT_FOUND);
     return this.getForAdmin(id);
   }
 
@@ -55,14 +77,61 @@ export class NewsService {
     if (!(await this.news.delete(id))) throw new NotFoundException(NOT_FOUND);
   }
 
-  private toWriteInput(input: NewsInputDto): NewsWriteInput {
+  private slugForCreate(input: NewsInputDto): string {
     const slug = input.slug || slugify(input.title);
-    return {
-      title: input.title,
-      slug: slug || `bai-viet-${Date.now().toString(36)}`,
-      category: input.category,
-      summary: input.summary,
-      content: input.content,
-    };
+    return slug || `bai-viet-${Date.now().toString(36)}`;
+  }
+
+  private createContent(input: NewsInputDto): Pick<NewsWriteInput, 'content' | 'contentFormat' | 'contentJson'> {
+    const contentFormat: NewsContentFormat = input.contentFormat ?? 'markdown';
+    if (contentFormat === NEWS_RICH_CONTENT_FORMAT) {
+      if (input.content !== undefined) {
+        throw new BadRequestException('Với Rich Text, content được tạo từ contentJson và không nhận từ client.');
+      }
+      if (!isNewsRichDocument(input.contentJson)) {
+        throw new BadRequestException('Cấu trúc nội dung Rich Text không hợp lệ.');
+      }
+      return {
+        content: newsRichDocumentToMarkdown(input.contentJson),
+        contentFormat,
+        contentJson: input.contentJson,
+      };
+    }
+
+    if (input.contentJson !== undefined || typeof input.content !== 'string') {
+      throw new BadRequestException('Nội dung Markdown phải được cung cấp dưới dạng content.');
+    }
+    return { content: input.content.trim(), contentFormat: 'markdown', contentJson: null };
+  }
+
+  private patchContent(input: NewsPatchDto): Pick<NewsPatchInput, 'content' | 'contentFormat' | 'contentJson'> {
+    if (input.contentFormat === NEWS_RICH_CONTENT_FORMAT) {
+      if (input.content !== undefined) {
+        throw new BadRequestException('Với Rich Text, content được tạo từ contentJson và không nhận từ client.');
+      }
+      if (!isNewsRichDocument(input.contentJson)) {
+        throw new BadRequestException('Cấu trúc nội dung Rich Text không hợp lệ.');
+      }
+      return {
+        content: newsRichDocumentToMarkdown(input.contentJson),
+        contentFormat: NEWS_RICH_CONTENT_FORMAT,
+        contentJson: input.contentJson,
+      };
+    }
+
+    if (input.contentFormat === 'markdown') {
+      if (typeof input.content !== 'string' || input.contentJson !== undefined) {
+        throw new BadRequestException('Nội dung Markdown phải được cung cấp dưới dạng content.');
+      }
+      return { content: input.content.trim(), contentFormat: 'markdown', contentJson: null };
+    }
+
+    if (input.contentJson !== undefined) {
+      throw new BadRequestException('contentJson cần đi kèm contentFormat=tiptap-json.');
+    }
+    if (input.content !== undefined) {
+      return { content: input.content.trim() };
+    }
+    return {};
   }
 }

@@ -17,7 +17,7 @@ import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nes
 import type { Request } from 'express';
 import { AdminRoleGuard } from '../admin/admin-role.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { AdminListNewsQueryDto, NewsInputDto, NewsSlugParamDto, NewsStatusDto } from './dto/news.dto.js';
+import { AdminListNewsQueryDto, NewsInputDto, NewsPatchDto, NewsSlugParamDto, NewsStatusDto } from './dto/news.dto.js';
 import { PaginationQueryDto } from './dto/pagination.dto.js';
 import { NewsService } from './news.service.js';
 import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
@@ -70,7 +70,7 @@ export class AdminNewsController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() input: NewsInputDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() input: NewsPatchDto) {
     return this.news.update(id, input);
   }
 

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { readFileSync } from 'node:fs';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { describe, expect, it, vi } from 'vitest';
@@ -56,31 +56,37 @@ describe('problem comments service', () => {
     });
     const result = await service.listComments('khobau', null, { page: 1, pageSize: 10 });
     expect(result.items[0]).toMatchObject({ content: '', authorName: 'Người dùng đã xóa', canDelete: false });
+    expect(result.items[0]).toMatchObject({ authorUsername: null, avatarUrl: null });
     expect(result.items[1]).toMatchObject({ canEdit: false, canDelete: false });
   });
 
   it('rejects a missing or unpublished problem', async () => {
     const { service } = build(lookup(), null);
     await expect(service.listComments('nope', null, { page: 1, pageSize: 10 })).rejects.toBeInstanceOf(NotFoundException);
-    await expect(service.addComment('nope', student, 'hi')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('creates a comment with the authenticated user id', async () => {
     const { service, repository } = build();
     await service.addComment('khobau', student, 'hello');
-    expect(repository.createComment).toHaveBeenCalledWith('p1', 'u1', 'hello', null);
+    expect(repository.createComment).toHaveBeenCalledWith('khobau', 'u1', 'hello', null, null);
   });
 
   it('creates a reply to a comment of the same problem', async () => {
     const { service, repository } = build();
     await service.addComment('khobau', student, 'reply', 'c1');
-    expect(repository.createComment).toHaveBeenCalledWith('p1', 'u1', 'reply', 'c1');
+    expect(repository.createComment).toHaveBeenCalledWith('khobau', 'u1', 'reply', 'c1', null);
   });
 
-  it('rejects replies to a comment of another problem, a deleted or a missing comment', async () => {
-    await expect(build(lookup({ problemId: 'p2' })).service.addComment('khobau', student, 'x', 'c1')).rejects.toBeInstanceOf(BadRequestException);
-    await expect(build(lookup({ isDeleted: true })).service.addComment('khobau', student, 'x', 'c1')).rejects.toBeInstanceOf(BadRequestException);
-    await expect(build(null).service.addComment('khobau', student, 'x', 'c1')).rejects.toBeInstanceOf(NotFoundException);
+  it('passes idempotency keys through to the repository', async () => {
+    const { service, repository } = build();
+    await service.addComment('khobau', student, 'reply', 'c1', '550e8400-e29b-41d4-a716-446655440000');
+    expect(repository.createComment).toHaveBeenCalledWith(
+      'khobau',
+      'u1',
+      'reply',
+      'c1',
+      '550e8400-e29b-41d4-a716-446655440000',
+    );
   });
 
   it('lets only the author edit', async () => {
@@ -127,6 +133,17 @@ describe('problem comments validation and guards', () => {
     }
     const listGuards = Reflect.getMetadata('__guards__', ProblemCommentsController.prototype.list);
     expect(listGuards).not.toContain(JwtAuthGuard);
+  });
+
+  it('validates and forwards the Idempotency-Key header on comment creation', async () => {
+    const addComment = vi.fn().mockResolvedValue(undefined);
+    const controller = new ProblemCommentsController({ addComment } as never);
+    const key = '550e8400-e29b-41d4-a716-446655440000';
+
+    await controller.add('khobau', { content: 'reply' }, key, { user: student } as never);
+    expect(addComment).toHaveBeenCalledWith('khobau', student, 'reply', null, key);
+    await expect(controller.add('khobau', { content: 'reply' }, 'not-a-uuid', { user: student } as never))
+      .rejects.toThrow('Idempotency-Key phải là UUID v4.');
   });
 });
 

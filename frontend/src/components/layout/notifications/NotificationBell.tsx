@@ -14,6 +14,8 @@ import {
 import { useToast } from '../../ui/toast-context'
 import type { UserNotification } from './notifications.types'
 import styles from './NotificationBell.module.css'
+import { buildDiscussionCommentHref } from '../../../features/community/discussion-comment-navigation'
+import { buildProblemCommentHref } from '../../../features/community/problem-comment-navigation'
 
 const notificationRefreshInterval = 60_000
 
@@ -113,6 +115,14 @@ function NotificationBell({ userId }: NotificationBellProps) {
           title: item.title,
           message: item.content,
           contactMessageId: item.contactMessageId,
+          actorUserId: item.actorUserId,
+          actorName: item.actorName,
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
+          targetType: item.targetType,
+          targetId: item.targetId,
+          targetAvailable: item.targetAvailable,
+          metadata: item.metadata,
           isRead: item.isRead,
           createdAt: item.createdAt,
         })))
@@ -207,11 +217,57 @@ function NotificationBell({ userId }: NotificationBellProps) {
     isOpenRef.current = false
     setIsOpen(false)
 
-    if (notification.type !== 'CONTACT_REPLY' || !notification.contactMessageId.trim()) {
+    let destination: string
+    let unavailable = false
+
+    if (notification.type === 'CONTACT_REPLY') {
+      if (!notification.contactMessageId.trim()) {
+        showToast(t('invalidNotificationLink'))
+        return
+      }
+      destination = `/my/contact-messages/${encodeURIComponent(notification.contactMessageId)}`
+    } else if (notification.type === 'DISCUSSION_COMMENT' || notification.type === 'DISCUSSION_REPLY') {
+      const metadata = notification.metadata
+      const discussionId = metadata?.discussionId
+      const metadataCommentId = metadata?.commentId
+      const commentId = notification.targetId ?? metadataCommentId
+      const rootCommentId = metadata?.rootCommentId ?? commentId
+      if (
+        notification.targetType !== 'DISCUSSION_COMMENT'
+        || !discussionId
+        || !commentId
+        || !rootCommentId
+        || (notification.targetId && metadataCommentId && notification.targetId !== metadataCommentId)
+      ) {
+        showToast(t('invalidNotificationLink'))
+        return
+      }
+      destination = buildDiscussionCommentHref({ discussionId, commentId, rootCommentId })
+      unavailable = notification.targetAvailable !== true || !notification.targetId
+    } else if (notification.type === 'PROBLEM_REPLY') {
+      const metadata = notification.metadata
+      const problemCode = metadata?.problemCode
+      const metadataCommentId = metadata?.commentId
+      const commentId = notification.targetId ?? metadataCommentId
+      const rootCommentId = metadata?.rootCommentId
+      if (
+        notification.targetType !== 'PROBLEM_COMMENT'
+        || !problemCode
+        || !commentId
+        || !rootCommentId
+        || (notification.targetId && metadataCommentId && notification.targetId !== metadataCommentId)
+      ) {
+        showToast(t('invalidNotificationLink'))
+        return
+      }
+      destination = buildProblemCommentHref({ problemCode, commentId, rootCommentId })
+      unavailable = notification.targetAvailable !== true || !notification.targetId
+    } else {
       showToast(t('invalidNotificationLink'))
       return
     }
 
+    let readSucceeded = true
     if (!notification.isRead && isCurrentUser) {
       try {
         const result = await markMyNotificationRead(requestRef.current, notification.id)
@@ -222,8 +278,11 @@ function NotificationBell({ userId }: NotificationBellProps) {
           )))
           setUnreadCount((current) => Math.max(0, current - 1))
           void refreshUnreadCount()
+        } else {
+          readSucceeded = false
         }
       } catch (error) {
+        readSucceeded = false
         if (mountedRef.current) {
           showToast(getContactApiErrorMessage(error, t('markReadError')))
         }
@@ -231,7 +290,17 @@ function NotificationBell({ userId }: NotificationBellProps) {
     }
 
     if (!mountedRef.current) return
-    navigate(`/my/contact-messages/${encodeURIComponent(notification.contactMessageId)}`)
+    if (unavailable) {
+      if (readSucceeded) {
+        const messageKey = notification.type === 'PROBLEM_REPLY'
+          ? 'problemNotificationUnavailable'
+          : 'discussionNotificationUnavailable'
+        showToast(t(messageKey))
+      }
+      return
+    }
+
+    navigate(destination)
   }
 
   async function markAllRead() {

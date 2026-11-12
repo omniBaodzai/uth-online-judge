@@ -46,6 +46,39 @@ function SiteHeader() {
     void changeLanguage(language === 'vi' ? 'en' : 'vi')
   }
 
+  function renderAppearanceControls(showThemeLabel = false) {
+    return (
+      <div className={styles.appearanceControls} aria-label={t('appearanceSettings')}>
+        <button
+          className={styles.appearanceButton}
+          type="button"
+          aria-label={`${t('selectTheme')}: ${themeName}`}
+          title={`${t('theme')}: ${themeName}`}
+          onClick={() => setMode(nextTheme)}
+        >
+          {showThemeLabel || mode === 'system' ? (
+            <Monitor size={17} aria-hidden="true" />
+          ) : resolvedTheme === 'dark' ? (
+            <Moon size={17} aria-hidden="true" />
+          ) : (
+            <Sun size={17} aria-hidden="true" />
+          )}
+          {showThemeLabel && <span>{t('theme')}</span>}
+        </button>
+        <button
+          className={styles.languageButton}
+          type="button"
+          aria-label={`${t('selectLanguage')}: ${language === 'vi' ? t('languageVietnamese') : t('languageEnglish')}`}
+          title={`${t('language')}: ${language === 'vi' ? t('languageVietnamese') : t('languageEnglish')}`}
+          onClick={toggleLanguage}
+        >
+          <Globe size={16} aria-hidden="true" />
+          <span>{language.toUpperCase()}</span>
+        </button>
+      </div>
+    )
+  }
+
   async function handleLogout() {
     setLogoutError('')
     setIsLoggingOut(true)
@@ -149,33 +182,7 @@ function SiteHeader() {
         </nav>
 
         <div className={styles.accountActions} aria-busy={isRestoringSession && !user}>
-          <div className={styles.appearanceControls} aria-label={t('appearanceSettings')}>
-            <button
-              className={styles.appearanceButton}
-              type="button"
-              aria-label={`${t('selectTheme')}: ${themeName}`}
-              title={`${t('theme')}: ${themeName}`}
-              onClick={() => setMode(nextTheme)}
-            >
-              {mode === 'system' ? (
-                <Monitor size={17} aria-hidden="true" />
-              ) : resolvedTheme === 'dark' ? (
-                <Moon size={17} aria-hidden="true" />
-              ) : (
-                <Sun size={17} aria-hidden="true" />
-              )}
-            </button>
-            <button
-              className={styles.languageButton}
-              type="button"
-              aria-label={`${t('selectLanguage')}: ${language === 'vi' ? t('languageVietnamese') : t('languageEnglish')}`}
-              title={`${t('language')}: ${language === 'vi' ? t('languageVietnamese') : t('languageEnglish')}`}
-              onClick={toggleLanguage}
-            >
-              <Globe size={16} aria-hidden="true" />
-              <span>{language.toUpperCase()}</span>
-            </button>
-          </div>
+          {!user && renderAppearanceControls()}
           {isRestoringSession && !user ? (
             <div className={styles.accountSkeleton} role="status" aria-label={t('checkingSession')}>
               <span />
@@ -239,6 +246,9 @@ function SiteHeader() {
                         <UserRoundPen size={18} aria-hidden="true" />
                         {t('editProfile')}
                       </Link>
+                      <div className={styles.appearanceDivider} aria-hidden="true" />
+                      {renderAppearanceControls(true)}
+                      <div className={styles.appearanceDivider} aria-hidden="true" />
                       <button
                         type="button"
                         onClick={() => void handleLogout()}
