@@ -34,18 +34,21 @@ export class ApiError extends Error {
   readonly status: number
   readonly submissionId?: string
   readonly retryAfterSeconds?: number
+  readonly code?: string
 
   constructor(
     message: string,
     status: number,
     submissionId?: string,
     retryAfterSeconds?: number,
+    code?: string,
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.submissionId = submissionId
     this.retryAfterSeconds = retryAfterSeconds
+    this.code = code
   }
 }
 
@@ -340,16 +343,31 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as
-      | { message?: string | string[]; submissionId?: string; retryAfterSeconds?: number }
+      | {
+          message?: string | string[]
+          submissionId?: string
+          retryAfterSeconds?: number
+          code?: string
+        }
       | null
     const message = Array.isArray(body?.message)
       ? body.message.join(' ')
       : body?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'
+    const retryAfterHeader = Number(response.headers.get('Retry-After'))
+    const retryAfterSeconds =
+      typeof body?.retryAfterSeconds === 'number' &&
+      Number.isFinite(body.retryAfterSeconds) &&
+      body.retryAfterSeconds > 0
+        ? body.retryAfterSeconds
+        : Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+          ? retryAfterHeader
+          : undefined
     throw new ApiError(
       message,
       response.status,
       typeof body?.submissionId === 'string' ? body.submissionId : undefined,
-      typeof body?.retryAfterSeconds === 'number' ? body.retryAfterSeconds : undefined,
+      retryAfterSeconds,
+      typeof body?.code === 'string' ? body.code : undefined,
     )
   }
 

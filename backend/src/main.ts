@@ -27,6 +27,7 @@ async function bootstrap() {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ALLOWED_CORS_HEADERS,
+    exposedHeaders: ['Retry-After'],
   });
 
   // Validate dữ liệu đầu vào của các request

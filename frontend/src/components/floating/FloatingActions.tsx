@@ -1,11 +1,11 @@
-import ContactMenu from './ContactMenu'
 import ScrollControls from './ScrollControls'
+import { AiAssistantWidget } from '../../features/ai-assistant/AiAssistantWidget'
 import styles from './FloatingActions.module.css'
 
 function FloatingActions() {
   return (
     <div className={styles.dock}>
-      <ContactMenu />
+      <AiAssistantWidget />
       <ScrollControls />
     </div>
   )

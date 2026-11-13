@@ -1,11 +1,11 @@
 .main {
   flex: 1;
   padding: clamp(104px, 12vw, 128px) 0 clamp(42px, 6vw, 76px);
-  background-image:
-    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
-    linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
-    url('../../assets/uth_background.jpg');
-  background-position: center, center, center top;
+  background-image: radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%), linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)), url('../../assets/uth_background.jpg');
+  background-position:
+    center,
+    center,
+    center top;
   background-repeat: no-repeat;
   background-size: auto, auto, cover;
 }
@@ -44,7 +44,18 @@
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: var(--color-surface);
-  box-shadow: 0 1px 2px rgba(24, 51, 55, 0.04), 0 8px 24px rgba(24, 51, 55, 0.05);
+  box-shadow:
+    0 1px 2px rgba(24, 51, 55, 0.04),
+    0 8px 24px rgba(24, 51, 55, 0.05);
+}
+
+.commentThread {
+  min-width: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.commentThread:last-child {
+  border-bottom: 0;
 }
 
 .toolbar {
@@ -88,7 +99,9 @@
   font-size: 14px;
   font-weight: 650;
   text-decoration: none;
-  transition: background-color 160ms ease, border-color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
 }
 
 .primaryButton {
@@ -312,11 +325,15 @@
 }
 
 .comment {
+  min-width: 0;
   padding: 16px clamp(18px, 3vw, 26px);
-  border-bottom: 1px solid var(--color-border);
 }
 
-.comment:last-child {
+.comment[hidden] {
+  display: none;
+}
+
+.commentRoot {
   border-bottom: 0;
 }
 
@@ -366,7 +383,13 @@
 }
 
 .commentHead strong {
+  min-width: 0;
   color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.commentHead .commentProfileLink {
+  overflow-wrap: anywhere;
 }
 
 .commentIdentity {
@@ -483,6 +506,18 @@
   .container {
     width: min(100% - 24px, 880px);
   }
+
+  .reply {
+    padding-inline-start: min(var(--reply-indent), 32px);
+  }
+
+  .reply::before {
+    left: calc(min(var(--reply-indent), 32px) - 8px);
+  }
+
+  .reply::after {
+    left: calc(min(var(--reply-indent), 32px) - 7px);
+  }
 }
 
 .reactionWrap {
@@ -549,6 +584,7 @@
 
 .commentTools {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 14px;
@@ -584,15 +620,43 @@
   color: #b42318;
 }
 
-.replies {
-  margin-top: 10px;
-  margin-left: clamp(12px, 3vw, 28px);
-  border-left: 2px solid #dbe8e8;
+.reply {
+  --reply-indent: 16px;
+  position: relative;
+  padding: 10px 0 10px var(--reply-indent);
+  border-bottom: 0;
 }
 
-.reply {
-  padding: 10px 0 10px clamp(12px, 2vw, 16px);
-  border-bottom: 0;
+.reply::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--reply-indent) - 8px);
+  border-left: 2px solid var(--color-border);
+  content: '';
+  pointer-events: none;
+}
+
+.reply::after {
+  position: absolute;
+  top: 26px;
+  left: calc(var(--reply-indent) - 7px);
+  width: 7px;
+  border-top: 2px solid var(--color-border);
+  content: '';
+  pointer-events: none;
+}
+
+.replyToggle {
+  margin-top: 8px;
+}
+
+.replyTargetLabel {
+  margin: 0 0 6px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .replyForm {
@@ -642,14 +706,7 @@
   background: var(--color-surface-subtle);
 }
 
-:global(:where([data-theme='dark'])) .replies {
-  border-left-color: var(--color-border);
-}
-
 /* Dark page background overlays (Phase 3.1) */
 :global(:where([data-theme='dark'])) .main {
-  background-image:
-    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
-    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
-    url('../../assets/uth_background.jpg');
+  background-image: radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%), linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)), url('../../assets/uth_background.jpg');
 }

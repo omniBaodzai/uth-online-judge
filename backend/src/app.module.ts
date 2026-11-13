@@ -14,6 +14,7 @@ import { ContestsModule } from './contests/contests.module.js';
 import { ContactModule } from './contact/contact.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { PublicStatsModule } from './public-stats/public-stats.module.js';
+import { AiAssistantModule } from './ai-assistant/ai-assistant.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PublicStatsModule } from './public-stats/public-stats.module.js';
     ContactModule,
     OrganizationsModule,
     PublicStatsModule,
+    AiAssistantModule,
   ],
   controllers: [AppController],
   providers: [AppService],
