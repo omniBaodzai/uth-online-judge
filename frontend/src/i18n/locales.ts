@@ -17,7 +17,7 @@ export const resources = {
       aiAssistantTitle: "UTH AI Assistant",
       aiAssistantSubtitle: "Trợ lý hướng dẫn sử dụng UTH Online Judge",
       aiAssistantProviderNotice:
-        "Câu hỏi có thể được xử lý bởi dịch vụ AI bên ngoài. Vui lòng không gửi mật khẩu, mã truy cập hoặc thông tin cá nhân.",
+        "Vui lòng không gửi mật khẩu, mã truy cập hoặc thông tin cá nhân",
       aiAssistantConversation: "Cuộc trò chuyện với UTH AI Assistant",
       aiAssistantWelcome:
         "Xin chào! Mình là UTH AI Assistant. Mình có thể hướng dẫn bạn sử dụng các chức năng của UTH Online Judge. Bạn cần hỗ trợ gì?",
@@ -62,7 +62,7 @@ export const resources = {
         "Đã xảy ra lỗi khi gửi câu hỏi. Vui lòng thử lại.",
       aiAssistantErrorTooLong: "Câu hỏi không được vượt quá 3.000 ký tự.",
       aiAssistantCharacterCount: "{{count}} / {{max}} ký tự",
-      aiAssistantEnterHint: "Enter để gửi · Shift + Enter để xuống dòng",
+      aiAssistantEnterHint: "",
       aiAssistantYou: "Bạn",
       aiAssistantName: "UTH AI Assistant",
       register: "Đăng ký",
@@ -94,6 +94,7 @@ export const resources = {
       languageVietnamese: "Tiếng Việt",
       languageEnglish: "Tiếng Anh",
       loading: "Đang tải...",
+      pageLoadError: "Không thể tải trang. Vui lòng kiểm tra kết nối và thử tải lại.",
       retry: "Thử lại",
       cancel: "Hủy",
       save: "Lưu",
@@ -1150,6 +1151,7 @@ export const resources = {
       languageVietnamese: "Vietnamese",
       languageEnglish: "English",
       loading: "Loading...",
+      pageLoadError: "This page couldn't be loaded. Check your connection and try again.",
       retry: "Retry",
       cancel: "Cancel",
       save: "Save",

@@ -1,62 +1,65 @@
+import { lazy } from 'react'
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom'
-import HomePage from './features/home/pages/HomePage'
-import AuthPage from './features/auth/pages/AuthPage'
-import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage'
-import ProblemsPage from './features/problems/pages/ProblemsPage'
-import ProblemDetailPage from './features/problems/pages/ProblemDetailPage'
-import SubmitSolutionPage from './features/problems/pages/SubmitSolutionPage'
-import ProblemSolutionPage from './features/problems/pages/ProblemSolutionPage'
 import { RequireAuth } from './features/auth/components/RequireAuth'
-import SubmissionsPage from './features/submissions/pages/SubmissionsPage'
-import SubmissionDetailsPage from './features/submissions/pages/SubmissionDetailsPage'
-import MyProblemSubmissionsPage from './features/submissions/pages/MyProblemSubmissionsPage'
-import BestSubmissionsPage from './features/submissions/pages/BestSubmissionsPage'
-import ProfilePage from './features/profile/pages/ProfilePage'
-import ProfileEditPage from './features/profile/pages/ProfileEditPage'
-import PublicProfilePage from './features/profile/pages/PublicProfilePage'
 import { AuthProvider } from './features/auth/AuthContext'
 import AppLayout from './components/layout/AppLayout'
 import PlaceholderPage from './components/layout/PlaceholderPage'
 import NotFoundPage from './components/layout/NotFoundPage'
 import AdminLayout from './features/admin/layouts/AdminLayout'
-import AdminDashboardPage from './features/admin/pages/AdminDashboardPage'
-import AdminLoginPage from './features/admin/pages/AdminLoginPage'
-import AdminProblemFormPage from './features/admin/pages/AdminProblemFormPage'
-import AdminProblemsPage from './features/admin/pages/AdminProblemsPage'
-import AdminContestsPage from './features/admin/contests/AdminContestsPage'
-import AdminContestFormPage from './features/admin/contests/AdminContestFormPage'
-import AdminTestCasesPage from './features/admin/pages/AdminTestCasesPage'
-import AdminUsersPage from './features/admin/pages/AdminUsersPage'
-import AdminNewsPage from './features/admin/pages/AdminNewsPage'
-import AdminNewsFormPage from './features/admin/pages/AdminNewsFormPage'
-import AdminContactMessageDetailPage from './features/admin/contact-messages/AdminContactMessageDetailPage'
-import AdminContactMessagesPage from './features/admin/contact-messages/AdminContactMessagesPage'
-import UserContactMessageDetailsPage from './features/contact/pages/UserContactMessageDetailsPage'
-import NewsListPage from './features/community/pages/NewsListPage'
-import NewsDetailPage from './features/community/pages/NewsDetailPage'
-import DiscussionListPage from './features/community/pages/DiscussionListPage'
-import DiscussionDetailPage from './features/community/pages/DiscussionDetailPage'
-import DiscussionNewPage from './features/community/pages/DiscussionNewPage'
-import LeaderboardPage from './features/leaderboard/pages/LeaderboardPage'
-import ContributorsPage from './features/contributors/pages/ContributorsPage'
-import OrganizationsPage from './features/organizations/pages/OrganizationsPage'
-import OrganizationDetailPage from './features/organizations/pages/OrganizationDetailPage'
-import OrganizationManagePage from './features/organizations/pages/OrganizationManagePage'
-import OrganizationPreviewPage from './features/organizations/pages/OrganizationPreviewPage'
-import OrganizationSubmitPage from './features/organizations/pages/OrganizationSubmitPage'
-import OrganizationSubmissionPage from './features/organizations/pages/OrganizationSubmissionPage'
-import OrganizationSubmissionsPanel from './features/organizations/components/OrganizationSubmissionsPanel'
-import AdminOrganizationsPage from './features/admin/organizations/AdminOrganizationsPage'
-import AdminOrganizationRequestDetailPage from './features/admin/organizations/AdminOrganizationRequestDetailPage'
-import AdminOrganizationDetailPage from './features/admin/organizations/AdminOrganizationDetailPage'
-import ContestsPage from './features/contests/pages/ContestsPage'
-import ContestDetailPage from './features/contests/pages/ContestDetailPage'
-import ContactPage from './features/contact/pages/ContactPage'
 import { ToastProvider } from './components/ui/Toast'
 import { AdminProvider } from './features/admin/AdminContext'
 import { RequireAdmin } from './features/admin/components/RequireAdmin'
 import AdminLocaleBoundary from './features/admin/AdminLocaleBoundary'
+import RouteLoadBoundary from './components/layout/RouteLoadBoundary'
 import './App.css'
+
+const HomePage = lazy(() => import('./features/home/pages/HomePage'))
+const AuthPage = lazy(() => import('./features/auth/pages/AuthPage'))
+const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage'))
+const ProblemsPage = lazy(() => import('./features/problems/pages/ProblemsPage'))
+const ProblemDetailPage = lazy(() => import('./features/problems/pages/ProblemDetailPage'))
+const SubmitSolutionPage = lazy(() => import('./features/problems/pages/SubmitSolutionPage'))
+const ProblemSolutionPage = lazy(() => import('./features/problems/pages/ProblemSolutionPage'))
+const SubmissionsPage = lazy(() => import('./features/submissions/pages/SubmissionsPage'))
+const SubmissionDetailsPage = lazy(() => import('./features/submissions/pages/SubmissionDetailsPage'))
+const MyProblemSubmissionsPage = lazy(() => import('./features/submissions/pages/MyProblemSubmissionsPage'))
+const BestSubmissionsPage = lazy(() => import('./features/submissions/pages/BestSubmissionsPage'))
+const ProfilePage = lazy(() => import('./features/profile/pages/ProfilePage'))
+const ProfileEditPage = lazy(() => import('./features/profile/pages/ProfileEditPage'))
+const PublicProfilePage = lazy(() => import('./features/profile/pages/PublicProfilePage'))
+const AdminDashboardPage = lazy(() => import('./features/admin/pages/AdminDashboardPage'))
+const AdminLoginPage = lazy(() => import('./features/admin/pages/AdminLoginPage'))
+const AdminProblemFormPage = lazy(() => import('./features/admin/pages/AdminProblemFormPage'))
+const AdminProblemsPage = lazy(() => import('./features/admin/pages/AdminProblemsPage'))
+const AdminContestsPage = lazy(() => import('./features/admin/contests/AdminContestsPage'))
+const AdminContestFormPage = lazy(() => import('./features/admin/contests/AdminContestFormPage'))
+const AdminTestCasesPage = lazy(() => import('./features/admin/pages/AdminTestCasesPage'))
+const AdminUsersPage = lazy(() => import('./features/admin/pages/AdminUsersPage'))
+const AdminNewsPage = lazy(() => import('./features/admin/pages/AdminNewsPage'))
+const AdminNewsFormPage = lazy(() => import('./features/admin/pages/AdminNewsFormPage'))
+const AdminContactMessageDetailPage = lazy(() => import('./features/admin/contact-messages/AdminContactMessageDetailPage'))
+const AdminContactMessagesPage = lazy(() => import('./features/admin/contact-messages/AdminContactMessagesPage'))
+const UserContactMessageDetailsPage = lazy(() => import('./features/contact/pages/UserContactMessageDetailsPage'))
+const NewsListPage = lazy(() => import('./features/community/pages/NewsListPage'))
+const NewsDetailPage = lazy(() => import('./features/community/pages/NewsDetailPage'))
+const DiscussionListPage = lazy(() => import('./features/community/pages/DiscussionListPage'))
+const DiscussionDetailPage = lazy(() => import('./features/community/pages/DiscussionDetailPage'))
+const DiscussionNewPage = lazy(() => import('./features/community/pages/DiscussionNewPage'))
+const LeaderboardPage = lazy(() => import('./features/leaderboard/pages/LeaderboardPage'))
+const ContributorsPage = lazy(() => import('./features/contributors/pages/ContributorsPage'))
+const OrganizationsPage = lazy(() => import('./features/organizations/pages/OrganizationsPage'))
+const OrganizationDetailPage = lazy(() => import('./features/organizations/pages/OrganizationDetailPage'))
+const OrganizationManagePage = lazy(() => import('./features/organizations/pages/OrganizationManagePage'))
+const OrganizationPreviewPage = lazy(() => import('./features/organizations/pages/OrganizationPreviewPage'))
+const OrganizationSubmitPage = lazy(() => import('./features/organizations/pages/OrganizationSubmitPage'))
+const OrganizationSubmissionPage = lazy(() => import('./features/organizations/pages/OrganizationSubmissionPage'))
+const OrganizationSubmissionsPanel = lazy(() => import('./features/organizations/components/OrganizationSubmissionsPanel'))
+const AdminOrganizationsPage = lazy(() => import('./features/admin/organizations/AdminOrganizationsPage'))
+const AdminOrganizationRequestDetailPage = lazy(() => import('./features/admin/organizations/AdminOrganizationRequestDetailPage'))
+const AdminOrganizationDetailPage = lazy(() => import('./features/admin/organizations/AdminOrganizationDetailPage'))
+const ContestsPage = lazy(() => import('./features/contests/pages/ContestsPage'))
+const ContestDetailPage = lazy(() => import('./features/contests/pages/ContestDetailPage'))
+const ContactPage = lazy(() => import('./features/contact/pages/ContactPage'))
 
 function App() {
   return (
@@ -64,7 +67,7 @@ function App() {
       <ToastProvider>
       <Routes>
         <Route element={<AuthProvider><Outlet /></AuthProvider>}>
-          <Route path="/admin/login" element={<AdminLocaleBoundary><AdminLoginPage /></AdminLocaleBoundary>} />
+          <Route path="/admin/login" element={<RouteLoadBoundary><AdminLocaleBoundary><AdminLoginPage /></AdminLocaleBoundary></RouteLoadBoundary>} />
           <Route element={<AdminLocaleBoundary><RequireAdmin /></AdminLocaleBoundary>}>
             <Route path="/admin" element={<AdminProvider><AdminLayout /></AdminProvider>}>
               <Route index element={<AdminDashboardPage />} />

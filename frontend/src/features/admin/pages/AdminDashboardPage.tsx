@@ -1,23 +1,31 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  Code2,
-  FileText,
+  Building2,
+  BookOpen,
+  Mail,
+  Newspaper,
   RefreshCw,
   Trophy,
   Users,
+  type LucideIcon,
 } from 'lucide-react'
 import { ApiError } from '../../auth/api'
+import type { AdminContactMessageListResponse } from '../../contact/contact-api'
+import type { NewsListItem, PageResult } from '../../community/api'
+import type { AdminOrganization, Page } from '../../organizations/organizations-api'
 import { useAdmin } from '../useAdmin'
 import type { AdminDashboard, AdminUserPage } from '../types'
 import type { ContestOverview } from '../contests/types'
 import styles from './AdminDashboardPage.module.css'
 
-type PublicStats = {
-  submissions: number
-}
-
 type DashboardPeriod = 7 | 30 | 90
 type SubmissionScope = 'GLOBAL' | 'ORGANIZATION'
+type DashboardRequest = ReturnType<typeof useAdmin>['request']
+type MetricTone = 'teal' | 'violet' | 'blue' | 'green' | 'amber' | 'rose'
+type MetricState =
+  | { status: 'loading' }
+  | { status: 'success'; value: number }
+  | { status: 'error'; message: string }
 
 type DashboardStatistics = {
   timezone: 'Asia/Ho_Chi_Minh'
@@ -33,19 +41,12 @@ type DashboardStatistics = {
   }
 }
 
-type DashboardData = {
-  problems: AdminDashboard
-  users: AdminUserPage
-  contests: ContestOverview
-  publicStats: PublicStats
-}
-
-type MetricCardProps = {
+type DashboardMetric = {
+  key: string
   label: string
-  value: number
-  detail: string
-  icon: ReactNode
-  tone: 'teal' | 'blue' | 'violet' | 'amber'
+  icon: LucideIcon
+  tone: MetricTone
+  load: (request: DashboardRequest) => Promise<number>
 }
 
 function formatNumber(value: number) {
@@ -58,56 +59,67 @@ function getErrorMessage(cause: unknown, fallback = 'Không thể tải dữ li�
     : fallback
 }
 
+const dashboardMetrics: DashboardMetric[] = [
+  {
+    key: 'problems',
+    label: 'Tổng số bài tập',
+    icon: BookOpen,
+    tone: 'teal',
+    load: async (request) => (await request<AdminDashboard>('/admin/dashboard')).total,
+  },
+  {
+    key: 'contests',
+    label: 'Tổng số cuộc thi',
+    icon: Trophy,
+    tone: 'violet',
+    load: async (request) => (await request<ContestOverview>('/admin/contests/overview')).total,
+  },
+  {
+    key: 'news',
+    label: 'Tổng số tin tức',
+    icon: Newspaper,
+    tone: 'blue',
+    load: async (request) =>
+      (await request<PageResult<NewsListItem>>('/admin/news?page=1&pageSize=1')).total,
+  },
+  {
+    key: 'users',
+    label: 'Tổng số người dùng',
+    icon: Users,
+    tone: 'green',
+    load: async (request) =>
+      (await request<AdminUserPage>('/admin/users?page=1&pageSize=1')).total,
+  },
+  {
+    key: 'organizations',
+    label: 'Tổng số tổ chức',
+    icon: Building2,
+    tone: 'amber',
+    load: async (request) =>
+      (await request<Page<AdminOrganization>>(
+        '/admin/organizations?page=1&pageSize=1&sort=newest',
+      )).total,
+  },
+  {
+    key: 'contactMessages',
+    label: 'Tổng số tin nhắn',
+    icon: Mail,
+    tone: 'rose',
+    load: async (request) =>
+      (await request<AdminContactMessageListResponse>(
+        '/admin/contact-messages?page=1&pageSize=1',
+      )).statistics.total,
+  },
+]
+
 function AdminDashboardPage() {
   const { request } = useAdmin()
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [statistics, setStatistics] = useState<DashboardStatistics | null>(null)
   const [period, setPeriod] = useState<DashboardPeriod>(30)
   const [submissionScope, setSubmissionScope] = useState<SubmissionScope>('GLOBAL')
   const [statisticsRetry, setStatisticsRetry] = useState(0)
   const [statisticsError, setStatisticsError] = useState('')
   const [statisticsLoading, setStatisticsLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
-
-  const fetchDashboard = useCallback(async () => {
-    const [problems, users, contests, publicStats] = await Promise.all([
-      request<AdminDashboard>('/admin/dashboard'),
-      request<AdminUserPage>('/admin/users?page=1&pageSize=1'),
-      request<ContestOverview>('/admin/contests/overview'),
-      request<PublicStats>('/public/stats'),
-    ])
-    return { problems, users, contests, publicStats }
-  }, [request])
-
-  const retry = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      setDashboard(await fetchDashboard())
-    } catch (cause) {
-      setError(getErrorMessage(cause))
-    } finally {
-      setLoading(false)
-    }
-  }, [fetchDashboard])
-
-  useEffect(() => {
-    let active = true
-    fetchDashboard()
-      .then((data) => {
-        if (active) setDashboard(data)
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(getErrorMessage(cause))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [fetchDashboard])
 
   useEffect(() => {
     let active = true
@@ -133,68 +145,16 @@ function AdminDashboardPage() {
   }, [period, request, statisticsRetry, submissionScope])
 
   return (
-    <div className={styles.dashboard} aria-busy={loading}>
-      {error && (
-        <div className={styles.errorState} role="alert">
-          <div>
-            <strong>Chưa thể cập nhật tổng quan</strong>
-            <p>{error}</p>
-          </div>
-          <button className={styles.retryButton} type="button" onClick={() => void retry()} disabled={loading}>
-            <RefreshCw size={16} aria-hidden="true" />
-            Thử tải lại
-          </button>
-        </div>
-      )}
-
+    <div className={styles.dashboard}>
       <section className={styles.metricGrid} aria-label="Chỉ số tổng quan">
-        {loading && !dashboard ? (
-          Array.from({ length: 4 }, (_, index) => (
-            <div className={styles.metricSkeleton} key={index} aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-          ))
-        ) : dashboard ? (
-          <>
-            <MetricCard
-              label="Tài khoản"
-              value={dashboard.users.total}
-              detail="Tất cả tài khoản đã đăng ký"
-              tone="teal"
-              icon={<Users aria-hidden="true" />}
-            />
-            <MetricCard
-              label="Bài nộp công khai"
-              value={dashboard.publicStats.submissions}
-              detail="Trên bài tập Global đã xuất bản"
-              tone="blue"
-              icon={<FileText aria-hidden="true" />}
-            />
-            <MetricCard
-              label="Cuộc thi Global"
-              value={dashboard.contests.total}
-              detail="Toàn bộ trạng thái cuộc thi"
-              tone="violet"
-              icon={<Trophy aria-hidden="true" />}
-            />
-            <MetricCard
-              label="Bài tập Global"
-              value={dashboard.problems.total}
-              detail="Bản nháp, đã xuất bản và lưu trữ"
-              tone="amber"
-              icon={<Code2 aria-hidden="true" />}
-            />
-          </>
-        ) : (
-          <p className={styles.inlineEmpty}>Số liệu sẽ xuất hiện khi kết nối được khôi phục.</p>
-        )}
+        {dashboardMetrics.map((metric) => (
+          <MetricCard key={metric.key} metric={metric} />
+        ))}
       </section>
 
       <section className={styles.analytics} aria-label="Thống kê hoạt động">
         <div className={styles.analyticsToolbar}>
-          <div className={styles.periodLabel}>Khoảng thời gian</div>
+          <div className={styles.periodLabel}></div>
           <div className={styles.periodOptions} role="group" aria-label="Khoảng thời gian thống kê">
             {([7, 30, 90] as const).map((days) => (
               <button
@@ -242,7 +202,7 @@ function AdminDashboardPage() {
               data={statistics?.submissions.daily ?? []}
               loading={statisticsLoading}
               period={period}
-              title={submissionScope === 'GLOBAL' ? 'Xu hướng bài nộp công khai' : 'Xu hướng bài nộp'}
+              title={submissionScope === 'GLOBAL' ? 'XU HƯỚNG BÀI NỘP CÔNG KHAI' : 'XU HƯỚNG BÀI NỘP'}
               total={statistics?.submissions.total ?? 0}
               type="line"
               scope={submissionScope}
@@ -258,7 +218,7 @@ function AdminDashboardPage() {
               data={statistics?.users.daily ?? []}
               loading={statisticsLoading}
               period={period}
-              title="Tăng trưởng người dùng"
+              title="XU HƯỚNG TĂNG TRƯỞNG NGƯỜI DÙNG"
               total={statistics?.users.total ?? 0}
               type="bar"
             />
@@ -333,7 +293,7 @@ function ChartCard({
 
       {scope === 'GLOBAL' && (
         <p className={styles.chartDescription}>
-          Số bài nộp trên các bài tập Global đã xuất bản trong khoảng thời gian được chọn.
+          
         </p>
       )}
 
@@ -502,13 +462,65 @@ function BarChart({ data, description }: { data: ChartPoint[]; description: stri
   )
 }
 
-function MetricCard({ label, value, detail, icon, tone }: MetricCardProps) {
+function MetricCard({ metric }: { metric: DashboardMetric }) {
+  const { request } = useAdmin()
+  const [state, setState] = useState<MetricState>({ status: 'loading' })
+  const [retryCount, setRetryCount] = useState(0)
+  const Icon = metric.icon
+
+  useEffect(() => {
+    let active = true
+    metric.load(request)
+      .then((value) => {
+        if (active) setState({ status: 'success', value })
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setState({
+            status: 'error',
+            message: getErrorMessage(
+              cause,
+              `Không thể tải ${metric.label.toLocaleLowerCase('vi-VN')}.`,
+            ),
+          })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [metric, request, retryCount])
+
   return (
-    <article className={styles.metricCard}>
-      <span className={`${styles.metricIcon} ${styles[tone]}`}>{icon}</span>
-      <p>{label}</p>
-      <strong>{formatNumber(value)}</strong>
-      <small>{detail}</small>
+    <article className={styles.metricCard} aria-busy={state.status === 'loading'}>
+      <span className={`${styles.metricIcon} ${styles[metric.tone]}`}>
+        <Icon aria-hidden="true" />
+      </span>
+      <p>{metric.label}</p>
+      {state.status === 'loading' ? (
+        <span
+          className={styles.metricValueSkeleton}
+          role="status"
+          aria-label={`Đang tải ${metric.label.toLocaleLowerCase('vi-VN')}`}
+        />
+      ) : state.status === 'success' ? (
+        <strong>{formatNumber(state.value)}</strong>
+      ) : (
+        <div className={styles.metricError}>
+          <p role="alert">{state.message}</p>
+          <button
+            className={styles.retryButton}
+            type="button"
+            aria-label={`Thử tải lại ${metric.label.toLocaleLowerCase('vi-VN')}`}
+            onClick={() => {
+              setState({ status: 'loading' })
+              setRetryCount((count) => count + 1)
+            }}
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            Thử lại
+          </button>
+        </div>
+      )}
     </article>
   )
 }

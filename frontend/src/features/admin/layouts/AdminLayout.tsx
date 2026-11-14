@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/useAuth'
 import { AdminIcon } from '../components/AdminIcons'
 import { Building2, Mail, Trophy } from 'lucide-react'
 import Breadcrumb from '../../../components/navigation/Breadcrumb'
+import RouteLoadBoundary from '../../../components/layout/RouteLoadBoundary'
 import uthLogo from '../../../assets/uth_logo.png'
 import styles from '../admin.module.css'
 
@@ -127,7 +128,9 @@ function AdminLayout() {
           </div>
         </header>
         <main id="admin-main" className={styles.content}>
-          <Outlet />
+          <RouteLoadBoundary>
+            <Outlet />
+          </RouteLoadBoundary>
         </main>
       </div>
       {notice && (

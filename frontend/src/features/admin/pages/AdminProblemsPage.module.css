@@ -62,7 +62,8 @@
 
 .metricCard p {
   margin: 0 0 5px;
-  color: var(--problems-muted);
+  /* color: var(--problems-muted); */
+  color: #000;
   font-size: 12px;
   font-weight: 650;
   line-height: 1.4;

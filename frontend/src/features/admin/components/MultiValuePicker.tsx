@@ -62,7 +62,7 @@ function MultiValuePicker({ label, placeholder, suggestions, values, onChange, a
           <AdminIcon name="plus" size={15} /> Thêm
         </button>
       </div>
-      <p className={styles.fieldHint} id={`${inputId}-hint`}>{allowCustom ? 'Nhập giá trị tùy chỉnh rồi nhấn Enter hoặc Thêm.' : 'Chỉ chọn ngôn ngữ đã được cấu hình trong hệ thống.'} Nhấn dấu × để bỏ mục đã chọn.</p>
+      <p className={styles.fieldHint} id={`${inputId}-hint`}>{allowCustom ? '' : ''} </p>
       {values.length > 0 && (
         <div className={styles.multiValueChips} aria-label={`${label} đã chọn`}>
           {values.map((value) => (

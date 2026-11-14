@@ -27,11 +27,11 @@ export function buildNewsPatchPayload(
   draft: NewsDraft,
   mode: 'markdown' | 'rich',
   richDocument: NewsRichDocument,
-  richContentChanged: boolean,
+  contentChanged: boolean,
 ): NewsPatchInput {
   const fields = metadata(draft)
-  if (mode === 'markdown') return { ...fields, content: draft.content.trim() }
-  return richContentChanged
+  if (!contentChanged) return fields
+  return mode === 'rich'
     ? { ...fields, contentFormat: 'tiptap-json', contentJson: richDocument }
-    : fields
+    : { ...fields, content: draft.content.trim() }
 }

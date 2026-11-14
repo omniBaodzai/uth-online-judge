@@ -57,4 +57,20 @@ describe('news form API payloads', () => {
       summary: 'Tóm tắt',
     })
   })
+
+  it('omits unchanged Markdown content from metadata-only patches without trimming its source value', () => {
+    expect(buildNewsPatchPayload(draft, 'markdown', richDocument, false)).toEqual({
+      title: 'Tin tức mới',
+      slug: 'tin-tuc-moi',
+      category: 'Thông báo',
+      summary: 'Tóm tắt',
+    })
+    expect(buildNewsPatchPayload(draft, 'markdown', richDocument, true)).toEqual({
+      title: 'Tin tức mới',
+      slug: 'tin-tuc-moi',
+      category: 'Thông báo',
+      summary: 'Tóm tắt',
+      content: '## Markdown cũ',
+    })
+  })
 })

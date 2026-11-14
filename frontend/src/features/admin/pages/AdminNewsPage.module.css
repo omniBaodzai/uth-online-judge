@@ -63,9 +63,9 @@
 
 .metricCard p {
   margin: 0 0 5px;
-  color: var(--news-muted);
+  color: #000;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: bold;
   line-height: 1.4;
 }
 

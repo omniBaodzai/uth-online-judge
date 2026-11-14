@@ -118,18 +118,16 @@ function NewsForm({ article }: { article?: NewsArticle }) {
       : emptyDraft,
   )
   const [initialRich] = useState<NewsRichDocument>(() => article?.contentJson ?? createEmptyNewsRichDocument())
-  const initialEditorMode: EditorMode = article?.contentFormat === 'tiptap-json' ? 'rich' : 'markdown'
+  const editorMode: EditorMode = !article || article.contentFormat === 'tiptap-json' ? 'rich' : 'markdown'
   const [draft, setDraft] = useState<Draft>(initial)
   const [richDraft, setRichDraft] = useState(initialRich)
-  const [editorMode, setEditorMode] = useState<EditorMode>(initialEditorMode)
   const [errors, setErrors] = useState<Errors>({})
   const [preview, setPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const dirty =
     JSON.stringify(draft) !== JSON.stringify(initial) ||
-    JSON.stringify(richDraft) !== JSON.stringify(initialRich) ||
-    editorMode !== initialEditorMode
+    JSON.stringify(richDraft) !== JSON.stringify(initialRich)
 
   useEffect(() => {
     if (!dirty) return
@@ -146,25 +144,10 @@ function NewsForm({ article }: { article?: NewsArticle }) {
     setErrors((current) => ({ ...current, [key]: undefined }))
   }
 
-  function changeEditorMode(mode: EditorMode) {
-    if (
-      mode === 'rich' &&
-      currentArticle &&
-      currentArticle.contentFormat !== 'tiptap-json' &&
-      !window.confirm('Chuyển sang Rich Text sẽ thay thế nội dung Markdown hiện tại; hệ thống không tự chuyển đổi nội dung. Tiếp tục?')
-    ) {
-      return
-    }
-    setEditorMode(mode)
-    setPreview(false)
-    setSaveError('')
-    setErrors((current) => ({ ...current, content: undefined }))
-  }
-
   async function persist(publish: boolean) {
-    const richContentChanged =
-      editorMode === 'rich' &&
-      (!currentArticle || initialEditorMode !== 'rich' || JSON.stringify(richDraft) !== JSON.stringify(initialRich))
+    const contentChanged = editorMode === 'rich'
+      ? !currentArticle || JSON.stringify(richDraft) !== JSON.stringify(initialRich)
+      : draft.content !== initial.content
 
     if (editorMode === 'rich') {
       const issue = getNewsRichDocumentIssue(richDraft)
@@ -193,7 +176,7 @@ function NewsForm({ article }: { article?: NewsArticle }) {
     }
 
     const body = currentArticle
-      ? buildNewsPatchPayload(draft, editorMode, richDraft, richContentChanged)
+      ? buildNewsPatchPayload(draft, editorMode, richDraft, contentChanged)
       : buildNewsCreatePayload(draft, editorMode, richDraft)
 
     setSaving(true)
@@ -242,7 +225,7 @@ function NewsForm({ article }: { article?: NewsArticle }) {
 
   return (
     <>
-      <div className={styles.pageHeading}>
+      {/* <div className={styles.pageHeading}>
         <div>
           <p className={styles.eyebrow}>NỘI DUNG CỘNG ĐỒNG</p>
           <h1>{currentArticle ? 'Chỉnh sửa tin tức' : 'Tạo tin tức mới'}</h1>
@@ -251,10 +234,10 @@ function NewsForm({ article }: { article?: NewsArticle }) {
           </p>
         </div>
         <Link className={styles.buttonSecondary} to="/admin/news">← Danh sách tin tức</Link>
-      </div>
+      </div> */}
       <form id="admin-news-form" onSubmit={submit} noValidate>
         <section className={`${styles.panel} ${styles.formSection}`}>
-          <div className={styles.formGrid}>
+          <div className={`${styles.formGrid} ${styles.newsFormGrid}`}>
             <div className={styles.field}>
               <label htmlFor="news-title">Tiêu đề <span className={styles.requiredMark}>*</span></label>
               <input id="news-title" maxLength={200} value={draft.title} aria-invalid={Boolean(errors.title)} onChange={(event) => update('title', event.target.value)} />
@@ -273,19 +256,13 @@ function NewsForm({ article }: { article?: NewsArticle }) {
             <div className={styles.field}>
               <label htmlFor="news-summary">Tóm tắt <span className={styles.requiredMark}>*</span></label>
               <textarea id="news-summary" rows={3} maxLength={500} value={draft.summary} aria-invalid={Boolean(errors.summary)} onChange={(event) => update('summary', event.target.value)} />
-              {errors.summary ? <p className={styles.fieldError} role="alert">{errors.summary}</p> : <p className={styles.fieldHint}>{draft.summary.length}/500 ký tự. Hiển thị ở trang chủ và danh sách tin tức.</p>}
+              {/* {errors.summary ? <p className={styles.fieldError} role="alert">{errors.summary}</p> : <p className={styles.fieldHint}>{draft.summary.length}/500 ký tự. Hiển thị ở trang chủ và danh sách tin tức.</p>} */}
             </div>
-            <div className={styles.field}>
-              <div className={styles.rowActions} role="group" aria-label="Chế độ soạn thảo">
+            <div className={`${styles.field} ${styles.formFullWidth}`}>
+              <div className={styles.rowActions} role="group" aria-label="Nội dung tin tức">
                 <label htmlFor={editorMode === 'rich' ? 'news-rich-content' : 'news-content'}>
                   Nội dung {editorMode === 'rich' ? 'Rich Text' : '(Markdown)'} <span className={styles.requiredMark}>*</span>
                 </label>
-                {(!currentArticle || currentArticle.contentFormat !== 'tiptap-json') && (
-                  <>
-                    <button className={editorMode === 'markdown' ? styles.buttonSecondary : styles.buttonQuiet} type="button" aria-pressed={editorMode === 'markdown'} onClick={() => changeEditorMode('markdown')}>Markdown</button>
-                    <button className={editorMode === 'rich' ? styles.buttonSecondary : styles.buttonQuiet} type="button" aria-pressed={editorMode === 'rich'} onClick={() => changeEditorMode('rich')}>Rich Text</button>
-                  </>
-                )}
                 {editorMode === 'markdown' && (
                   <>
                     <button className={preview ? styles.buttonQuiet : styles.buttonSecondary} type="button" aria-pressed={!preview} onClick={() => setPreview(false)}>Soạn thảo</button>
@@ -294,14 +271,9 @@ function NewsForm({ article }: { article?: NewsArticle }) {
                 )}
               </div>
               {editorMode === 'rich' ? (
-                <>
-                  <div className={styles.demoNotice} role="status">
-                    Rich Text được lưu dưới dạng JSON có version. Tính năng chèn ảnh chưa khả dụng; không chuyển đổi tự động nội dung Markdown.
-                  </div>
-                  <Suspense fallback={<p className={styles.fieldHint} aria-live="polite">Đang tải trình soạn thảo Rich Text…</p>}>
-                    <NewsRichTextEditor initialValue={richDraft} onChange={setRichDraft} />
-                  </Suspense>
-                </>
+                <Suspense fallback={<p className={styles.fieldHint} aria-live="polite">Đang tải trình soạn thảo Rich Text…</p>}>
+                  <NewsRichTextEditor initialValue={richDraft} onChange={setRichDraft} />
+                </Suspense>
               ) : (
                 preview ? (
                   <div className={styles.panel} aria-live="polite">
@@ -312,7 +284,7 @@ function NewsForm({ article }: { article?: NewsArticle }) {
                 )
               )}
               {errors.content && <p className={styles.fieldError} role="alert">{errors.content}</p>}
-              {editorMode === 'markdown' && <p className={styles.fieldHint}>Hỗ trợ: # tiêu đề, **đậm**, *nghiêng*, `mã`, danh sách, &gt; trích dẫn, khối mã ```, liên kết [chữ](https://…). HTML thô bị vô hiệu hóa.</p>}
+              {editorMode === 'markdown' && <p className={styles.fieldHint}></p>}
             </div>
           </div>
         </section>

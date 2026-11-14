@@ -533,7 +533,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
 
   return (
     <>
-      <div className={adminStyles.pageHeading}>
+      {/* <div className={adminStyles.pageHeading}>
         <div>
           <p className={adminStyles.eyebrow}>QUẢN LÝ NỘI DUNG</p>
           <h1>{contest ? 'Chỉnh sửa cuộc thi' : 'Tạo cuộc thi mới'}</h1>
@@ -542,19 +542,19 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
           </p>
         </div>
         <button className={adminStyles.buttonSecondary} type="button" onClick={cancel}>← Danh sách cuộc thi</button>
-      </div>
+      </div> */}
 
-      <div className={`${adminStyles.demoNotice} ${styles.formNotice}`} role="note">
+      {/* <div className={`${adminStyles.demoNotice} ${styles.formNotice}`} role="note">
         <Info size={17} aria-hidden="true" />
         <span>Thay đổi được lưu trên Backend. Cuộc thi dùng chung khung giờ tổ chức; thời lượng làm bài riêng chưa được hỗ trợ.</span>
-      </div>
+      </div> */}
 
       {formError && <p className={adminStyles.formMessage} role="alert">{formError}</p>}
 
       <form onSubmit={submit} noValidate>
         <section id="contest-problems" className={`${adminStyles.panel} ${styles.formSection}`}>
-          <h2>Thông tin cơ bản</h2>
-          <p className={adminStyles.sectionHint}>Tên, mã nhận diện và nội dung giới thiệu cuộc thi.</p>
+          {/* <h2>Thông tin cơ bản</h2>
+          <p className={adminStyles.sectionHint}>Tên, mã nhận diện và nội dung giới thiệu cuộc thi.</p> */}
           <div className={adminStyles.formGrid}>
             <div className={adminStyles.field}>
               <label htmlFor="contest-title">Tên cuộc thi <span className={adminStyles.requiredMark}>*</span></label>
@@ -579,7 +579,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
               {errors.title && <p id="contest-title-error" className={styles.inlineError} role="alert">{errors.title}</p>}
             </div>
             <div className={adminStyles.field}>
-              <label htmlFor="contest-slug">Mã cuộc thi / slug <span className={adminStyles.requiredMark}>*</span></label>
+              <label htmlFor="contest-slug">Slug <span className={adminStyles.requiredMark}>*</span></label>
               <input
                 id="contest-slug"
                 required
@@ -596,7 +596,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
               {errors.slug
                 ? <p id="contest-slug-error" className={styles.inlineError} role="alert">{errors.slug}</p>
                 : <p id="contest-slug-hint" className={adminStyles.fieldHint}>
-                  {slugLocked ? 'Slug không thể thay đổi sau khi xuất bản.' : 'Tự đề xuất từ tên; dùng chữ thường, số và dấu gạch ngang.'}
+                  {slugLocked ? 'Slug không thể thay đổi sau khi xuất bản.' : ''}
                 </p>}
             </div>
             <div className={`${adminStyles.field} ${styles.fieldFull}`}>
@@ -625,8 +625,8 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
         </section>
 
         <section className={`${adminStyles.panel} ${styles.formSection}`}>
-          <h2>Thời gian tổ chức</h2>
-          <p className={adminStyles.sectionHint}>Thời gian hiển thị và quy đổi theo múi giờ Việt Nam (UTC+07:00).</p>
+          {/* <h2>Thời gian tổ chức</h2> */}
+          {/* <p className={adminStyles.sectionHint}></p> */}
           <div className={adminStyles.formGrid}>
             <div className={adminStyles.field}>
               <label htmlFor="contest-startsAt">Thời gian bắt đầu <span className={adminStyles.requiredMark}>*</span></label>
@@ -654,15 +654,15 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
               />
               {errors.endsAt && <p id="contest-endsAt-error" className={styles.inlineError} role="alert">{errors.endsAt}</p>}
             </div>
-            <p className={`${adminStyles.fieldHint} ${styles.fieldFull}`}>
+            {/* <p className={`${adminStyles.fieldHint} ${styles.fieldFull}`}>
               Tất cả thí sinh sử dụng cùng khung giờ từ lúc bắt đầu đến lúc kết thúc.
-            </p>
+            </p> */}
           </div>
         </section>
 
         <section className={`${adminStyles.panel} ${styles.formSection}`}>
-          <h2>Cấu hình cuộc thi</h2>
-          <p className={adminStyles.sectionHint}>Cấu hình được lưu trực tiếp cùng cuộc thi trên hệ thống.</p>
+          {/* <h2>Cấu hình cuộc thi</h2>
+          <p className={adminStyles.sectionHint}>Cấu hình được lưu trực tiếp cùng cuộc thi trên hệ thống.</p> */}
           <div className={styles.settingsGroup}>
             <fieldset className={adminStyles.field}>
               <legend>Chế độ hiển thị</legend>
@@ -709,10 +709,10 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
                 Hiển thị bảng xếp hạng
               </label>
             </div>
-            <div className={styles.rankingRule}>
+            {/* <div className={styles.rankingRule}>
               <Trophy size={18} aria-hidden="true" />
               <span><strong>Cách xếp hạng</strong>Tổng điểm giảm dần, sau đó thời gian tăng dần.</span>
-            </div>
+            </div> */}
           </div>
         </section>
 
@@ -720,7 +720,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
           <div className={styles.problemListHeading}>
             <div>
               <h2>Bài tập trong cuộc thi</h2>
-              <p className={adminStyles.sectionHint}>Chọn bài đã xuất bản; thứ tự được dùng làm thứ tự hiển thị.</p>
+              {/* <p className={adminStyles.sectionHint}>Chọn bài đã xuất bản; thứ tự được dùng làm thứ tự hiển thị.</p> */}
             </div>
             <button className={adminStyles.buttonSecondary} type="button" onClick={() => setPickerOpen(true)}>
               <Plus size={16} aria-hidden="true" /> Thêm bài tập

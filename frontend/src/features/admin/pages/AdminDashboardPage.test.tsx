@@ -42,7 +42,25 @@ const dataByPath: Record<string, unknown> = {
     ongoing: 1,
     ended: 1,
   },
-  '/public/stats': { submissions: 93 },
+  '/admin/news?page=1&pageSize=1': {
+    items: [],
+    total: 25,
+    page: 1,
+    pageSize: 1,
+  },
+  '/admin/organizations?page=1&pageSize=1&sort=newest': {
+    items: [],
+    total: 11,
+    page: 1,
+    pageSize: 1,
+  },
+  '/admin/contact-messages?page=1&pageSize=1': {
+    items: [],
+    total: 1,
+    page: 1,
+    pageSize: 1,
+    statistics: { total: 49, NEW: 20, IN_PROGRESS: 15, RESOLVED: 14 },
+  },
   '/admin/dashboard/statistics?days=30&submissionScope=GLOBAL': {
     timezone: 'Asia/Ho_Chi_Minh',
     days: 30,
@@ -93,19 +111,36 @@ async function renderDashboard() {
 }
 
 describe('AdminDashboardPage', () => {
-  it('loads real summary metrics and renders the four KPI cards and two charts', async () => {
+  it('loads six summary metrics in order and keeps both charts', async () => {
     await renderDashboard()
 
-    expect(container.textContent).toContain('Tài khoản')
-    expect(container.textContent).toContain('128')
-    expect(container.textContent).toContain('Bài nộp công khai')
-    expect(container.textContent).toContain('93')
-    expect(container.textContent).toContain('Cuộc thi Global')
-    expect(container.textContent).toContain('7')
-    expect(container.textContent).toContain('Bài tập Global')
-    expect(container.textContent).toContain('32')
-    expect(container.querySelectorAll('[aria-label="Chỉ số tổng quan"] article')).toHaveLength(4)
-    expect(container.querySelectorAll('article')).toHaveLength(6)
+    const cards = Array.from(container.querySelectorAll('[aria-label="Chỉ số tổng quan"] article'))
+    expect(cards).toHaveLength(6)
+    expect(cards.map((card) => card.querySelector('p')?.textContent)).toEqual([
+      'Tổng số bài tập',
+      'Tổng số cuộc thi',
+      'Tổng số tin tức',
+      'Tổng số người dùng',
+      'Tổng số tổ chức',
+      'Tổng số tin nhắn',
+    ])
+    expect(cards.map((card) => card.querySelector('strong')?.textContent)).toEqual([
+      '32',
+      '7',
+      '25',
+      '128',
+      '11',
+      '49',
+    ])
+    expect(cards.map((card) => card.querySelector('svg')?.getAttribute('class'))).toEqual([
+      expect.stringContaining('lucide-book-open'),
+      expect.stringContaining('lucide-trophy'),
+      expect.stringContaining('lucide-newspaper'),
+      expect.stringContaining('lucide-users'),
+      expect.stringContaining('lucide-building-2'),
+      expect.stringContaining('lucide-mail'),
+    ])
+    expect(container.querySelectorAll('article')).toHaveLength(8)
     expect(container.querySelector('h1, time')).toBeNull()
     expect(container.textContent).toContain('Xu hướng bài nộp công khai')
     expect(container.textContent).toContain(
@@ -119,17 +154,25 @@ describe('AdminDashboardPage', () => {
     expect(container.textContent).not.toContain('Tình hình cuộc thi')
     expect(container.textContent).not.toContain('Truy cập quản trị')
     expect(container.textContent).not.toContain('Bài tập cập nhật gần đây')
-    expect(mocks.request.mock.calls.map(([path]) => path)).toEqual([
+    const requestedPaths = mocks.request.mock.calls.map(([path]) => path)
+    for (const path of [
       '/admin/dashboard',
-      '/admin/users?page=1&pageSize=1',
       '/admin/contests/overview',
-      '/public/stats',
+      '/admin/news?page=1&pageSize=1',
+      '/admin/users?page=1&pageSize=1',
+      '/admin/organizations?page=1&pageSize=1&sort=newest',
+      '/admin/contact-messages?page=1&pageSize=1',
       '/admin/dashboard/statistics?days=30&submissionScope=GLOBAL',
-    ])
+    ]) {
+      expect(requestedPaths).toContain(path)
+    }
+    expect(requestedPaths).not.toContain('/public/stats')
   })
 
   it('requests selected date ranges and submission scope', async () => {
     await renderDashboard()
+    const metricCards = container.querySelectorAll('[aria-label="Chỉ số tổng quan"] article')
+    const valuesBeforeFilterChange = Array.from(metricCards, (card) => card.querySelector('strong')?.textContent)
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('button[aria-pressed="false"]')?.click()
@@ -148,6 +191,18 @@ describe('AdminDashboardPage', () => {
     expect(container.textContent).toContain('Xu hướng bài nộp')
     expect(container.textContent).not.toContain('Xu hướng bài nộp công khai')
     expect(container.textContent).not.toContain('Số bài nộp trên các bài tập Global')
+    expect(Array.from(metricCards, (card) => card.querySelector('strong')?.textContent))
+      .toEqual(valuesBeforeFilterChange)
+    for (const path of [
+      '/admin/dashboard',
+      '/admin/contests/overview',
+      '/admin/news?page=1&pageSize=1',
+      '/admin/users?page=1&pageSize=1',
+      '/admin/organizations?page=1&pageSize=1&sort=newest',
+      '/admin/contact-messages?page=1&pageSize=1',
+    ]) {
+      expect(mocks.request.mock.calls.filter(([requestedPath]) => requestedPath === path)).toHaveLength(1)
+    }
   })
 
   it('keeps the chart ready when the active period is selected again', async () => {
@@ -218,22 +273,59 @@ describe('AdminDashboardPage', () => {
     expect(container.querySelectorAll('svg[role="img"]')).toHaveLength(0)
   })
 
-  it('shows a recoverable error and retries the dashboard requests', async () => {
-    mocks.request
-      .mockRejectedValueOnce(new Error('offline'))
-      .mockImplementation((path: string) => Promise.resolve(dataByPath[path]))
+  it('keeps other metrics visible when one request fails and retries that metric', async () => {
+    const newsPath = '/admin/news?page=1&pageSize=1'
+    let failNewsRequest = true
+    mocks.request.mockImplementation((path: string) => {
+      if (path === newsPath && failNewsRequest) {
+        failNewsRequest = false
+        return Promise.reject(new Error('offline'))
+      }
+      return Promise.resolve(dataByPath[path])
+    })
     await renderDashboard()
 
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Chưa thể cập nhật tổng quan')
-    const retry = container.querySelector<HTMLButtonElement>('button')
-    expect(retry?.textContent).toContain('Thử tải lại')
+    const newsCard = container.querySelectorAll('[aria-label="Chỉ số tổng quan"] article')[2]
+    expect(newsCard?.querySelector('[role="alert"]')?.textContent).toContain('Không thể tải')
+    expect(newsCard?.querySelector('strong')).toBeNull()
+    expect(container.querySelector('[aria-label="Chỉ số tổng quan"]')?.textContent).toContain('128')
+    expect(container.querySelector('[aria-label="Chỉ số tổng quan"]')?.textContent).toContain('49')
+    const retry = newsCard?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Thử tải lại tổng số tin tức"]',
+    )
 
     await act(async () => {
       retry?.click()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
-    expect(container.querySelector('[role="alert"]')).toBeNull()
-    expect(container.textContent).toContain('128')
+    expect(newsCard?.querySelector('[role="alert"]')).toBeNull()
+    expect(newsCard?.querySelector('strong')?.textContent).toBe('25')
+    expect(mocks.request.mock.calls.filter(([path]) => path === newsPath)).toHaveLength(2)
+  })
+
+  it('shows a per-card skeleton without showing a placeholder zero', async () => {
+    const newsPath = '/admin/news?page=1&pageSize=1'
+    let resolveNews!: (result: unknown) => void
+    mocks.request.mockImplementation((path: string) => {
+      if (path === newsPath) {
+        return new Promise((resolve) => {
+          resolveNews = resolve
+        })
+      }
+      return Promise.resolve(dataByPath[path])
+    })
+
+    await renderDashboard()
+    const newsCard = container.querySelectorAll('[aria-label="Chỉ số tổng quan"] article')[2]
+    expect(newsCard?.querySelector('[role="status"][aria-label="Đang tải tổng số tin tức"]')).not.toBeNull()
+    expect(newsCard?.querySelector('strong')).toBeNull()
+    expect(newsCard?.textContent).not.toContain('0')
+
+    await act(async () => {
+      resolveNews(dataByPath[newsPath])
+      await Promise.resolve()
+    })
+    expect(newsCard?.querySelector('strong')?.textContent).toBe('25')
   })
 })

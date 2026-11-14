@@ -105,12 +105,12 @@ function MarkdownEditorField({
             <p className={styles.previewLabel}>Xem trước trực tiếp</p>
             {value.trim()
               ? <Markdown source={value} math />
-              : <p className={styles.placeholder}>Nội dung xem trước sẽ hiển thị tại đây.</p>}
+              : <p className={styles.placeholder}></p>}
           </div>
         </div>
       </div>
       <p className={styles.hint} id={`${id}-markdown-help`}>
-        Hỗ trợ Markdown, LaTeX; gạch chân dùng cú pháp ++nội dung++.
+        
       </p>
     </div>
   )

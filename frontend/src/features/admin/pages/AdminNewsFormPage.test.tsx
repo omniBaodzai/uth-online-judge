@@ -77,11 +77,10 @@ function setField(id: string, value: string) {
   field.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
-async function fillRequiredMarkdownFields() {
+async function fillRequiredFields() {
   await act(async () => {
     setField('news-title', 'Tin tức mới')
     setField('news-summary', 'Tóm tắt tin')
-    setField('news-content', 'Nội dung Markdown')
   })
 }
 
@@ -100,14 +99,29 @@ afterEach(async () => {
 })
 
 describe('AdminNewsFormPage Rich Text API integration', () => {
-  it('creates a Markdown draft and publishes it through the separate status endpoint', async () => {
-    const saved = article({ content: 'Nội dung Markdown', contentFormat: 'markdown' })
+  it('defaults new articles to Rich Text and publishes through the separate status endpoint', async () => {
+    const saved = article({ contentFormat: 'tiptap-json', contentJson: mocks.richDocument })
     mocks.request
       .mockResolvedValueOnce(saved)
       .mockResolvedValueOnce({ ...saved, status: 'PUBLISHED' })
 
     await renderForm('/admin/news/new')
-    await fillRequiredMarkdownFields()
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect([...container.querySelectorAll<HTMLButtonElement>('button')].some((button) => (
+      button.textContent === 'Markdown' || button.textContent === 'Rich Text'
+    ))).toBe(false)
+    expect(container.querySelector('#news-content')).toBeNull()
+    const unloadEvent = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unloadEvent)
+    expect(unloadEvent.defaultPrevented).toBe(false)
+
+    await fillRequiredFields()
+    await act(async () => {
+      [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent === 'Thay đổi nội dung Rich test')
+        ?.click()
+    })
     await act(async () => {
       [...container.querySelectorAll<HTMLButtonElement>('button')]
         .find((button) => button.textContent === 'Lưu và xuất bản')
@@ -117,31 +131,6 @@ describe('AdminNewsFormPage Rich Text API integration', () => {
     expect(mocks.request).toHaveBeenCalledTimes(2)
     expect(mocks.request.mock.calls[0][0]).toBe('/admin/news')
     expect(mocks.request.mock.calls[0][1].method).toBe('POST')
-    expect(JSON.parse(mocks.request.mock.calls[0][1].body)).toMatchObject({
-      title: 'Tin tức mới',
-      content: 'Nội dung Markdown',
-    })
-    expect(mocks.request.mock.calls[1][0]).toBe('/admin/news/article-id/status')
-    expect(JSON.parse(mocks.request.mock.calls[1][1].body)).toEqual({ status: 'PUBLISHED' })
-  })
-
-  it('creates a Rich Text draft with the exact versioned JSON envelope', async () => {
-    const saved = article({ contentFormat: 'tiptap-json', contentJson: mocks.richDocument })
-    mocks.request.mockResolvedValueOnce(saved)
-
-    await renderForm('/admin/news/new')
-    await fillRequiredMarkdownFields()
-    const richMode = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Rich Text')
-    await act(async () => richMode?.click())
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
-    const updateRich = [...container.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button) => button.textContent === 'Thay đổi nội dung Rich test')
-    await act(async () => updateRich?.click())
-    await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')?.click())
-
-    expect(mocks.request).toHaveBeenCalledTimes(1)
-    expect(mocks.request.mock.calls[0][0]).toBe('/admin/news')
-    expect(mocks.request.mock.calls[0][1].method).toBe('POST')
     expect(JSON.parse(mocks.request.mock.calls[0][1].body)).toEqual({
       title: 'Tin tức mới',
       category: 'Thông báo',
@@ -149,15 +138,46 @@ describe('AdminNewsFormPage Rich Text API integration', () => {
       contentFormat: 'tiptap-json',
       contentJson: mocks.richDocument,
     })
+    expect(mocks.request.mock.calls[1][0]).toBe('/admin/news/article-id/status')
+    expect(JSON.parse(mocks.request.mock.calls[1][1].body)).toEqual({ status: 'PUBLISHED' })
+  })
+
+  it('keeps a legacy Markdown article in Markdown and omits unchanged content from metadata PATCH', async () => {
+    const oldContent = '  ## Nội dung Markdown cũ  \n'
+    const markdownArticle = article({ content: oldContent })
+    mocks.request
+      .mockResolvedValueOnce(markdownArticle)
+      .mockResolvedValueOnce(markdownArticle)
+
+    await renderForm('/admin/news/article-id/edit')
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    const content = container.querySelector<HTMLTextAreaElement>('#news-content')
+    expect(content?.value).toBe(oldContent)
+    expect([...container.querySelectorAll<HTMLButtonElement>('button')].some((button) => (
+      button.textContent === 'Markdown' || button.textContent === 'Rich Text'
+    ))).toBe(false)
+
+    await act(async () => {
+      setField('news-title', 'Tiêu đề cập nhật')
+    })
+    await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')?.click())
+
+    const patch = mocks.request.mock.calls.find(([path, init]) => path === '/admin/news/article-id' && init?.method === 'PATCH')
+    expect(patch).toBeDefined()
+    expect(JSON.parse(patch?.[1].body as string)).toEqual({
+      title: 'Tiêu đề cập nhật',
+      slug: 'tin-tuc',
+      category: 'Thông báo',
+      summary: 'Tóm tắt cũ',
+    })
   })
 
   it('explains when the backend rejects Rich Text fields as unsupported', async () => {
     mocks.request.mockRejectedValueOnce(new ApiError('property contentFormat should not exist', 400))
 
     await renderForm('/admin/news/new')
-    await fillRequiredMarkdownFields()
-    const richMode = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Rich Text')
-    await act(async () => richMode?.click())
+    await fillRequiredFields()
     await act(async () => new Promise((resolve) => setTimeout(resolve, 0)))
     await act(async () => {
       [...container.querySelectorAll<HTMLButtonElement>('button')]

@@ -103,16 +103,16 @@ function TestCaseCollectionEditor({ cases, onChange, disabled = false }: Props) 
   return (
     <section className={styles.testCollection} aria-label="Quản lý test case">
       <div className={styles.testCollectionSummary}>
-        <div>
+        {/* <div>
           <strong>Quản lý Test Case</strong>
           <p>{cases.length} test · {publicCount} mẫu công khai · {cases.length - publicCount} test ẩn · tối đa {cases.length} điểm</p>
-        </div>
+        </div> */}
         <button className={styles.buttonSecondary} type="button" onClick={addCase} disabled={disabled}>
           <AdminIcon name="plus" size={16} /> Thêm test case
         </button>
       </div>
       {cases.length === 0 ? (
-        <p className={styles.fieldHint}>Chưa có test case. Thêm ít nhất một test case trước khi xuất bản.</p>
+        <p className={styles.fieldHint}></p>
       ) : (
         <div className={styles.testCollectionList}>
           {cases.map((testCase, index) => {
@@ -216,7 +216,7 @@ function TestCaseCollectionEditor({ cases, onChange, disabled = false }: Props) 
         <div className={styles.importActions}>
           <div>
             <strong>Import thư mục</strong>
-            <p className={styles.fieldHint}>Chọn các cặp tệp .in và .out. Nội dung chỉ được đọc trong trình duyệt và chưa gửi lên máy chủ.</p>
+            <p className={styles.fieldHint}>Chọn các cặp tệp .in và .out</p>
           </div>
           <div className={styles.rowActions}>
             {supportsFolderSelection && (

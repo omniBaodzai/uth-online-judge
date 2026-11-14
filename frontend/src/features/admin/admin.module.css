@@ -325,7 +325,7 @@
 .buttonQuiet {
   border-color: var(--admin-border);
   background: white;
-  color: #506366;
+  color: #000;
 }
 
 .buttonSecondary:hover,
@@ -743,6 +743,12 @@
   grid-column: 1 / -1;
 }
 
+@media (max-width: 900px) {
+  .newsFormGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .formStack {
   display: grid;
   gap: 18px;
@@ -822,7 +828,7 @@
 
 .field label,
 .fieldLabel {
-  color: #4c6265;
+  color: #000;
   font-size: 12px;
   font-weight: 650;
 }
@@ -852,7 +858,7 @@
   line-height: 1.5;
 }
 
-.fieldHint { color: var(--admin-muted); }
+.fieldHint { color: #000; }
 .fieldError { color: #a53636; }
 
 .choiceGrid {
@@ -1132,7 +1138,7 @@
   padding: 14px;
   border: 1px dashed #c8d9d8;
   border-radius: 9px;
-  background: #f8fbfb;
+  background: #fff;
 }
 
 .importActions {
