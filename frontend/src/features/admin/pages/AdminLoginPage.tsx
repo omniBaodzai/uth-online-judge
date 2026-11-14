@@ -43,7 +43,7 @@ function AdminLoginPage() {
         <Link className={styles.loginBrand} to="/" aria-label="Quay về UTH Online Judge">
           <img className={styles.loginLogo} src={uthLogo} alt="Đại học Giao thông vận tải Thành phố Hồ Chí Minh" />
         </Link>
-        <h1 id="admin-login-title">Quản trị viên</h1>
+        <h1 id="admin-login-title">QUẢN TRỊ VIÊN</h1>
         <form className={styles.loginForm} onSubmit={submit} aria-busy={submitting}>
           <label htmlFor="admin-identifier">Email hoặc tên đăng nhập</label>
           <input

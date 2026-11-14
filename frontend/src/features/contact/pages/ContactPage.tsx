@@ -1,20 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Mail,
-  MapPin,
-  Phone,
-  Send,
-  Users,
-} from 'lucide-react'
-import {
-  CONTACT_EMAIL,
-  CONTACT_FANPAGE_URL,
-  CONTACT_ORGANIZATION,
-  CONTACT_PHONE,
-  CONTACT_PHONE_LINK,
-  CONTACT_SUPPORT_GROUP_URL,
-} from '../../../config/contact'
+import { Mail, MapPin, Phone, Send, Users } from 'lucide-react'
+import { CONTACT_EMAIL, CONTACT_FANPAGE_URL, CONTACT_PHONE, CONTACT_PHONE_LINK, CONTACT_SUPPORT_GROUP_URL } from '../../../config/contact'
+import supportQr from '../../../assets/QR.jpg'
 import { validateContactForm, type ContactFormValues } from '../contact-validation'
 import { getContactApiErrorMessage, submitContactMessage } from '../contact-api'
 import { request as publicRequest } from '../../auth/api'
@@ -34,8 +22,12 @@ type ContactMethod = {
   icon: ReactNode
   href?: string
   external?: boolean
-  note?: 'officialLinkNotConfigured' | 'supportLinkNotConfigured'
+  note?: 'officialLinkNotConfigured'
 }
+
+const CONTACT_ADDRESS = '02 Võ Oanh, Phường Thạnh Mỹ Tây, Quận Bình Thạnh, Thành phố Hồ Chí Minh'
+const CONTACT_MAPS_URL =
+  'https://www.google.com/maps/search/?api=1&query=02%20V%C3%B5%20Oanh%2C%20Ph%C6%B0%E1%BB%9Dng%20Th%E1%BA%A1nh%20M%E1%BB%B9%20T%C3%A2y%2C%20Qu%E1%BA%ADn%20B%C3%ACnh%20Th%E1%BA%A1nh%2C%20Th%C3%A0nh%20ph%E1%BB%91%20H%E1%BB%93%20Ch%C3%AD%20Minh'
 
 const contactMethods: ContactMethod[] = [
   {
@@ -52,8 +44,10 @@ const contactMethods: ContactMethod[] = [
   },
   {
     label: 'officeAddress',
-    value: CONTACT_ORGANIZATION,
+    value: CONTACT_ADDRESS,
     icon: <MapPin size={20} strokeWidth={1.8} />,
+    href: CONTACT_MAPS_URL,
+    external: true,
   },
   {
     label: 'fanpage',
@@ -69,11 +63,10 @@ const contactMethods: ContactMethod[] = [
   },
   {
     label: 'supportGroup',
-    value: 'joinStudyGroup',
+    value: '',
     icon: <Users size={20} strokeWidth={1.8} />,
     href: CONTACT_SUPPORT_GROUP_URL ?? undefined,
     external: true,
-    note: CONTACT_SUPPORT_GROUP_URL ? undefined : 'supportLinkNotConfigured',
   },
 ]
 
@@ -152,9 +145,7 @@ function ContactPage() {
       setValues(initialValues)
       setTouched({})
       setSubmitted(false)
-      setNotice(response.trackingAvailable
-        ? t('contactSuccess')
-        : t('contactSuccessUntracked'))
+      setNotice(response.trackingAvailable ? t('contactSuccess') : t('contactSuccessUntracked'))
     } catch (error) {
       if (mountedRef.current) {
         setNotice(getContactApiErrorMessage(error, t('contactSubmitError')))
@@ -171,22 +162,21 @@ function ContactPage() {
   }
 
   return (
-    <main className={styles.main} id="main-content">
+    <main className={styles.main} id="main-content" data-contact-page>
       <div className={styles.container}>
         <h1 className={styles.visuallyHidden}>{t('contactPage')}</h1>
         <div className={styles.layout}>
           <div className={styles.sidebar}>
             <section className={`${styles.card} ${styles.aboutCard}`} aria-labelledby="contact-about-title">
               <div className={styles.brandHeading}>
-                <span className={styles.brandMark} aria-hidden="true">UTH</span>
+                <span className={styles.brandMark} aria-hidden="true">
+                  UTH
+                </span>
                 <div>
                   <h2 id="contact-about-title">UTH Online Judge</h2>
-                  <p>{t('contactCommunitySubtitle')}</p>
                 </div>
               </div>
-              <p className={styles.aboutDescription}>
-                {t('contactCommunityDescription')}
-              </p>
+              <p className={styles.aboutDescription}>{t('contactCommunityDescription')}</p>
             </section>
 
             <section className={`${styles.card} ${styles.contactCard}`} aria-labelledby="contact-details-title">
@@ -194,22 +184,29 @@ function ContactPage() {
               <ul className={styles.contactList}>
                 {contactMethods.map(({ label, value, icon, href, external, note }) => (
                   <li className={styles.contactItem} key={label}>
-                    <span className={styles.contactIcon} aria-hidden="true">{icon}</span>
+                    <span className={styles.contactIcon} aria-hidden="true">
+                      {icon}
+                    </span>
                     <div className={styles.contactText}>
                       <span className={styles.contactLabel}>{t(label)}</span>
-                      {href ? (
-                        <a
-                          className={styles.contactValue}
-                          href={href}
-                          target={external ? '_blank' : undefined}
-                          rel={external ? 'noopener noreferrer' : undefined}
-                        >
-                          {label === 'supportGroup' ? t('joinStudyGroup') : value}
+                      {label === 'supportGroup' ? (
+                        <div className={styles.supportGroupContent}>
+                          {href && (
+                            <a className={styles.contactValue} href={href} target="_blank" rel="noopener noreferrer">
+                              {t('joinStudyGroup')}
+                            </a>
+                          )}
+                          <img className={styles.supportQr} src={supportQr} alt={t('supportQrAlt')} />
+                          <span className={styles.supportHint}>{t('supportQrInstruction')}</span>
+                        </div>
+                      ) : href ? (
+                        <a className={styles.contactValue} href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+                          {value}
                         </a>
                       ) : (
                         <span className={styles.contactValue}>{value}</span>
                       )}
-                        {note && <span className={styles.contactNote}>{t(note)}</span>}
+                      {note && <span className={styles.contactNote}>{t(note)}</span>}
                     </div>
                   </li>
                 ))}
@@ -273,11 +270,13 @@ function ContactPage() {
                     )}
                     <div className={styles.fieldMeta}>
                       {error ? (
-                        <span className={styles.fieldError} id={errorId} role="alert">{error}</span>
-                      ) : <span aria-hidden="true" />}
-                      {name === 'message' && (
-                        <span className={styles.counter}>{t('characterCount', { count: values.message.length, max: 2000 })}</span>
+                        <span className={styles.fieldError} id={errorId} role="alert">
+                          {error}
+                        </span>
+                      ) : (
+                        <span aria-hidden="true" />
                       )}
+                      {name === 'message' && <span className={styles.counter}>{t('characterCount', { count: values.message.length, max: 2000 })}</span>}
                     </div>
                   </div>
                 )

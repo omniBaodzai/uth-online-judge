@@ -1,9 +1,106 @@
-.demoNotice {
-  margin: 0 0 18px;
+.statsGrid {
+  margin-bottom: 14px;
 }
 
-.statsGrid {
-  margin-bottom: 22px;
+.contestMetricCard {
+  min-width: 0;
+  min-height: 145px;
+  padding: 18px 19px;
+  border: 1px solid rgba(211, 226, 226, .94);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.contestMetricCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 134, 137, .32);
+  box-shadow: 0 12px 28px rgba(28, 63, 66, .08);
+}
+
+.metricIcon {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  margin-bottom: 13px;
+  border-radius: 11px;
+}
+
+.contestMetricCard p {
+  margin: 0 0 5px;
+  color: #687b7e;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.contestMetricCard strong {
+  display: block;
+  font-size: clamp(22px, 2.2vw, 29px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.metricIcon_teal {
+  background: #e4f4f2;
+  color: #007a7d;
+}
+
+.metricIcon_green {
+  background: #eaf6ef;
+  color: #28774f;
+}
+
+.metricIcon_amber {
+  background: #fff4df;
+  color: #a76a00;
+}
+
+.metricIcon_slate {
+  background: #edf2f2;
+  color: #59696b;
+}
+
+.createRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.createButton {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid #008689;
+  border-radius: 9px;
+  background: #008689;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.createButton:hover {
+  transform: translateY(-1px);
+  background: #007477;
+  box-shadow: 0 5px 12px rgba(0, 104, 107, .18);
+}
+
+.createButton:focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .34);
+  outline-offset: 3px;
+}
+
+.createButton:active {
+  transform: translateY(0);
 }
 
 .statusStack {
@@ -44,18 +141,27 @@
 
 .contestTable {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
 }
 
 .contestTable th {
-  padding: 12px 11px;
-  background: var(--color-surface-subtle);
-  color: #697b7e;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: .035em;
+  padding: 13px 12px;
+  background: #008689;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
   white-space: nowrap;
+}
+
+.contestTable th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.contestTable th:last-child {
+  border-top-right-radius: 8px;
 }
 
 .contestTable td {
@@ -116,12 +222,6 @@
 
 .toolbar select {
   min-width: 165px;
-}
-
-.resultsHint {
-  margin: 0 0 10px;
-  color: #687b7e;
-  font-size: 11px;
 }
 
 .paginationTop,
@@ -563,10 +663,6 @@
 }
 
 @media (max-width: 760px) {
-  .statsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .fieldFull {
     grid-column: auto;
   }
@@ -631,7 +727,35 @@
   }
 }
 
+@media (max-width: 1100px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .statsGrid {
+    gap: 10px;
+  }
+
+  .contestMetricCard {
+    min-height: 132px;
+    padding: 14px;
+  }
+
+  .metricIcon {
+    width: 35px;
+    height: 35px;
+    margin-bottom: 10px;
+  }
+}
+
 @media (max-width: 560px) {
+  .createButton {
+    width: 100%;
+  }
+
   .contestTable tr {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -672,5 +796,39 @@
 
   .problemTable td {
     grid-template-columns: 105px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 360px) {
+  .statsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .contestMetricCard {
+    min-height: 126px;
+    padding: 12px;
+  }
+
+  .contestMetricCard p {
+    font-size: 11px;
+  }
+
+  .contestMetricCard strong {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contestMetricCard,
+  .createButton {
+    transition: none;
+  }
+
+  .contestMetricCard:hover,
+  .createButton:hover,
+  .createButton:active {
+    transform: none;
   }
 }

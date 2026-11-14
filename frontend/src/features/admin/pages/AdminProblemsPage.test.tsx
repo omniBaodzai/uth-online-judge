@@ -3,7 +3,9 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
+import { I18nextProvider } from 'react-i18next'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import i18n from '../../../i18n'
 import AdminProblemsPage from './AdminProblemsPage'
 
 const mocks = vi.hoisted(() => ({
@@ -123,9 +125,11 @@ afterEach(async () => {
 async function renderPage() {
   await act(async () => {
     root.render(
-      <MemoryRouter>
-        <AdminProblemsPage />
-      </MemoryRouter>,
+      <I18nextProvider i18n={i18n}>
+        <MemoryRouter>
+          <AdminProblemsPage />
+        </MemoryRouter>
+      </I18nextProvider>,
     )
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
@@ -156,75 +160,94 @@ describe('AdminProblemsPage', () => {
       'CẬP NHẬT',
       'THAO TÁC',
     ])
-    const pagers = container.querySelectorAll('nav[aria-label^="Phân trang danh sách bài tập"]')
+    expect(container.querySelector('h1')).toBeNull()
+    expect(container.textContent).not.toContain('Tra cứu, cập nhật và quản lý trạng thái bài tập.')
+    const pagers = container.querySelectorAll('nav')
     expect(pagers).toHaveLength(2)
     for (const pager of pagers) {
-      expect(pager.textContent).toContain('Trang 1 / 1')
-      expect(pager.textContent).toContain('3 bài tập')
+      expect(pager.querySelector('[aria-current="page"]')?.textContent).toBe('1')
+      expect(pager.parentElement?.querySelector('p')?.textContent).toContain('Hiển thị 1–3 trên 3 bài tập')
     }
+    expect(pagers[0].parentElement?.querySelector('select')).toBeNull()
+    expect(pagers[1].parentElement?.querySelectorAll('select option')).toHaveLength(3)
+    expect(pagers[0].querySelector('[aria-label="Trang trước"]')).not.toBeNull()
+    expect(pagers[1].querySelector('[aria-label="Trang sau"]')).not.toBeNull()
   })
 
   it('keeps the top and bottom pagers synchronized for page and page-size changes', async () => {
     totalRecords = 45
     await renderPage()
 
-    const pagers = container.querySelectorAll<HTMLElement>('nav[aria-label^="Phân trang danh sách bài tập"]')
+    const pagers = container.querySelectorAll<HTMLElement>('nav')
     expect(pagers).toHaveLength(2)
-    expect(pagers[0].querySelectorAll('option')).toHaveLength(3)
+    const pageSizeSelect = pagers[1].parentElement!.querySelector<HTMLSelectElement>('select')!
+    expect(pageSizeSelect.options).toHaveLength(3)
 
-    await changeControl(
-      pagers[0].querySelector<HTMLSelectElement>('select')!,
-      '10',
-    )
+    await changeControl(pageSizeSelect, '10')
     expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=1&pageSize=10')
+    expect(
+      mocks.request.mock.calls.filter(([path]) => path === '/admin/problems?page=1&pageSize=10'),
+    ).toHaveLength(1)
     for (const pager of pagers) {
-      expect(pager.textContent).toContain('Trang 1 / 5')
-      expect(pager.querySelector<HTMLSelectElement>('select')?.value).toBe('10')
+      expect(pager.querySelector('[aria-current="page"]')?.textContent).toBe('1')
+      expect(pager.parentElement?.querySelector('p')?.textContent).toContain('Hiển thị 1–10 trên 45 bài tập')
     }
+    expect(pageSizeSelect.value).toBe('10')
 
     await act(async () => {
-      pagers[1].querySelector<HTMLButtonElement>('[aria-label^="Trang sau"]')?.click()
+      pagers[1].querySelector<HTMLButtonElement>('[aria-label="Trang sau"]')?.click()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
     expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=2&pageSize=10')
-    for (const pager of pagers) expect(pager.textContent).toContain('Trang 2 / 5')
+    for (const pager of pagers) {
+      expect(pager.querySelector('[aria-current="page"]')?.textContent).toBe('2')
+      expect(pager.parentElement?.querySelector('p')?.textContent).toContain('Hiển thị 11–20 trên 45 bài tập')
+    }
 
-    await changeControl(pagers[1].querySelector<HTMLSelectElement>('select')!, '50')
+    await changeControl(pageSizeSelect, '50')
     expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=1&pageSize=50')
     for (const pager of pagers) {
-      expect(pager.textContent).toContain('Trang 1 / 1')
-      expect(pager.querySelector<HTMLSelectElement>('select')?.value).toBe('50')
+      expect(pager.querySelector('[aria-current="page"]')?.textContent).toBe('1')
+      expect(pager.parentElement?.querySelector('p')?.textContent).toContain('Hiển thị 1–45 trên 45 bài tập')
     }
+    expect(pageSizeSelect.value).toBe('50')
   })
 
   it('resets to page one when the search or status filter changes', async () => {
     totalRecords = 45
     await renderPage()
 
-    const bottomPager = container.querySelector<HTMLElement>(
-      'nav[aria-label="Phân trang danh sách bài tập phía dưới"]',
-    )!
-    await changeControl(
-      container.querySelector<HTMLSelectElement>('nav select')!,
-      '10',
-    )
+    const pagers = container.querySelectorAll<HTMLElement>('nav')
+    const bottomPager = pagers[1]
+    const pageSizeSelect = bottomPager.parentElement!.querySelector<HTMLSelectElement>('select')!
+    await changeControl(pageSizeSelect, '10')
     await act(async () => {
-      bottomPager.querySelector<HTMLButtonElement>('[aria-label^="Trang sau"]')?.click()
+      bottomPager.querySelector<HTMLButtonElement>('[aria-label="Trang sau"]')?.click()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
-    expect(bottomPager.textContent).toContain('Trang 2 / 5')
+    expect(bottomPager.querySelector('[aria-current="page"]')?.textContent).toBe('2')
 
     await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo trạng thái"]')!, 'published')
     expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=1&pageSize=10&status=published')
-    expect(bottomPager.textContent).toContain('Trang 1 / 5')
+    expect(
+      mocks.request.mock.calls.filter(
+        ([path]) => path === '/admin/problems?page=1&pageSize=10&status=published',
+      ),
+    ).toHaveLength(1)
+    expect(bottomPager.querySelector('[aria-current="page"]')?.textContent).toBe('1')
 
     await act(async () => {
-      bottomPager.querySelector<HTMLButtonElement>('[aria-label^="Trang sau"]')?.click()
+      bottomPager.querySelector<HTMLButtonElement>('[aria-label="Trang sau"]')?.click()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
     await changeControl(container.querySelector<HTMLInputElement>('input[aria-label="Tìm theo mã hoặc tên bài tập"]')!, 'GEN')
     expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=1&pageSize=10&search=GEN&status=published')
-    expect(bottomPager.textContent).toContain('Trang 1 / 5')
+    expect(
+      mocks.request.mock.calls.filter(
+        ([path]) => path === '/admin/problems?page=1&pageSize=10&search=GEN&status=published',
+      ),
+    ).toHaveLength(1)
+    expect(bottomPager.querySelector('[aria-current="page"]')?.textContent).toBe('1')
   })
 
   it('moves back to the last available page when the record total shrinks', async () => {
@@ -232,20 +255,16 @@ describe('AdminProblemsPage', () => {
     decrementOnDelete = true
     await renderPage()
 
-    const bottomPager = container.querySelector<HTMLElement>(
-      'nav[aria-label="Phân trang danh sách bài tập phía dưới"]',
-    )!
-    await changeControl(
-      container.querySelector<HTMLSelectElement>('nav select')!,
-      '10',
-    )
+    const pagers = container.querySelectorAll<HTMLElement>('nav')
+    const bottomPager = pagers[1]
+    await changeControl(bottomPager.parentElement!.querySelector<HTMLSelectElement>('select')!, '10')
     for (let index = 0; index < 2; index += 1) {
       await act(async () => {
-        bottomPager.querySelector<HTMLButtonElement>('[aria-label^="Trang sau"]')?.click()
+        bottomPager.querySelector<HTMLButtonElement>('[aria-label="Trang sau"]')?.click()
         await new Promise((resolve) => setTimeout(resolve, 0))
       })
     }
-    expect(bottomPager.textContent).toContain('Trang 3 / 3')
+    expect(bottomPager.querySelector('[aria-current="page"]')?.textContent).toBe('3')
     expect(container.querySelector<HTMLButtonElement>('button[aria-label="Xóa GEN_21"]')).not.toBeNull()
 
     await act(async () => {
@@ -261,10 +280,9 @@ describe('AdminProblemsPage', () => {
     })
 
     expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=2&pageSize=10')
-    const pagers = container.querySelectorAll('nav[aria-label^="Phân trang danh sách bài tập"]')
     for (const pager of pagers) {
-      expect(pager.textContent).toContain('Trang 2 / 2')
-      expect(pager.textContent).toContain('11–20 / 20 bài tập')
+      expect(pager.querySelector('[aria-current="page"]')?.textContent).toBe('2')
+      expect(pager.parentElement?.querySelector('p')?.textContent).toContain('Hiển thị 11–20 trên 20 bài tập')
     }
   })
 
@@ -335,5 +353,6 @@ describe('AdminProblemsPage', () => {
 
     expect(container.textContent).toContain('Chưa có bài tập nào')
     expect(container.textContent).toContain('Tạo bài tập đầu tiên')
+    expect(container.querySelectorAll('nav')).toHaveLength(0)
   })
 })

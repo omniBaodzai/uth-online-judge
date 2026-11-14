@@ -162,45 +162,11 @@
 
 .listPanel {
   min-width: 0;
-  padding: 20px;
+  padding: 16px 20px 20px;
   border: 1px solid rgba(211, 226, 226, .94);
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
-}
-
-.listHeading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.listHeading h1 {
-  margin: 0;
-  color: var(--problems-ink);
-  font-size: 17px;
-  font-weight: 720;
-  line-height: 1.4;
-}
-
-.listHeading p {
-  margin: 5px 0 0;
-  color: var(--problems-muted);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.resultCount {
-  flex: none;
-  padding: 6px 9px;
-  border-radius: 7px;
-  background: #f0f7f6;
-  color: #24696a;
-  font-size: 11px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 .filters {
@@ -296,10 +262,11 @@
 
 .desktopTable th {
   padding: 13px 14px;
-  background: #008679;
+  background: #008689;
   color: #fff;
+  font-weight: bold;
   font-size: 10px;
-  font-weight: 600;
+
   letter-spacing: .045em;
   white-space: nowrap;
 }
@@ -592,95 +559,12 @@
   font-size: 12px;
 }
 
-.pagination {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid #e6eded;
-  border-radius: 9px;
-  background: #fbfdfd;
-  color: #617477;
-  font-size: 12px;
-}
-
 .paginationTop {
   margin: 0 0 14px;
 }
 
 .paginationBottom {
   margin: 14px 0 0;
-}
-
-.paginationSummary {
-  min-width: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.paginationControls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pageNumber {
-  min-width: 88px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.pageSizeControl {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.pageSizeControl select {
-  min-width: 68px;
-  min-height: 44px;
-  padding: 0 8px;
-  border: 1px solid #dce7e7;
-  border-radius: 8px;
-  background: #fff;
-  color: #425c5e;
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.pageSizeControl select:disabled {
-  color: #9aa7a8;
-  cursor: wait;
-}
-
-.pagination button {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 5px;
-  padding: 0 11px;
-  border: 1px solid #dce7e7;
-  border-radius: 8px;
-  background: #fff;
-  color: #425c5e;
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.pagination button:hover:not(:disabled) {
-  border-color: #bad8d6;
-  background: #f4f9f8;
-  color: var(--problems-primary-dark);
-}
-
-.pagination button:disabled {
-  color: #9aa7a8;
-  cursor: not-allowed;
 }
 
 .page :is(a, button, select, input):focus-visible {
@@ -739,13 +623,7 @@
   }
 
   .listPanel {
-    padding: 15px 12px;
-  }
-
-  .listHeading {
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 14px;
+    padding: 12px;
   }
 
   .filters {
@@ -776,27 +654,6 @@
     padding: 0 9px;
   }
 
-  .pagination {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: stretch;
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .paginationSummary,
-  .pageSizeControl {
-    justify-self: center;
-  }
-
-  .paginationControls {
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .pagination button {
-    padding: 0 9px;
-  }
 }
 
 @media (max-width: 380px) {
@@ -841,7 +698,8 @@
   .clearButton,
   .desktopTable tbody tr,
   .actionButton,
-  .pagination button {
+  .paginationTop button,
+  .paginationBottom button {
     transition: none;
   }
 

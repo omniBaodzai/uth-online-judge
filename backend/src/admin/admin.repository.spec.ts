@@ -40,12 +40,44 @@ describe('AdminRepository', () => {
     expect(values).toEqual([days, scope]);
     expect(sql).toContain("AT TIME ZONE 'Asia/Ho_Chi_Minh'");
     expect(sql).toContain('generate_series(');
-    expect(sql).toContain("COALESCE(contest.organization_id, problem.organization_id) IS NULL");
+    expect(sql).toContain("problem.status = 'PUBLISHED'");
+    expect(sql).toContain('problem.organization_id IS NULL');
     expect(sql).toContain("COALESCE(contest.organization_id, problem.organization_id) IS NOT NULL");
+    expect(sql).toContain('COUNT(DISTINCT submission.id)');
+    expect(sql).not.toMatch(/submission\.(?:status|verdict)\s*=/);
     expect(sql).toContain("COALESCE(daily_submissions.count, '0')");
     expect(sql).toContain("COALESCE(daily_users.count, '0')");
     expect(sql).toContain('submission.submitted_at >=');
     expect(sql).toContain('user_account.created_at >=');
+  });
+
+  it('uses the selected 30-day window for the chart total', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          { date: '2026-10-12', submissions_count: '1', users_count: '0' },
+          { date: '2026-11-10', submissions_count: '3', users_count: '0' },
+        ],
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.dashboardStatistics(30, 'GLOBAL')).resolves.toMatchObject({
+      days: 30,
+      submissions: {
+        total: 4,
+        daily: [
+          { date: '2026-10-12', count: 1 },
+          { date: '2026-11-10', count: 3 },
+        ],
+      },
+    });
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(values).toEqual([30, 'GLOBAL']);
+    expect(sql).toContain("problem.status = 'PUBLISHED'");
+    expect(sql).toContain('submission.submitted_at >=');
+    expect(sql).toContain('submission.submitted_at <');
   });
 
   it('uses bound parameters for admin list filters and maps persisted values', async () => {

@@ -1,18 +1,129 @@
-.resultsBar {
-  margin: -4px 0 12px;
+.page {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metricCard {
+  display: flex;
+  min-width: 0;
+  min-height: 146px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px 19px;
+  border: 1px solid rgba(211, 226, 226, .94);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 134, 137, .32);
+  box-shadow: 0 12px 28px rgba(28, 63, 66, .08);
+}
+
+.metricIcon {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  margin-bottom: 12px;
+  border-radius: 11px;
+}
+
+.metric_teal {
+  background: #e4f4f2;
+  color: #007a7d;
+}
+
+.metric_blue {
+  background: #eaf3fb;
+  color: #286da5;
+}
+
+.metric_amber {
+  background: #fff4df;
+  color: #946000;
+}
+
+.metric_green {
+  background: #e9f5ee;
+  color: #28774f;
+}
+
+.metricCard p {
+  margin: 0 0 5px;
   color: var(--admin-muted);
   font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
-.resultsBar strong {
-  color: var(--admin-ink);
+.metricCard strong {
+  display: block;
+  margin-top: auto;
+  font-size: clamp(22px, 2.2vw, 29px);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
-.metric_total { background: #087f82; }
-.metric_new { background: #3982c6; }
-.metric_progress { background: #d69a2d; }
-.metric_resolved { background: #39a579; }
+.messagePanel {
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.searchField {
+  min-width: min(220px, 100%);
+  min-height: 42px;
+  flex: 1 1 320px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.searchField input {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.filterSelect {
+  min-width: 174px;
+  min-height: 42px;
+  flex: 0 1 190px;
+  padding: 0 32px 0 12px;
+  border: 1px solid #dce7e7;
+  border-radius: 9px;
+  background: #fff;
+  color: #425c5e;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.filterSelect:focus-visible {
+  border-color: #6bb2b0;
+  outline: 3px solid rgba(0, 134, 137, .16);
+  outline-offset: 1px;
+}
+
+.resetButton {
+  min-height: 42px;
+}
 
 .tableWrap {
   max-width: 100%;
@@ -23,25 +134,45 @@
 .messageTable {
   width: 100%;
   min-width: 940px;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
 }
 
 .messageTable th {
-  padding: 12px 13px;
-  background: var(--color-surface-subtle);
-  color: #697b7e;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: .035em;
+  padding: 13px 14px;
+  background: #008689;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
+.messageTable thead th:first-child {
+  border-top-left-radius: 9px;
+}
+
+.messageTable thead th:last-child {
+  border-top-right-radius: 9px;
+}
+
 .messageTable td {
-  padding: 13px;
+  padding: 12px 14px;
   border-top: 1px solid #edf1f1;
+  color: #435b5e;
   vertical-align: middle;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.messageTable tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.messageTable tbody tr:hover {
+  background: #f7fbfa;
 }
 
 .numberColumn,
@@ -75,6 +206,7 @@
 
 .subjectCell {
   max-width: 280px;
+  min-width: 240px;
 }
 
 .subjectButton {
@@ -91,6 +223,7 @@
   line-height: 1.5;
   text-align: left;
   text-overflow: ellipsis;
+  transition: color 140ms ease;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -113,6 +246,19 @@
   color: #506366;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.detailsButton {
+  min-height: 38px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.detailsButton:focus-visible,
+.resetButton:focus-visible,
+.filterSelect:focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .28);
+  outline-offset: 2px;
 }
 
 .statusBadge {
@@ -170,43 +316,16 @@
 }
 
 .pagination {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 16px;
+  min-width: 0;
+  margin: 0;
 }
 
-.pageSize,
-.pageControls {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--admin-muted);
-  font-size: 12px;
+.paginationTop {
+  margin: 0 0 14px;
 }
 
-.pageSize select {
-  min-height: 38px;
-  padding: 6px 9px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--admin-ink);
-  font: inherit;
-}
-
-.pageControls span {
-  min-width: 82px;
-  color: var(--admin-ink);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.pageControls button:disabled {
-  cursor: not-allowed;
-  opacity: .48;
+.paginationBottom {
+  margin: 14px 0 0;
 }
 
 .drawerBackdrop {
@@ -701,7 +820,38 @@
   font-size: 13px;
 }
 
+@media (max-width: 1050px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
+  .metrics {
+    gap: 10px;
+  }
+
+  .metricCard {
+    min-height: 132px;
+    padding: 15px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .searchField,
+  .filterSelect,
+  .resetButton {
+    width: 100%;
+    min-width: 0;
+    flex-basis: 100%;
+  }
+
+  .pagination {
+    min-width: 0;
+  }
+
   .drawer {
     width: min(520px, 100%);
   }
@@ -733,17 +883,22 @@
     grid-row: 3;
   }
 
-  .pagination {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .pageControls {
-    justify-content: space-between;
-  }
 }
 
 @media (max-width: 430px) {
+  .metrics {
+    gap: 9px;
+  }
+
+  .metricCard {
+    min-height: 126px;
+    padding: 13px;
+  }
+
+  .metricCard strong {
+    font-size: 24px;
+  }
+
   .detailHeading {
     align-items: flex-start;
     flex-direction: column;
@@ -786,12 +941,6 @@
     flex-direction: column;
   }
 
-  .pageControls button {
-    min-height: 44px;
-    flex: 1;
-    padding-inline: 8px;
-  }
-
   .drawerActions > div {
     flex-direction: column-reverse;
   }
@@ -808,5 +957,19 @@
 
   .statusEditor {
     padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metricCard,
+  .searchField,
+  .filterSelect,
+  .subjectButton,
+  .messageTable tbody tr {
+    transition: none;
+  }
+
+  .metricCard:hover {
+    transform: none;
   }
 }

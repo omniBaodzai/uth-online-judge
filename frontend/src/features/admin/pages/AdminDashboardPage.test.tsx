@@ -107,7 +107,10 @@ describe('AdminDashboardPage', () => {
     expect(container.querySelectorAll('[aria-label="Chỉ số tổng quan"] article')).toHaveLength(4)
     expect(container.querySelectorAll('article')).toHaveLength(6)
     expect(container.querySelector('h1, time')).toBeNull()
-    expect(container.textContent).toContain('Xu hướng bài nộp')
+    expect(container.textContent).toContain('Xu hướng bài nộp công khai')
+    expect(container.textContent).toContain(
+      'Số bài nộp trên các bài tập Global đã xuất bản trong khoảng thời gian được chọn.',
+    )
     expect(container.textContent).toContain('Tăng trưởng người dùng')
     expect(container.textContent).toContain('Bài nộp Global')
     expect(container.textContent).toContain('Tài khoản đăng ký mới')
@@ -142,6 +145,9 @@ describe('AdminDashboardPage', () => {
       '/admin/dashboard/statistics?days=7&submissionScope=ORGANIZATION',
     )
     expect(container.textContent).toContain('Bài nộp Organization')
+    expect(container.textContent).toContain('Xu hướng bài nộp')
+    expect(container.textContent).not.toContain('Xu hướng bài nộp công khai')
+    expect(container.textContent).not.toContain('Số bài nộp trên các bài tập Global')
   })
 
   it('keeps the chart ready when the active period is selected again', async () => {
@@ -151,7 +157,7 @@ describe('AdminDashboardPage', () => {
       container.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.click()
     })
 
-    expect(container.querySelector('[aria-label="Đang tải xu hướng bài nộp"]')).toBeNull()
+    expect(container.querySelector('[aria-label="Đang tải xu hướng bài nộp công khai"]')).toBeNull()
     expect(mocks.request.mock.calls.filter(([path]) =>
       typeof path === 'string' && path.startsWith('/admin/dashboard/statistics'),
     )).toHaveLength(1)
@@ -169,7 +175,7 @@ describe('AdminDashboardPage', () => {
     })
     await renderDashboard()
 
-    expect(container.querySelector('[aria-label="Đang tải xu hướng bài nộp"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Đang tải xu hướng bài nộp công khai"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Đang tải tăng trưởng người dùng"]')).not.toBeNull()
 
     await act(async () => {

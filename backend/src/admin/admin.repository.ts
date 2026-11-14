@@ -441,7 +441,7 @@ export class AdminRepository {
        ),
        daily_submissions AS (
          SELECT (submission.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS day,
-                COUNT(*)::text AS count
+                COUNT(DISTINCT submission.id)::text AS count
          FROM public.submissions submission
          JOIN public.problems problem ON problem.id = submission.problem_id
          LEFT JOIN public.contests contest ON contest.id = submission.contest_id
@@ -452,7 +452,8 @@ export class AdminRepository {
                  ((bounds.today + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
            AND (
              ($2::text = 'GLOBAL'
-               AND COALESCE(contest.organization_id, problem.organization_id) IS NULL)
+               AND problem.status = 'PUBLISHED'
+               AND problem.organization_id IS NULL)
              OR
              ($2::text = 'ORGANIZATION'
                AND COALESCE(contest.organization_id, problem.organization_id) IS NOT NULL)

@@ -1,13 +1,18 @@
 .main {
   flex: 1;
   padding: clamp(124px, 12vw, 136px) 0 clamp(48px, 7vw, 84px);
-  background-image:
-    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
-    linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)),
-    url('../../../assets/uth_background.jpg');
-  background-position: center, center, center top;
+  background-image: radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%), linear-gradient(rgba(243, 247, 247, 0.86), rgba(243, 247, 247, 0.9)), url('../../../assets/uth_background.jpg');
+  background-position:
+    center,
+    center,
+    center top;
   background-repeat: no-repeat;
   background-size: auto, cover, cover;
+}
+
+:global(html:has([data-contact-page])),
+:global(body:has([data-contact-page])) {
+  min-width: 0;
 }
 
 .container {
@@ -27,14 +32,15 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: stretch;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  align-items: start;
   gap: 22px;
 }
 
 .sidebar {
   display: flex;
   min-width: 0;
+  align-self: start;
   flex-direction: column;
   gap: 18px;
 }
@@ -179,16 +185,41 @@ a.contactValue:hover {
   line-height: 1.45;
 }
 
+.supportGroupContent {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.supportQr {
+  display: block;
+  width: min(156px, 100%);
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+}
+
+.supportHint {
+  max-width: 28ch;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .formCard {
-  align-self: stretch;
-  padding: 26px;
+  align-self: start;
+  padding: 24px;
 }
 
 .formHeading {
   display: flex;
   align-items: flex-start;
   gap: 13px;
-  margin-bottom: 24px;
+  margin-bottom: 17px;
 }
 
 .formIcon {
@@ -214,7 +245,7 @@ a.contactValue:hover {
 .form {
   display: flex;
   flex-direction: column;
-  gap: 17px;
+  gap: 14px;
 }
 
 .field {
@@ -246,7 +277,9 @@ a.contactValue:hover {
   font: inherit;
   font-size: 14px;
   line-height: 1.5;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .field input::placeholder,
@@ -272,7 +305,7 @@ a.contactValue:hover {
 }
 
 .field textarea {
-  min-height: 142px;
+  min-height: 132px;
   resize: vertical;
 }
 
@@ -300,6 +333,7 @@ a.contactValue:hover {
 .submitButton {
   display: inline-flex;
   min-height: 48px;
+  align-self: flex-start;
   align-items: center;
   justify-content: center;
   gap: 9px;
@@ -313,7 +347,9 @@ a.contactValue:hover {
   font: inherit;
   font-size: 14px;
   font-weight: 700;
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .submitButton:hover {
@@ -337,10 +373,7 @@ a.contactValue:hover {
 }
 
 :global([data-theme='dark']) .main {
-  background-image:
-    radial-gradient(ellipse at 4% 0%, rgba(54, 185, 181, 0.1), transparent 34%),
-    linear-gradient(rgba(16, 36, 38, 0.93), rgba(16, 36, 38, 0.96)),
-    url('../../../assets/uth_background.jpg');
+  background-image: radial-gradient(ellipse at 4% 0%, rgba(54, 185, 181, 0.1), transparent 34%), linear-gradient(rgba(16, 36, 38, 0.93), rgba(16, 36, 38, 0.96)), url('../../../assets/uth_background.jpg');
 }
 
 :global([data-theme='dark']) .card {
@@ -395,6 +428,10 @@ a.contactValue:hover {
   .formCard {
     padding: 20px;
   }
+
+  .submitButton {
+    width: 100%;
+  }
 }
 
 @media (max-width: 380px) {
@@ -418,7 +455,6 @@ a.contactValue:hover {
   .formHeading h2 {
     font-size: 17px;
   }
-
 }
 
 /* Dark theme overrides (generated, Phase 3) */
@@ -446,8 +482,5 @@ a.contactValue:hover {
 
 /* Dark page background overlays (Phase 3.1) */
 :global(:where([data-theme='dark'])) .main {
-  background-image:
-    radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%),
-    linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
-    url('../../../assets/uth_background.jpg');
+  background-image: radial-gradient(ellipse at 4% 0%, rgba(0, 134, 137, 0.05), transparent 34%), linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)), url('../../../assets/uth_background.jpg');
 }

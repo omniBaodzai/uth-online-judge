@@ -242,7 +242,7 @@ function AdminDashboardPage() {
               data={statistics?.submissions.daily ?? []}
               loading={statisticsLoading}
               period={period}
-              title="Xu hướng bài nộp"
+              title={submissionScope === 'GLOBAL' ? 'Xu hướng bài nộp công khai' : 'Xu hướng bài nộp'}
               total={statistics?.submissions.total ?? 0}
               type="line"
               scope={submissionScope}
@@ -330,6 +330,12 @@ function ChartCard({
           </label>
         )}
       </header>
+
+      {scope === 'GLOBAL' && (
+        <p className={styles.chartDescription}>
+          Số bài nộp trên các bài tập Global đã xuất bản trong khoảng thời gian được chọn.
+        </p>
+      )}
 
       {loading ? (
         <div className={styles.chartSkeleton} aria-label={`Đang tải ${title.toLocaleLowerCase('vi-VN')}`}>

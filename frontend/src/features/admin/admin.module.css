@@ -1739,8 +1739,8 @@
 
 .userTable th {
   padding: 12px 13px;
-  background: var(--color-surface-subtle);
-  color: #697b7e;
+  background: #008689;
+  color: #fff;
   font-size: 11px;
   font-weight: 750;
   white-space: nowrap;

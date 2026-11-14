@@ -4,8 +4,6 @@ import {
   Archive,
   BookOpen,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   FileText,
   FlaskConical,
   Pencil,
@@ -17,6 +15,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { ApiError } from '../../auth/api'
+import SubmissionPagination from '../../submissions/components/SubmissionPagination'
+import { submissionPageSizes } from '../../submissions/data'
 import { useAdmin } from '../useAdmin'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { formatDate, statusLabels } from '../utils'
@@ -25,7 +25,7 @@ import styles from './AdminProblemsPage.module.css'
 
 type PendingAction = { problem: AdminProblem; status: AdminProblemStatus | 'delete' }
 type MetricTone = 'teal' | 'green' | 'amber' | 'slate'
-const PAGE_SIZE_OPTIONS = [10, 20, 50] as const
+const PAGE_SIZE_OPTIONS = submissionPageSizes
 type PageSize = (typeof PAGE_SIZE_OPTIONS)[number]
 const DEFAULT_PAGE_SIZE: PageSize = 20
 
@@ -188,8 +188,8 @@ function AdminProblemsPage() {
     setCurrentPage(nextPage)
   }
 
-  function changePageSize(value: string) {
-    const nextPageSize = PAGE_SIZE_OPTIONS.find((option) => String(option) === value)
+  function changePageSize(value: number) {
+    const nextPageSize = PAGE_SIZE_OPTIONS.find((option) => option === value)
     if (!nextPageSize || nextPageSize === pageSize) return
     setError('')
     setLoading(true)
@@ -206,16 +206,20 @@ function AdminProblemsPage() {
   function renderPagination(placement: 'top' | 'bottom') {
     if (!page || page.total === 0) return null
     return (
-      <PaginationControls
-        currentPage={currentPage}
-        pageSize={pageSize}
-        total={page.total}
-        totalPages={totalPages}
-        placement={placement}
-        disabled={loading}
-        onPageChange={changePage}
-        onPageSizeChange={changePageSize}
-      />
+      <div className={placement === 'top' ? styles.paginationTop : styles.paginationBottom}>
+        <SubmissionPagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={page.total}
+          pageSizes={PAGE_SIZE_OPTIONS}
+          label="bài tập"
+          summaryLabel="bài tập"
+          showPageSize={placement === 'bottom'}
+          disabled={loading}
+          onPageChange={changePage}
+          onPageSizeChange={changePageSize}
+        />
+      </div>
     )
   }
 
@@ -269,16 +273,6 @@ function AdminProblemsPage() {
       </div>
 
       <section className={styles.listPanel} aria-label="Danh sách bài tập" aria-busy={loading}>
-        <div className={styles.listHeading}>
-          <div>
-            <h1>Danh sách bài tập</h1>
-            <p>Tra cứu, cập nhật và quản lý trạng thái bài tập.</p>
-          </div>
-          <span className={styles.resultCount} aria-live="polite">
-            {page ? `${formatNumber(page.total)} bài tập` : 'Đang tải…'}
-          </span>
-        </div>
-
         <div className={styles.filters}>
           <label className={styles.searchBox}>
             <Search size={18} aria-hidden="true" />
@@ -438,76 +432,6 @@ function AdminProblemsPage() {
         />
       )}
     </main>
-  )
-}
-
-function PaginationControls({
-  currentPage,
-  pageSize,
-  total,
-  totalPages,
-  placement,
-  disabled,
-  onPageChange,
-  onPageSizeChange,
-}: {
-  currentPage: number
-  pageSize: PageSize
-  total: number
-  totalPages: number
-  placement: 'top' | 'bottom'
-  disabled: boolean
-  onPageChange: (page: number) => void
-  onPageSizeChange: (pageSize: string) => void
-}) {
-  const firstItem = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const lastItem = Math.min(currentPage * pageSize, total)
-  const positionLabel = placement === 'top' ? 'phía trên' : 'phía dưới'
-
-  return (
-    <nav className={`${styles.pagination} ${placement === 'top' ? styles.paginationTop : styles.paginationBottom}`}
-      aria-label={`Phân trang danh sách bài tập ${positionLabel}`}
-    >
-      <span className={styles.paginationSummary} aria-live="polite">
-        Hiển thị {formatNumber(firstItem)}–{formatNumber(lastItem)} / {formatNumber(total)} bài tập
-      </span>
-      <div className={styles.paginationControls}>
-        <button
-          type="button"
-          disabled={currentPage <= 1 || disabled}
-          aria-label={`Trang trước, ${positionLabel}`}
-          onClick={() => onPageChange(currentPage - 1)}
-        >
-          <ChevronLeft size={17} aria-hidden="true" />
-          <span>Trước</span>
-        </button>
-        <span className={styles.pageNumber} aria-live="polite">
-          Trang {formatNumber(currentPage)} / {formatNumber(totalPages)}
-        </span>
-        <button
-          type="button"
-          disabled={currentPage >= totalPages || disabled}
-          aria-label={`Trang sau, ${positionLabel}`}
-          onClick={() => onPageChange(currentPage + 1)}
-        >
-          <span>Sau</span>
-          <ChevronRight size={17} aria-hidden="true" />
-        </button>
-      </div>
-      <label className={styles.pageSizeControl}>
-        <span>Số dòng/trang</span>
-        <select
-          aria-label={`Số dòng mỗi trang ${positionLabel}`}
-          disabled={disabled}
-          value={pageSize}
-          onChange={(event) => onPageSizeChange(event.currentTarget.value)}
-        >
-          {PAGE_SIZE_OPTIONS.map((option) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-      </label>
-    </nav>
   )
 }
 

@@ -112,7 +112,8 @@ describe('OpenAPI contract', () => {
 
     expect(new Set(registered).size).toBe(registered.length);
     expect(new Set(operations).size).toBe(operations.length);
-    expect(registered).toHaveLength(176);
+    expect(registered).toHaveLength(177);
+    expect(registered).toContain('GET /contributors');
     expect(registered).toContain('GET /admin/dashboard/statistics');
     expect(registered).toContain('POST /ai-assistant/chat');
     expect([...operations].sort()).toEqual([...registered].sort());
