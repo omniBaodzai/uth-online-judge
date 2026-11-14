@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE public.problems
+    ADD COLUMN is_hidden BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMIT;

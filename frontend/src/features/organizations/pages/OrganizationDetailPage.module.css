@@ -625,3 +625,205 @@
     linear-gradient(rgba(16, 36, 38, 0.86), rgba(16, 36, 38, 0.9)),
     url('../../../assets/uth_background.jpg');
 }
+
+.adminDetailManager {
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.adminDetailManager .adminGroupTitle {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.adminDetailManager .adminAddForm,
+.adminDetailManager .adminDetailFilters {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 96%, var(--color-primary));
+}
+
+.adminDetailManager .adminAddForm {
+  align-items: end;
+}
+
+.adminDetailManager .adminDetailFilters {
+  margin-top: 14px;
+}
+
+.adminDetailManager .adminAddForm label,
+.adminDetailManager .adminDetailFilters label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.adminDetailManager .adminAddForm label > span,
+.adminDetailManager .adminDetailFilters label > span {
+  color: var(--color-muted);
+  line-height: 1.35;
+}
+
+.adminDetailManager .adminAddForm input,
+.adminDetailManager .adminAddForm select,
+.adminDetailManager .adminDetailFilters input,
+.adminDetailManager .adminDetailFilters select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.adminDetailManager .adminAddForm input:focus-visible,
+.adminDetailManager .adminAddForm select:focus-visible,
+.adminDetailManager .adminDetailFilters input:focus-visible,
+.adminDetailManager .adminDetailFilters select:focus-visible,
+.adminDetailManager .joinButton:focus-visible,
+.adminDetailManager .secondaryButton:focus-visible,
+.adminDetailManager .dangerButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.adminDetailManager .adminAddForm .joinButton {
+  min-height: 44px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.adminDetailManager .adminMemberList {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.adminDetailManager .tableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.adminDetailManager .table {
+  width: 100%;
+  min-width: 620px;
+}
+
+.adminDetailManager .table th,
+.adminDetailManager .table td {
+  padding: 13px 15px;
+  vertical-align: middle;
+}
+
+.adminDetailManager .table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+}
+
+.adminDetailManager .adminMemberIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.adminDetailManager .adminMemberIdentity > :first-child {
+  flex: 0 0 auto;
+}
+
+.adminDetailManager .adminMemberIdentity > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.adminDetailManager .adminMemberIdentity small {
+  color: var(--color-muted);
+}
+
+.adminDetailManager .adminRoleBadge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  color: var(--color-primary-dark);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.adminDetailManager .adminRowActions {
+  min-width: 178px;
+  align-items: center;
+}
+
+.adminDetailManager .adminRowActions button,
+.adminDetailManager .adminMemberPagination button {
+  min-height: 40px;
+}
+
+.adminDetailManager .adminMemberPagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0;
+}
+
+.adminDetailManager .adminAddForm .joinButton:hover:not(:disabled) {
+  filter: brightness(.94);
+}
+
+.adminDetailManager .secondaryButton:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
+}
+
+.adminDetailManager .dangerButton:hover:not(:disabled) {
+  background: color-mix(in srgb, #dc2626 6%, var(--color-surface));
+}
+
+@container (min-width: 540px) {
+  .adminDetailManager .adminAddForm {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, .7fr) auto;
+  }
+
+  .adminDetailManager .adminDetailFilters {
+    grid-template-columns: minmax(0, 1.3fr) minmax(160px, .7fr);
+  }
+
+  .adminDetailManager .adminGroupTitle {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adminDetailManager .adminAddForm .joinButton,
+  .adminDetailManager .secondaryButton,
+  .adminDetailManager .dangerButton {
+    transition: none;
+  }
+}

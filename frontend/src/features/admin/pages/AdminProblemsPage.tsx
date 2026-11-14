@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Archive,
   BookOpen,
   CheckCircle2,
+  Eye,
+  EyeOff,
   FileText,
   FlaskConical,
   Pencil,
@@ -23,7 +25,7 @@ import { formatDate, statusLabels } from '../utils'
 import type { AdminDashboard, AdminProblem, AdminProblemPage, AdminProblemStatus } from '../types'
 import styles from './AdminProblemsPage.module.css'
 
-type PendingAction = { problem: AdminProblem; status: AdminProblemStatus | 'delete' }
+type PendingAction = { problem: AdminProblem; status: AdminProblemStatus | 'delete' | 'hide' | 'show' }
 type MetricTone = 'teal' | 'green' | 'amber' | 'slate'
 const PAGE_SIZE_OPTIONS = submissionPageSizes
 type PageSize = (typeof PAGE_SIZE_OPTIONS)[number]
@@ -37,6 +39,25 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof ApiError ? cause.message : fallback
 }
 
+function visibilityErrorMessage(cause: unknown) {
+  if (!(cause instanceof ApiError)) {
+    return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.'
+  }
+  if (cause.status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+  if (cause.status === 403) return 'Bạn không có quyền thực hiện thao tác này.'
+  if (cause.status === 404) return 'Không tìm thấy bài tập. Danh sách có thể đã thay đổi; vui lòng tải lại.'
+  if (cause.status === 409) {
+    return cause.message || 'Bài tập đang có thay đổi xung đột. Vui lòng thử lại sau.'
+  }
+  if (cause.status === 0) {
+    return cause.message || 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.'
+  }
+  if (cause.status >= 500) {
+    return 'Máy chủ chưa thể cập nhật trạng thái hiển thị. Vui lòng thử lại sau.'
+  }
+  return cause.message || 'Không thể cập nhật trạng thái hiển thị. Vui lòng thử lại.'
+}
+
 function isProblemStatus(value: string): value is AdminProblemStatus {
   return value === 'draft' || value === 'published' || value === 'archived'
 }
@@ -47,6 +68,7 @@ function AdminProblemsPage() {
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<AdminProblemStatus | 'all'>('all')
+  const [visibility, setVisibility] = useState<'all' | 'visible' | 'hidden'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const [listRefreshKey, setListRefreshKey] = useState(0)
@@ -55,6 +77,7 @@ function AdminProblemsPage() {
   const [loading, setLoading] = useState(true)
   const [countsLoading, setCountsLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [error, setError] = useState('')
   const [countsError, setCountsError] = useState('')
 
@@ -62,8 +85,9 @@ function AdminProblemsPage() {
     const query = new URLSearchParams({ page: String(currentPage), pageSize: String(pageSize) })
     if (search.trim()) query.set('search', search.trim())
     if (status !== 'all') query.set('status', status)
+    if (visibility !== 'all') query.set('visibility', visibility)
     return request<AdminProblemPage>(`/admin/problems?${query.toString()}`)
-  }, [currentPage, pageSize, request, search, status])
+  }, [currentPage, pageSize, request, search, status, visibility])
 
   const fetchDashboard = useCallback(
     () => request<AdminDashboard>('/admin/dashboard'),
@@ -130,10 +154,11 @@ function AdminProblemsPage() {
   }, [fetchDashboard])
 
   function clearFilters() {
-    if (search || status !== 'all' || currentPage !== 1) setLoading(true)
+    if (search || status !== 'all' || visibility !== 'all' || currentPage !== 1) setLoading(true)
     setError('')
     setSearch('')
     setStatus('all')
+    setVisibility('all')
     setCurrentPage(1)
   }
 
@@ -143,12 +168,13 @@ function AdminProblemsPage() {
   }
 
   async function completeAction() {
-    if (!pending) return
+    if (!pending || savingRef.current) return
     if (pending.status === 'delete' && pending.problem.status !== 'draft') {
       setPendingError('API hiện chỉ cho phép xóa bài tập ở trạng thái bản nháp.')
       return
     }
 
+    savingRef.current = true
     setSaving(true)
     setPendingError('')
     const { problem, status: next } = pending
@@ -156,6 +182,18 @@ function AdminProblemsPage() {
       if (next === 'delete') {
         await request<void>(`/admin/problems/${problem.id}`, { method: 'DELETE' })
         setNotice(`Đã xóa bài tập “${problem.code}”.`)
+      } else if (next === 'hide' || next === 'show') {
+        const isHidden = next === 'hide'
+        const result = await request<{ id: string; status: AdminProblemStatus; isHidden: boolean }>(
+          `/admin/problems/${problem.id}/visibility`,
+          { method: 'PATCH', body: JSON.stringify({ isHidden }) },
+        )
+        if (result.status !== 'published' || result.isHidden !== isHidden) {
+          throw new Error('Phản hồi trạng thái hiển thị không khớp. Vui lòng tải lại danh sách trước khi thử lại.')
+        }
+        setNotice(isHidden
+          ? `Đã ẩn “${problem.code}” khỏi danh sách bài tập công khai.`
+          : `Đã hiển thị lại “${problem.code}” trong danh sách bài tập công khai.`)
       } else {
         await request<AdminProblem>(`/admin/problems/${problem.id}/status`, {
           method: 'PATCH',
@@ -168,17 +206,20 @@ function AdminProblemsPage() {
       setPendingError('')
       setLoading(true)
       setListRefreshKey((value) => value + 1)
-      await refreshCounts()
+      if (next !== 'hide' && next !== 'show') await refreshCounts()
     } catch (cause) {
-      setPendingError(errorMessage(cause, 'Không thể lưu thay đổi. Vui lòng thử lại.'))
+      setPendingError(next === 'hide' || next === 'show'
+        ? visibilityErrorMessage(cause)
+        : errorMessage(cause, 'Không thể lưu thay đổi. Vui lòng thử lại.'))
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
 
   const problems = page?.items ?? []
   const totalPages = Math.max(1, Math.ceil((page?.total ?? 0) / pageSize))
-  const hasFilters = Boolean(search.trim()) || status !== 'all'
+  const hasFilters = Boolean(search.trim()) || status !== 'all' || visibility !== 'all'
   const counts = dashboard
 
   function changePage(nextPage: number) {
@@ -309,6 +350,25 @@ function AdminProblemsPage() {
               <option value="archived">Đã lưu trữ</option>
             </select>
           </label>
+          <label className={styles.visibilityFilter}>
+            <span className={styles.srOnly}>Lọc theo hiển thị công khai</span>
+            <select
+              aria-label="Lọc theo hiển thị công khai"
+              value={visibility}
+              onChange={(event) => {
+                const next = event.currentTarget.value
+                if (next !== 'all' && next !== 'visible' && next !== 'hidden') return
+                setLoading(true)
+                setError('')
+                setVisibility(next)
+                setCurrentPage(1)
+              }}
+            >
+              <option value="all">Tất cả hiển thị</option>
+              <option value="visible">Đang hiển thị</option>
+              <option value="hidden">Đang ẩn</option>
+            </select>
+          </label>
           <button className={styles.clearButton} type="button" onClick={clearFilters}>
             Xóa bộ lọc
           </button>
@@ -371,7 +431,7 @@ function AdminProblemsPage() {
                         {problem.summary && <span className={styles.problemSummary}>{problem.summary}</span>}
                       </td>
                       <td><TagList tags={problem.tags} /></td>
-                      <td><StatusBadge status={problem.status} /></td>
+                      <td><StatusBadges status={problem.status} isHidden={problem.isHidden} /></td>
                       <td className={styles.dateCell}>{formatDate(problem.updatedAt)}</td>
                       <td><ProblemActions problem={problem} onAction={openAction} /></td>
                     </tr>
@@ -384,7 +444,7 @@ function AdminProblemsPage() {
                 <article className={styles.mobileCard} key={problem.id}>
                   <div className={styles.mobileCardTop}>
                     <span className={styles.problemCode}>{problem.code}</span>
-                    <StatusBadge status={problem.status} />
+                    <StatusBadges status={problem.status} isHidden={problem.isHidden} />
                   </div>
                   <Link className={styles.problemTitle} to={`/admin/problems/${problem.id}/edit`}>{problem.title}</Link>
                   {problem.summary && <p className={styles.problemSummary}>{problem.summary}</p>}
@@ -404,6 +464,10 @@ function AdminProblemsPage() {
         <ConfirmDialog
           title={pending.status === 'delete'
             ? 'Xóa bài tập?'
+            : pending.status === 'hide'
+              ? 'Ẩn bài tập khỏi danh sách?'
+              : pending.status === 'show'
+                ? 'Hiển thị lại bài tập?'
             : pending.status === 'published' && pending.problem.status === 'archived'
               ? 'Khôi phục bài tập?'
               : pending.status === 'published'
@@ -411,9 +475,17 @@ function AdminProblemsPage() {
                 : 'Lưu trữ bài tập?'}
           description={pending.status === 'delete'
             ? `“${pending.problem.code} — ${pending.problem.title}” sẽ bị xóa vĩnh viễn. Nếu bài đã có bài nộp hoặc đang được dùng trong kỳ thi, hệ thống sẽ từ chối xóa để giữ lịch sử. Một số dữ liệu phụ thuộc có thể bị xóa theo ràng buộc hiện hành.`
+            : pending.status === 'hide'
+              ? 'Bài tập sẽ không còn xuất hiện trong danh sách bài tập công khai. Người có đường dẫn trực tiếp vẫn có thể xem đề và nộp bài bình thường. Bạn có muốn tiếp tục?'
+              : pending.status === 'show'
+                ? 'Bài tập sẽ xuất hiện trở lại trong danh sách bài tập công khai. Bạn có muốn tiếp tục?'
             : `Xác nhận chuyển “${pending.problem.code} — ${pending.problem.title}” sang trạng thái ${statusLabels[pending.status]}?`}
           confirmLabel={pending.status === 'delete'
             ? 'Xóa vĩnh viễn'
+            : pending.status === 'hide'
+              ? 'Ẩn khỏi danh sách'
+              : pending.status === 'show'
+                ? 'Hiển thị lại'
             : pending.status === 'published' && pending.problem.status === 'archived'
               ? 'Khôi phục bài tập'
               : pending.status === 'published'
@@ -470,6 +542,17 @@ function StatusBadge({ status }: { status: AdminProblemStatus }) {
   return <span className={`${styles.statusBadge} ${styles[`status_${status}`]}`}>{statusLabels[status]}</span>
 }
 
+function StatusBadges({ status, isHidden }: { status: AdminProblemStatus; isHidden: boolean }) {
+  return (
+    <div className={styles.statusBadges} role="group" aria-label="Trạng thái bài tập">
+      <StatusBadge status={status} />
+      {status === 'published' && isHidden && (
+        <span className={`${styles.statusBadge} ${styles.status_hidden}`}>Đang ẩn</span>
+      )}
+    </div>
+  )
+}
+
 function ProblemActions({
   problem,
   onAction,
@@ -506,9 +589,28 @@ function ProblemActions({
         </button>
       )}
       {problem.status === 'published' && (
-        <button className={styles.actionButton} type="button" title="Lưu trữ bài tập" onClick={() => onAction({ problem, status: 'archived' })}>
-          <Archive size={14} aria-hidden="true" /><span>Lưu trữ</span>
-        </button>
+        <>
+          <button
+            className={styles.actionButton}
+            type="button"
+            title="Lưu trữ bài tập"
+            onClick={() => onAction({ problem, status: 'archived' })}
+          >
+            <Archive size={14} aria-hidden="true" /><span>Lưu trữ</span>
+          </button>
+          <button
+            className={styles.actionButton}
+            type="button"
+            aria-label={`${problem.isHidden ? 'Hiện' : 'Ẩn'} ${problem.code} khỏi danh sách bài tập công khai`}
+            title={problem.isHidden
+              ? 'Hiện lại trong danh sách bài tập công khai'
+              : 'Ẩn khỏi danh sách bài tập công khai; người có đường dẫn trực tiếp vẫn xem và nộp bài được'}
+            onClick={() => onAction({ problem, status: problem.isHidden ? 'show' : 'hide' })}
+          >
+            {problem.isHidden ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+            <span>{problem.isHidden ? 'Hiện' : 'Ẩn'}</span>
+          </button>
+        </>
       )}
       {problem.status === 'archived' && (
         <button className={`${styles.actionButton} ${styles.actionPrimary}`} type="button" title="Khôi phục bài tập" onClick={() => onAction({ problem, status: 'published' })}>

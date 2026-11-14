@@ -10,6 +10,7 @@ import type {
   AdminProblemEditorial,
   AdminProblemListQuery,
   AdminProblemPage,
+  AdminProblemVisibilityResult,
   AdminTestCase,
 } from './admin.types.js';
 import type {
@@ -37,6 +38,7 @@ type ProblemRow = {
   score: string | number;
   test_case_revision: number;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  is_hidden: boolean;
   updated_at: Date;
   tags: string[];
   languages: string[];
@@ -76,7 +78,7 @@ const PROBLEM_FIELDS = `
   p.difficulty,
   p.input_description, p.output_description, p.constraints_text,
   p.time_limit_ms, p.memory_limit_mb, p.scoring_enabled, p.score, p.test_case_revision,
-  p.status, p.updated_at,
+  p.status, p.is_hidden, p.updated_at,
   COALESCE((
     SELECT array_agg(t.name ORDER BY t.name)::text[]
     FROM problem_tags pt JOIN tags t ON t.id = pt.tag_id
@@ -97,7 +99,7 @@ export class AdminRepository {
     organizationId: string | null = null,
   ): Promise<AdminProblemPage> {
     const conditions: string[] = ['p.organization_id IS NOT DISTINCT FROM $1::uuid'];
-    const values: Array<string | number | null> = [organizationId];
+    const values: Array<string | number | boolean | null> = [organizationId];
     if (query.search?.trim()) {
       values.push(`%${escapeLike(query.search.trim())}%`);
       conditions.push(`(p.problem_code ILIKE $${values.length} ESCAPE '\\' OR p.title ILIKE $${values.length} ESCAPE '\\')`);
@@ -109,6 +111,10 @@ export class AdminRepository {
     if (query.difficulty) {
       values.push(query.difficulty.toUpperCase());
       conditions.push(`p.difficulty = $${values.length}`);
+    }
+    if (query.visibility) {
+      values.push(query.visibility === 'hidden');
+      conditions.push(`p.is_hidden = $${values.length}`);
     }
     const where = `WHERE ${conditions.join(' AND ')}`;
     const count = await this.database.query<{ total: string }>(
@@ -314,6 +320,40 @@ export class AdminRepository {
     } finally {
       client.release();
     }
+  }
+
+  async setProblemVisibility(id: string, isHidden: boolean): Promise<AdminProblemVisibilityResult> {
+    let updatedProblem: { id: string; status: 'PUBLISHED'; is_hidden: boolean } | undefined;
+    try {
+      const updated = await this.database.query<{ id: string; status: 'PUBLISHED'; is_hidden: boolean }>(
+        `UPDATE problems
+         SET is_hidden = $2
+         WHERE id = $1 AND organization_id IS NULL AND status = 'PUBLISHED'
+         RETURNING id, status, is_hidden`,
+        [id, isHidden],
+      );
+      updatedProblem = updated.rows[0];
+    } catch (error) {
+      if (isContestRunningVisibilityError(error)) {
+        const action = isHidden ? 'ẩn' : 'hiện';
+        throw new ConflictException(
+          `Không thể ${action} bài tập vì bài tập đang thuộc một cuộc thi diễn ra. Vui lòng thử lại sau khi cuộc thi kết thúc.`,
+        );
+      }
+      throw error;
+    }
+    if (updatedProblem) {
+      return { id: updatedProblem.id, status: 'published', isHidden: updatedProblem.is_hidden };
+    }
+
+    const existing = await this.database.query<{ status: string }>(
+      `SELECT status
+       FROM problems
+       WHERE id = $1 AND organization_id IS NULL`,
+      [id],
+    );
+    if (!existing.rows[0]) throw new NotFoundException('Không tìm thấy bài tập.');
+    throw new ConflictException('Chỉ bài tập đã xuất bản mới có thể ẩn hoặc hiện khỏi danh sách công khai.');
   }
 
   async deleteProblem(
@@ -876,6 +916,7 @@ function mapProblem(row: ProblemRow): AdminProblem {
     examples: [],
     editorials: [],
     status: row.status.toLowerCase() as AdminProblem['status'],
+    isHidden: row.is_hidden,
     updatedAt: row.updated_at.toISOString(),
   };
 }
@@ -899,6 +940,13 @@ function mapTestCase(row: TestCaseRow): AdminTestCase {
     points: 1,
     position: row.position,
   };
+}
+
+function isContestRunningVisibilityError(error: unknown): boolean {
+  return error instanceof Error &&
+    'code' in error &&
+    error.code === '55000' &&
+    error.message === 'Problem data cannot be changed while its contest is running.';
 }
 
 function uniqueNames(names: string[]): string[] {

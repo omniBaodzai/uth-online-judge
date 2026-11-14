@@ -39,6 +39,9 @@ type Props = {
   section: 'problems' | 'contests'
   canManage: boolean
   archived: boolean
+  showGuidance?: boolean
+  showEmptyStateText?: boolean
+  adminDetail?: boolean
 }
 
 type ProblemForm = {
@@ -120,7 +123,14 @@ function toIsoDateTime(value: string) {
   return new Date(value).toISOString()
 }
 
-function ProblemPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
+function ProblemPanel({
+  slug,
+  canManage,
+  archived,
+  showGuidance = true,
+  showEmptyStateText = true,
+  adminDetail = false,
+}: Omit<Props, 'section'>) {
   const { t } = useTranslation('pages')
   const api = useOrganizationsApi()
   const [page, setPage] = useState(1)
@@ -391,11 +401,11 @@ function ProblemPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
   const showForm = creating || Boolean(editing && selected)
 
   return (
-    <section className={styles.panel} aria-labelledby="organization-problems-title">
+    <section className={`${styles.panel} ${adminDetail ? styles.adminDetailPanel : ''}`} aria-labelledby="organization-problems-title">
       <header className={styles.header}>
         <div>
           <h2 id="organization-problems-title">{t('organizationManageProblems')}</h2>
-          <p>{t('organizationContentProblemsHint')}</p>
+          {showGuidance && <p>{t('organizationContentProblemsHint')}</p>}
         </div>
         {canManage && !archived && (
           <button type="button" className={styles.primary} onClick={startCreate} disabled={busy}>
@@ -414,9 +424,9 @@ function ProblemPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
       {loading && !showForm && !selected
         ? <p className={styles.empty}>{t('organizationContentLoading')}</p>
         : !showForm && !selected && items.length === 0 && !error
-          ? <p className={styles.empty}>{t('organizationTabNoData_problems')}</p>
+          ? showEmptyStateText ? <p className={styles.empty}>{t('organizationTabNoData_problems')}</p> : null
           : (
-        <div className={styles.grid}>
+        <div className={`${styles.grid} ${adminDetail && showForm ? styles.formOpenGrid : ''}`}>
           <ul className={styles.list}>
             {items.map((problem) => (
               <li key={problem.id}>
@@ -433,24 +443,24 @@ function ProblemPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
           </ul>
           <div className={styles.content}>
             {showForm ? (
-              <form className={styles.form} onSubmit={(event) => void saveProblem(event)}>
+              <form className={`${styles.form} ${adminDetail ? styles.adminDetailForm : ''}`} onSubmit={(event) => void saveProblem(event)}>
                 <h3>{creating ? t('organizationContentCreateProblem') : t('organizationContentEditProblem')}</h3>
                 <label>{t('organizationContentCode')}<input required maxLength={50} value={form.code} disabled={!creating} onChange={(event) => setForm({ ...form, code: event.target.value })} /></label>
                 <label>{t('organizationContentTitle')}<input required maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
-                <label>{t('organizationContentSummary')}<input maxLength={200} value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} /></label>
-                <label>{t('organizationContentStatement')}<textarea required rows={7} maxLength={100000} value={form.statement} onChange={(event) => setForm({ ...form, statement: event.target.value })} /></label>
+                <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentSummary')}<input maxLength={200} value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} /></label>
+                <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentStatement')}<textarea required rows={7} maxLength={100000} value={form.statement} onChange={(event) => setForm({ ...form, statement: event.target.value })} /></label>
                 <div className={styles.twoCols}>
                   <label>{t('organizationContentDifficulty')}<select value={form.difficulty} onChange={(event) => setForm({ ...form, difficulty: event.target.value as ProblemForm['difficulty'] })}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></label>
                   <label>{t('organizationContentTimeLimit')}<input type="number" min="0.1" max="600" step="0.1" required value={form.timeLimitSeconds} onChange={(event) => setForm({ ...form, timeLimitSeconds: event.target.value })} /></label>
                   <label>{t('organizationContentMemoryLimit')}<input type="number" min="16" max="65536" required value={form.memoryLimitMb} onChange={(event) => setForm({ ...form, memoryLimitMb: event.target.value })} /></label>
                   <label>{t('organizationContentLanguages')}<input required value={form.languages} placeholder="C++17, Python 3" onChange={(event) => setForm({ ...form, languages: event.target.value })} /></label>
                 </div>
-                <label>{t('organizationContentTags')}<input value={form.tags} placeholder="array, sorting" onChange={(event) => setForm({ ...form, tags: event.target.value })} /></label>
+                <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentTags')}<input value={form.tags} placeholder="array, sorting" onChange={(event) => setForm({ ...form, tags: event.target.value })} /></label>
                 <div className={styles.twoCols}>
                   <label>{t('organizationContentInputDescription')}<textarea rows={3} value={form.inputDescription} onChange={(event) => setForm({ ...form, inputDescription: event.target.value })} /></label>
                   <label>{t('organizationContentOutputDescription')}<textarea rows={3} value={form.outputDescription} onChange={(event) => setForm({ ...form, outputDescription: event.target.value })} /></label>
                 </div>
-                <label>{t('organizationContentConstraints')}<textarea rows={3} value={form.constraints} onChange={(event) => setForm({ ...form, constraints: event.target.value })} /></label>
+                <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentConstraints')}<textarea rows={3} value={form.constraints} onChange={(event) => setForm({ ...form, constraints: event.target.value })} /></label>
                 <fieldset>
                   <legend>{t('organizationContentTestCases')}</legend>
                   {caseRows.map((testCase, index) => <div className={styles.caseEditor} key={testCase.id ?? `new-${index}`}>
@@ -472,7 +482,7 @@ function ProblemPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
                   {editorialRows.map((editorial, index) => <div className={styles.caseEditor} key={editorial.id ?? `editorial-${index}`}>
                     <label>{t('organizationContentEditorialTitle')}<input required maxLength={160} value={editorial.title} onChange={(event) => setEditorialRows((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, title: event.target.value } : row))} /></label>
                     <label>{t('organizationContentEditorialLanguage')}<input required maxLength={100} value={editorial.language} onChange={(event) => setEditorialRows((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, language: event.target.value } : row))} /></label>
-                    <label>{t('organizationContentEditorialCode')}<textarea required rows={5} maxLength={100000} value={editorial.sourceCode} onChange={(event) => setEditorialRows((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, sourceCode: event.target.value } : row))} /></label>
+                    <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentEditorialCode')}<textarea required rows={5} maxLength={100000} value={editorial.sourceCode} onChange={(event) => setEditorialRows((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, sourceCode: event.target.value } : row))} /></label>
                     <button className={styles.danger} type="button" disabled={busy} onClick={() => setEditorialRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}>{t('organizationContentRemoveEditorial')}</button>
                   </div>)}
                   <button className={styles.secondary} type="button" disabled={busy} onClick={() => setEditorialRows((rows) => [...rows, { title: '', language: '', sourceCode: '' }])}>{t('organizationContentAddEditorial')}</button>
@@ -539,7 +549,14 @@ function ProblemPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
   )
 }
 
-function ContestPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
+function ContestPanel({
+  slug,
+  canManage,
+  archived,
+  showGuidance = true,
+  showEmptyStateText = true,
+  adminDetail = false,
+}: Omit<Props, 'section'>) {
   const { t } = useTranslation('pages')
   const api = useOrganizationsApi()
   const [items, setItems] = useState<OrganizationContest[]>([])
@@ -694,9 +711,12 @@ function ContestPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
   const showForm = creating || Boolean(editing && selected)
 
   return (
-    <section className={styles.panel} aria-labelledby="organization-contests-title">
+    <section className={`${styles.panel} ${adminDetail ? styles.adminDetailPanel : ''}`} aria-labelledby="organization-contests-title">
       <header className={styles.header}>
-        <div><h2 id="organization-contests-title">{t('organizationManageContests')}</h2><p>{t('organizationContentContestsHint')}</p></div>
+        <div>
+          <h2 id="organization-contests-title">{t('organizationManageContests')}</h2>
+          {showGuidance && <p>{t('organizationContentContestsHint')}</p>}
+        </div>
         {canManage && !archived && <button type="button" className={styles.primary} disabled={busy} onClick={startCreate}>{t('organizationContentCreateContest')}</button>}
       </header>
       <div className={styles.toolbar}><label><span>{t('organizationContentSearch')}</span><input value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
@@ -705,9 +725,9 @@ function ContestPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
       {loading && !showForm && !selected
         ? <p className={styles.empty}>{t('organizationContentLoading')}</p>
         : !showForm && !selected && items.length === 0 && !error
-          ? <p className={styles.empty}>{t('organizationTabNoData_contests')}</p>
+          ? showEmptyStateText ? <p className={styles.empty}>{t('organizationTabNoData_contests')}</p> : null
           : (
-        <div className={styles.grid}>
+        <div className={`${styles.grid} ${adminDetail && showForm ? styles.formOpenGrid : ''}`}>
           <ul className={styles.list}>{items.map((contest) => <li key={contest.id}>
             <button type="button" className={`${styles.listItem} ${selectedId === contest.id ? styles.selected : ''}`} onClick={() => { setSelectedId(contest.id); setCreating(false); setEditing(false); setError('') }}>
               <strong>{contest.title}</strong><span>{contest.slug}</span><small>{contest.publicationStatus} · {contest.visibility}</small>
@@ -715,17 +735,17 @@ function ContestPanel({ slug, canManage, archived }: Omit<Props, 'section'>) {
           </li>)}</ul>
           <div className={styles.content}>
             {showForm ? (
-              <form className={styles.form} onSubmit={(event) => void saveContest(event)}>
+              <form className={`${styles.form} ${adminDetail ? styles.adminDetailForm : ''}`} onSubmit={(event) => void saveContest(event)}>
                 <h3>{creating ? t('organizationContentCreateContest') : t('organizationContentEditContest')}</h3>
                 <label>{t('organizationContentSlug')}<input required maxLength={120} value={form.slug} disabled={Boolean(selected?.publishedAt)} onChange={(event) => setForm({ ...form, slug: event.target.value })} /></label>
                 <label>{t('organizationContentTitle')}<input required maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
-                <label>{t('organizationContentDescription')}<textarea rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
-                <label>{t('organizationContentRules')}<textarea rows={3} value={form.rules} onChange={(event) => setForm({ ...form, rules: event.target.value })} /></label>
+                <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentDescription')}<textarea rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
+                <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentRules')}<textarea rows={3} value={form.rules} onChange={(event) => setForm({ ...form, rules: event.target.value })} /></label>
                 <div className={styles.twoCols}>
                   <label>{t('organizationContentStartsAt')}<input type="datetime-local" required value={form.startsAt} onChange={(event) => setForm({ ...form, startsAt: event.target.value })} /></label>
                   <label>{t('organizationContentEndsAt')}<input type="datetime-local" required value={form.endsAt} onChange={(event) => setForm({ ...form, endsAt: event.target.value })} /></label>
                 </div>
-                <label>{t('organizationContentVisibility')}<select value={form.visibility} onChange={(event) => setForm({ ...form, visibility: event.target.value as ContestForm['visibility'] })}><option value="PUBLIC">{t('organizationVisibilityPublic')}</option><option value="PRIVATE">{t('organizationVisibilityPrivate')}</option></select></label>
+                <label className={adminDetail ? styles.wideFormField : undefined}>{t('organizationContentVisibility')}<select value={form.visibility} onChange={(event) => setForm({ ...form, visibility: event.target.value as ContestForm['visibility'] })}><option value="PUBLIC">{t('organizationVisibilityPublic')}</option><option value="PRIVATE">{t('organizationVisibilityPrivate')}</option></select></label>
                 <fieldset><legend>{t('organizationContentContestProblems')}</legend>
                   {options.length === 0 ? <p className={styles.muted}>{t('organizationContentNoProblemOptions')}</p> : (
                     <ul className={styles.optionList}>{options.map((option) => <li key={option.id}>

@@ -2,6 +2,7 @@ import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AdminRoleGuard } from './admin-role.guard.js';
 import { AdminController } from './admin.controller.js';
+import { AdminProblemVisibilityDto } from './dto/admin-problem.dto.js';
 
 describe('AdminController illustration upload', () => {
   it('requires both JWT authentication and the Admin role', () => {
@@ -40,5 +41,21 @@ describe('AdminController illustration upload', () => {
       days: 7,
     });
     expect(admin.dashboardStatistics).toHaveBeenCalledWith(query);
+  });
+
+  it('delegates visibility updates through the existing guarded Admin controller', async () => {
+    const result = { id: 'problem-1', status: 'published', isHidden: true };
+    const admin = { setProblemVisibility: vi.fn().mockResolvedValue(result) };
+    const controller = new AdminController(admin as never, {} as never);
+
+    await expect(controller.setProblemVisibility(
+      'problem-1',
+      { isHidden: true } as AdminProblemVisibilityDto,
+    )).resolves.toEqual(result);
+    expect(admin.setProblemVisibility).toHaveBeenCalledWith('problem-1', true);
+    expect(Reflect.getMetadata(GUARDS_METADATA, AdminController)).toEqual([
+      JwtAuthGuard,
+      AdminRoleGuard,
+    ]);
   });
 });

@@ -65,9 +65,9 @@
 
 .metricLabel {
   margin-top: 12px;
-  color: var(--admin-muted);
+  color: #000;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: bold;
 }
 
 .metricValue {

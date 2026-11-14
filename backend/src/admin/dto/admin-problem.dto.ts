@@ -225,3 +225,9 @@ export class AdminProblemStatusDto {
   @IsIn(['draft', 'published', 'archived'])
   status!: 'draft' | 'published' | 'archived';
 }
+
+export class AdminProblemVisibilityDto {
+  @ApiProperty({ description: 'Ẩn khỏi danh sách bài tập công khai' })
+  @IsBoolean()
+  isHidden!: boolean;
+}

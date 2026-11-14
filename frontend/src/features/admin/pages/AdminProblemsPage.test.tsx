@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../../auth/api'
 import i18n from '../../../i18n'
 import AdminProblemsPage from './AdminProblemsPage'
 
@@ -42,6 +43,7 @@ function problem(id: string, code: string, status: 'draft' | 'published' | 'arch
     examples: [],
     editorials: [],
     status,
+    isHidden: false,
     updatedAt: '2026-11-11T09:00:00.000Z',
   }
 }
@@ -225,6 +227,7 @@ describe('AdminProblemsPage', () => {
       bottomPager.querySelector<HTMLButtonElement>('[aria-label="Trang sau"]')?.click()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
+
     expect(bottomPager.querySelector('[aria-current="page"]')?.textContent).toBe('2')
 
     await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo trạng thái"]')!, 'published')
@@ -248,6 +251,283 @@ describe('AdminProblemsPage', () => {
       ),
     ).toHaveLength(1)
     expect(bottomPager.querySelector('[aria-current="page"]')?.textContent).toBe('1')
+  })
+
+  it('keeps visibility filtering independent from search and status and clears all filters', async () => {
+    await renderPage()
+
+    await changeControl(container.querySelector<HTMLInputElement>('input[aria-label="Tìm theo mã hoặc tên bài tập"]')!, 'GEN')
+    await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo trạng thái"]')!, 'published')
+    await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo hiển thị công khai"]')!, 'hidden')
+
+    expect(mocks.request).toHaveBeenCalledWith(
+      '/admin/problems?page=1&pageSize=20&search=GEN&status=published&visibility=hidden',
+    )
+    await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo hiển thị công khai"]')!, 'visible')
+    expect(mocks.request).toHaveBeenCalledWith(
+      '/admin/problems?page=1&pageSize=20&search=GEN&status=published&visibility=visible',
+    )
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent === 'Xóa bộ lọc')
+        ?.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=1&pageSize=20')
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Tìm theo mã hoặc tên bài tập"]')?.value).toBe('')
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo trạng thái"]')?.value).toBe('all')
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo hiển thị công khai"]')?.value).toBe('all')
+  })
+
+  it('shows Published and Hidden badges together with visibility actions only for published problems', async () => {
+    const visible = problem('visible-id', 'PUB_VISIBLE', 'published')
+    const hidden = { ...problem('hidden-id', 'PUB_HIDDEN', 'published'), isHidden: true }
+    const draft = problem('draft-id', 'DRAFT_01', 'draft')
+    const archived = problem('archived-id', 'ARC_01', 'archived')
+    mocks.request.mockImplementation((path: string) => {
+      if (path === '/admin/dashboard') return Promise.resolve(dashboard)
+      if (path.startsWith('/admin/problems?')) {
+        return Promise.resolve({ items: [visible, hidden, draft, archived], total: 4, page: 1, pageSize: 20 })
+      }
+      return Promise.resolve(undefined)
+    })
+
+    await renderPage()
+
+    const rows = Array.from(container.querySelectorAll('tbody tr'))
+    const visibleRow = rows.find((row) => row.textContent?.includes('PUB_VISIBLE'))!
+    const hiddenRow = rows.find((row) => row.textContent?.includes('PUB_HIDDEN'))!
+    const draftRow = rows.find((row) => row.textContent?.includes('DRAFT_01'))!
+    const archivedRow = rows.find((row) => row.textContent?.includes('ARC_01'))!
+
+    expect(visibleRow.textContent).toContain('Đã xuất bản')
+    expect(visibleRow.textContent).not.toContain('Đang ẩn')
+    expect(visibleRow.querySelector<HTMLButtonElement>('button[aria-label="Ẩn PUB_VISIBLE khỏi danh sách bài tập công khai"]')?.disabled).toBe(false)
+    expect(hiddenRow.textContent).toContain('Đã xuất bản')
+    expect(hiddenRow.textContent).toContain('Đang ẩn')
+    expect(hiddenRow.querySelector<HTMLButtonElement>('button[aria-label="Hiện PUB_HIDDEN khỏi danh sách bài tập công khai"]')?.disabled).toBe(false)
+    expect(draftRow.querySelector('button[aria-label$="khỏi danh sách bài tập công khai"]')).toBeNull()
+    expect(archivedRow.querySelector('button[aria-label$="khỏi danh sách bài tập công khai"]')).toBeNull()
+    expect(container.querySelector('[role="note"]')).toBeNull()
+    expect(container.textContent).not.toContain('Ẩn bài tập chỉ loại bài khỏi danh sách công khai')
+  })
+
+  it('requires confirmation to hide and sends no request when cancelled', async () => {
+    await renderPage()
+
+    expect(container.querySelector('[role="note"]')).toBeNull()
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Ẩn PUB_01 khỏi danh sách bài tập công khai"]')?.click()
+    })
+    let dialog = container.querySelector('[role="dialog"]')
+    expect(dialog?.textContent).toContain('Ẩn bài tập khỏi danh sách?')
+    expect(dialog?.textContent).toContain(
+      'Bài tập sẽ không còn xuất hiện trong danh sách bài tập công khai. Người có đường dẫn trực tiếp vẫn có thể xem đề và nộp bài bình thường. Bạn có muốn tiếp tục?',
+    )
+    expect(mocks.request.mock.calls.some(([path]) => path === '/admin/problems/published-id/visibility')).toBe(false)
+
+    await act(async () => {
+      Array.from(dialog?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+        .find((button) => button.textContent === 'Hủy')
+        ?.click()
+    })
+    dialog = container.querySelector('[role="dialog"]')
+    expect(dialog).toBeNull()
+    expect(mocks.request.mock.calls.some(([path]) => path === '/admin/problems/published-id/visibility')).toBe(false)
+  })
+
+  it('updates visibility only after server confirmation and keeps current filters on refresh', async () => {
+    let isHidden = false
+    mocks.request.mockImplementation((path: string, options?: { method?: string; body?: string }) => {
+      if (path === '/admin/dashboard') return Promise.resolve(dashboard)
+      if (path === '/admin/problems/published-id/visibility' && options?.method === 'PATCH') {
+        isHidden = JSON.parse(options.body ?? '{}').isHidden as boolean
+        return Promise.resolve({ id: 'published-id', status: 'published', isHidden })
+      }
+      if (path.startsWith('/admin/problems?')) {
+        const query = new URLSearchParams(path.slice(path.indexOf('?') + 1))
+        const items = problems.map((item) => item.id === 'published-id' ? { ...item, isHidden } : item)
+          .filter((item) => query.get('visibility') === 'hidden'
+            ? item.isHidden
+            : query.get('visibility') === 'visible'
+              ? !item.isHidden
+              : true)
+        return Promise.resolve({
+          items,
+          total: items.length,
+          page: 1,
+          pageSize: 20,
+        })
+      }
+      return Promise.resolve(undefined)
+    })
+    await renderPage()
+    await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo hiển thị công khai"]')!, 'visible')
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Ẩn PUB_01 khỏi danh sách bài tập công khai"]')?.click()
+    })
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[role="dialog"] button:last-child')?.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(mocks.request).toHaveBeenCalledWith('/admin/problems/published-id/visibility', {
+      method: 'PATCH',
+      body: JSON.stringify({ isHidden: true }),
+    })
+    expect(mocks.request).toHaveBeenCalledWith('/admin/problems?page=1&pageSize=20&visibility=visible')
+    expect(mocks.setNotice).toHaveBeenCalledWith('Đã ẩn “PUB_01” khỏi danh sách bài tập công khai.')
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(container.querySelector('tbody')?.textContent).not.toContain('PUB_01')
+  })
+
+  it('confirms showing a hidden problem and refreshes it into the visible list', async () => {
+    let isHidden = true
+    const hiddenProblem = { ...problems[1], isHidden: true }
+    mocks.request.mockImplementation((path: string, options?: { method?: string; body?: string }) => {
+      if (path === '/admin/dashboard') return Promise.resolve(dashboard)
+      if (path === '/admin/problems/published-id/visibility' && options?.method === 'PATCH') {
+        isHidden = JSON.parse(options.body ?? '{}').isHidden as boolean
+        return Promise.resolve({ id: 'published-id', status: 'published', isHidden })
+      }
+      if (path.startsWith('/admin/problems?')) {
+        const query = new URLSearchParams(path.slice(path.indexOf('?') + 1))
+        const items = [problems[0], { ...hiddenProblem, isHidden }, problems[2]]
+          .filter((item) => query.get('visibility') === 'hidden'
+            ? item.isHidden
+            : query.get('visibility') === 'visible'
+              ? !item.isHidden
+              : true)
+        return Promise.resolve({ items, total: items.length, page: 1, pageSize: 20 })
+      }
+      return Promise.resolve(undefined)
+    })
+    await renderPage()
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Hiện PUB_01 khỏi danh sách bài tập công khai"]')?.click()
+    })
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Hiển thị lại bài tập?')
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+      'Bài tập sẽ xuất hiện trở lại trong danh sách bài tập công khai. Bạn có muốn tiếp tục?',
+    )
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[role="dialog"] button:last-child')?.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(mocks.request).toHaveBeenCalledWith('/admin/problems/published-id/visibility', {
+      method: 'PATCH',
+      body: JSON.stringify({ isHidden: false }),
+    })
+    expect(mocks.setNotice).toHaveBeenCalledWith('Đã hiển thị lại “PUB_01” trong danh sách bài tập công khai.')
+    expect(container.querySelector('tbody')?.textContent).toContain('PUB_01')
+    expect(container.querySelector('tbody')?.textContent).not.toContain('Đang ẩn')
+  })
+
+  it('prevents duplicate visibility requests and disables dialog actions while saving', async () => {
+    let resolveRequest!: (value: { id: string; status: 'published'; isHidden: true }) => void
+    mocks.request.mockImplementation((path: string, options?: { method?: string }) => {
+      if (path === '/admin/dashboard') return Promise.resolve(dashboard)
+      if (path === '/admin/problems/published-id/visibility' && options?.method === 'PATCH') {
+        return new Promise((resolve) => {
+          resolveRequest = resolve as typeof resolveRequest
+        })
+      }
+      if (path.startsWith('/admin/problems?')) return Promise.resolve(listPageFor(path))
+      return Promise.resolve(undefined)
+    })
+    await renderPage()
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Ẩn PUB_01 khỏi danh sách bài tập công khai"]')?.click()
+    })
+
+    await act(async () => {
+      const confirm = container.querySelector<HTMLButtonElement>('[role="dialog"] button:last-child')!
+      confirm.click()
+      confirm.click()
+      await Promise.resolve()
+    })
+    expect(mocks.request.mock.calls.filter(([path]) => path === '/admin/problems/published-id/visibility')).toHaveLength(1)
+    expect(container.querySelector<HTMLButtonElement>('[role="dialog"] button:last-child')?.disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('[role="dialog"] button:first-child')?.disabled).toBe(true)
+
+    await act(async () => {
+      resolveRequest({ id: 'published-id', status: 'published', isHidden: true })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('keeps the previous visibility after API failure and permits a retry', async () => {
+    mocks.request.mockImplementation((path: string, options?: { method?: string }) => {
+      if (path === '/admin/dashboard') return Promise.resolve(dashboard)
+      if (path === '/admin/problems/published-id/visibility' && options?.method === 'PATCH') {
+        return Promise.reject(new Error('offline'))
+      }
+      if (path.startsWith('/admin/problems?')) return Promise.resolve(listPageFor(path))
+      return Promise.resolve(undefined)
+    })
+    await renderPage()
+    await changeControl(container.querySelector<HTMLInputElement>('input[aria-label="Tìm theo mã hoặc tên bài tập"]')!, 'PUB')
+    await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo trạng thái"]')!, 'published')
+    await changeControl(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo hiển thị công khai"]')!, 'visible')
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Ẩn PUB_01 khỏi danh sách bài tập công khai"]')?.click()
+    })
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[role="dialog"] button:last-child')?.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Không thể kết nối đến máy chủ')
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull()
+    const publishedRow = Array.from(container.querySelectorAll('tbody tr'))
+      .find((row) => row.textContent?.includes('PUB_01'))
+    expect(publishedRow?.textContent).toContain('Đã xuất bản')
+    expect(publishedRow?.textContent).not.toContain('Đang ẩn')
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Tìm theo mã hoặc tên bài tập"]')?.value).toBe('PUB')
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo trạng thái"]')?.value).toBe('published')
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Lọc theo hiển thị công khai"]')?.value).toBe('visible')
+    expect(mocks.setNotice).not.toHaveBeenCalled()
+    expect(mocks.request.mock.calls.filter(([path]) => path === '/admin/problems/published-id/visibility')).toHaveLength(1)
+  })
+
+  it.each([
+    [401, 'Unauthorized', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'],
+    [403, 'Forbidden', 'Bạn không có quyền thực hiện thao tác này.'],
+    [404, 'Not Found', 'Không tìm thấy bài tập. Danh sách có thể đã thay đổi; vui lòng tải lại.'],
+    [
+      409,
+      'Không thể ẩn bài tập vì bài tập đang thuộc một cuộc thi diễn ra. Vui lòng thử lại sau khi cuộc thi kết thúc.',
+      'Không thể ẩn bài tập vì bài tập đang thuộc một cuộc thi diễn ra. Vui lòng thử lại sau khi cuộc thi kết thúc.',
+    ],
+    [500, 'Internal server error', 'Máy chủ chưa thể cập nhật trạng thái hiển thị. Vui lòng thử lại sau.'],
+    [0, 'Không thể hoàn tất yêu cầu đến máy chủ.', 'Không thể hoàn tất yêu cầu đến máy chủ.'],
+  ])('shows a useful visibility error for HTTP %s without retrying', async (status, responseMessage, expectedMessage) => {
+    mocks.request.mockImplementation((path: string, options?: { method?: string }) => {
+      if (path === '/admin/dashboard') return Promise.resolve(dashboard)
+      if (path === '/admin/problems/published-id/visibility' && options?.method === 'PATCH') {
+        return Promise.reject(new ApiError(responseMessage, status))
+      }
+      if (path.startsWith('/admin/problems?')) return Promise.resolve(listPageFor(path))
+      return Promise.resolve(undefined)
+    })
+    await renderPage()
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Ẩn PUB_01 khỏi danh sách bài tập công khai"]')?.click()
+    })
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[role="dialog"] button:last-child')?.click()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(expectedMessage)
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull()
+    expect(mocks.request.mock.calls.filter(([path]) => path === '/admin/problems/published-id/visibility')).toHaveLength(1)
   })
 
   it('moves back to the last available page when the record total shrinks', async () => {

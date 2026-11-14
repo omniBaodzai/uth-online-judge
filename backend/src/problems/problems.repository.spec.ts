@@ -55,6 +55,7 @@ describe('ProblemsRepository', () => {
       const sql = database.query.mock.calls.map(([text]) => text).join('\n');
       expect(sql).toContain("p.status = 'PUBLISHED'");
       expect(sql).toContain('p.organization_id IS NULL');
+      expect(sql).toContain('p.is_hidden = FALSE');
       expect(sql).not.toContain('expected_output');
       expect(sql).not.toContain('input_data');
       expect(sql).not.toContain('content_markdown');
@@ -83,6 +84,18 @@ describe('ProblemsRepository', () => {
       expect(pageSql).toMatch(/DESC NULLS LAST, id DESC/);
     });
 
+    it('applies visibility before search, tag filtering, counting, and pagination', async () => {
+      await repository.listPublished({ ...baseQuery, search: 'visible', tags: ['math'], page: 2 }, null);
+
+      const [countSql, countValues] = database.query.mock.calls[0];
+      const [pageSql, pageValues] = database.query.mock.calls[1];
+      expect(countSql).toContain('p.is_hidden = FALSE');
+      expect(pageSql).toContain('p.is_hidden = FALSE');
+      expect(countSql).toContain('SELECT COUNT(*) AS total FROM base');
+      expect(pageSql).toContain('FROM base');
+      expect(pageValues).toEqual([...countValues, 20, 20]);
+    });
+
     it('sorts by newest creation time with a stable id tie-breaker before pagination', async () => {
       await repository.listPublished(
         { ...baseQuery, page: 2, pageSize: 10, search: 'new', tags: ['math'], status: 'solved' },
@@ -106,6 +119,17 @@ describe('ProblemsRepository', () => {
   it('returns no tag query work for an empty id list', async () => {
     await expect(repository.findTagsForProblems([])).resolves.toEqual(new Map());
     expect(database.query).not.toHaveBeenCalled();
+  });
+
+  it('only exposes tags attached to published, visible global problems', async () => {
+    database.query.mockResolvedValue({ rows: [{ name: 'Toán', slug: 'math' }] });
+
+    await expect(repository.listTags()).resolves.toEqual([{ name: 'Toán', slug: 'math' }]);
+
+    const [sql] = database.query.mock.calls[0];
+    expect(sql).toContain("p.status = 'PUBLISHED'");
+    expect(sql).toContain('p.organization_id IS NULL');
+    expect(sql).toContain('p.is_hidden = FALSE');
   });
 
   it('groups tags by problem', async () => {
@@ -138,6 +162,7 @@ describe('ProblemsRepository', () => {
     const [sql, values] = database.query.mock.calls[0];
     expect(sql).toContain("p.status = 'PUBLISHED'");
     expect(sql).toContain('p.organization_id IS NULL');
+    expect(sql).not.toContain('is_hidden');
     expect(sql).not.toContain('password_hash');
     expect(sql).not.toContain('email');
     expect(values).toEqual([null, 'NOPE']);
