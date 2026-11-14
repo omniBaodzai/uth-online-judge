@@ -2,11 +2,14 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Markdown from '../../../components/ui/Markdown'
 import { ApiError, request } from '../../auth/api'
+import NewsRichContent from '../NewsRichContent'
 import type { NewsArticle } from '../api'
 import { formatDate } from '../format'
 import { errorMessage, useAsync } from '../useAsync'
 import { communityText } from '../translate'
+import { getNewsRendererMode } from '../news-rich-content'
 import styles from '../community.module.css'
+import richStyles from '../NewsRichContent.module.css'
 
 function NewsDetailPage() {
   const { t, i18n } = useTranslation('pages')
@@ -15,6 +18,9 @@ function NewsDetailPage() {
   const { slug = '' } = useParams()
   const result = useAsync(() => request<NewsArticle>(`/news/${encodeURIComponent(slug)}`), [slug])
   const notFound = result.status === 'error' && result.error instanceof ApiError && result.error.status === 404
+  const rendererMode = result.status === 'ready'
+    ? getNewsRendererMode(result.data.contentFormat)
+    : 'markdown'
 
   return (
     <main className={styles.main} id="main-content">
@@ -39,7 +45,15 @@ function NewsDetailPage() {
               <span>{result.data.authorName}</span>
               <time dateTime={result.data.publishedAt ?? undefined}>{formatDate(result.data.publishedAt, locale)}</time>
             </p>
-            <Markdown source={result.data.content} />
+            {rendererMode === 'rich' ? (
+              <NewsRichContent document={result.data.contentJson} />
+            ) : rendererMode === 'markdown' ? (
+              <Markdown source={result.data.content} />
+            ) : (
+              <p className={richStyles.error} role="alert">
+                Định dạng nội dung của bài viết không được hỗ trợ. Hãy cập nhật hệ thống trước khi hiển thị bài viết.
+              </p>
+            )}
           </article>
         )}
       </div>

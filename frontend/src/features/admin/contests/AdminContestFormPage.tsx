@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ArrowDown, ArrowUp, BookOpen, Check, Info, Plus, Search, Trash2, Trophy } from 'lucide-react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import type { AdminProblem } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { AdminIcon } from '../components/AdminIcons'
 import { useAdmin } from '../useAdmin'
-import { contestErrorMessage } from './contest-errors'
+import { contestErrorMessage, hasUncertainCreateOutcome } from './contest-errors'
 import { useContestAdmin } from './useContestAdmin'
 import {
   formatForDateTimeLocal,
   normalizeContestSearch,
   parseDateTimeLocal,
+  parseDateTimeLocalTimestamp,
   suggestContestCode,
 } from './contest-utils'
-import type { ContestDetail, ContestFormValues, ContestProblem } from './types'
+import type { ContestDetail, ContestFormValues, ContestProblem, ReplaceContestProblemInput } from './types'
 import adminStyles from '../admin.module.css'
 import styles from './AdminContestsPage.module.css'
 
@@ -57,6 +58,47 @@ function toFormValues(contest: ContestDetail): ContestFormValues {
     },
     problems: contest.problems.map((problem) => ({ ...problem })),
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isContestProblem(value: unknown): value is ContestProblem {
+  if (!isRecord(value)) return false
+  return typeof value.problemId === 'string'
+    && typeof value.problemCode === 'string'
+    && typeof value.problemTitle === 'string'
+    && typeof value.maxScore === 'number'
+}
+
+function isContestFormValues(value: unknown): value is ContestFormValues {
+  if (!isRecord(value) || !isRecord(value.settings) || !Array.isArray(value.problems)) return false
+  return typeof value.slug === 'string'
+    && typeof value.title === 'string'
+    && typeof value.description === 'string'
+    && typeof value.rules === 'string'
+    && typeof value.startsAt === 'string'
+    && typeof value.endsAt === 'string'
+    && (value.settings.visibility === 'PUBLIC' || value.settings.visibility === 'PRIVATE')
+    && typeof value.settings.allowRegistration === 'boolean'
+    && typeof value.settings.showLeaderboard === 'boolean'
+    && value.problems.every(isContestProblem)
+}
+
+function pendingFormValues(state: unknown, contestId: string): ContestFormValues | undefined {
+  if (!isRecord(state) || !isRecord(state.pendingContestForm)) return undefined
+  const pending = state.pendingContestForm
+  return pending.contestId === contestId && isContestFormValues(pending.values)
+    ? pending.values
+    : undefined
+}
+
+function toReplaceProblemInputs(problems: ContestProblem[]): ReplaceContestProblemInput[] {
+  return problems.map((problem) => ({
+    problemId: problem.problemId,
+    maxScore: Number(problem.maxScore),
+  }))
 }
 
 function toProblemOption(problem: AdminProblem): ContestProblem {
@@ -252,6 +294,7 @@ function ContestProblemPicker({
 
 function AdminContestFormPage() {
   const { contestId } = useParams()
+  const location = useLocation()
   const api = useContestAdmin()
   const [loadedContest, setLoadedContest] = useState<{ id: string; value: ContestDetail } | null>(null)
   const [loadFailure, setLoadFailure] = useState<{ id: string; message: string } | null>(null)
@@ -294,7 +337,13 @@ function AdminContestFormPage() {
     return <ArchivedContest contest={contest} />
   }
 
-  return <ContestForm key={contest?.id ?? 'new-contest'} contest={contest ?? undefined} />
+  return (
+    <ContestForm
+      key={contest?.id ?? 'new-contest'}
+      contest={contest ?? undefined}
+      retainedValues={contestId ? pendingFormValues(location.state, contestId) : undefined}
+    />
+  )
 }
 
 function ArchivedContest({ contest }: { contest: ContestDetail }) {
@@ -333,23 +382,35 @@ function ArchivedContest({ contest }: { contest: ContestDetail }) {
   )
 }
 
-function ContestForm({ contest }: { contest?: ContestDetail }) {
+function ContestForm({
+  contest,
+  retainedValues,
+}: {
+  contest?: ContestDetail
+  retainedValues?: ContestFormValues
+}) {
   const api = useContestAdmin()
   const navigate = useNavigate()
   const { setNotice } = useAdmin()
   const [initialValues] = useState(() => contest ? toFormValues(contest) : emptyFormValues())
-  const [draft, setDraft] = useState<ContestFormValues>(initialValues)
+  const [draft, setDraft] = useState<ContestFormValues>(retainedValues ?? initialValues)
+  const [savedProblemInputs, setSavedProblemInputs] = useState(
+    () => toReplaceProblemInputs(initialValues.problems),
+  )
   const [slugEdited, setSlugEdited] = useState(Boolean(contest))
   const [errors, setErrors] = useState<FormErrors>({})
   const [formError, setFormError] = useState('')
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [createOutcomeUnknown, setCreateOutcomeUnknown] = useState(false)
+  const savingRef = useRef(false)
   const slugLocked = Boolean(contest?.publishedAt)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialValues)
   const totalPoints = draft.problems.reduce((total, problem) => total + Number(problem.maxScore || 0), 0)
-  const problemsChanged = JSON.stringify(draft.problems.map(({ problemId, maxScore }) => ({ problemId, maxScore })))
-    !== JSON.stringify(initialValues.problems.map(({ problemId, maxScore }) => ({ problemId, maxScore })))
+  const problemInputs = toReplaceProblemInputs(draft.problems)
+  const problemsChanged = JSON.stringify(problemInputs) !== JSON.stringify(savedProblemInputs)
+  const shouldReplaceProblems = contest ? problemsChanged : problemInputs.length > 0
 
   useEffect(() => {
     if (!dirty) return
@@ -375,7 +436,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
     setFormError('')
   }
 
-  function validate(publish: boolean): FormErrors {
+  function validate(publish: boolean, replaceProblems: boolean): FormErrors {
     const next: FormErrors = {}
     const slug = draft.slug.trim()
     const title = draft.title.trim()
@@ -389,10 +450,19 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
     if (!draft.startsAt) next.startsAt = 'Vui lòng chọn thời gian bắt đầu.'
     if (!draft.endsAt) next.endsAt = 'Vui lòng chọn thời gian kết thúc.'
 
-    const startsAt = draft.startsAt ? Date.parse(`${draft.startsAt}:00+07:00`) : Number.NaN
-    const endsAt = draft.endsAt ? Date.parse(`${draft.endsAt}:00+07:00`) : Number.NaN
-    if (Number.isFinite(startsAt) && Number.isFinite(endsAt) && startsAt >= endsAt) {
+    const startsAt = parseDateTimeLocalTimestamp(draft.startsAt)
+    const endsAt = parseDateTimeLocalTimestamp(draft.endsAt)
+    if (draft.startsAt && startsAt === null) next.startsAt = 'Thời gian bắt đầu không hợp lệ.'
+    if (draft.endsAt && endsAt === null) next.endsAt = 'Thời gian kết thúc không hợp lệ.'
+    if (startsAt !== null && endsAt !== null && startsAt >= endsAt) {
       next.endsAt = 'Thời gian kết thúc phải sau thời gian bắt đầu.'
+    }
+    if (startsAt !== null && startsAt <= Date.now()) {
+      if (publish) {
+        next.startsAt = 'Thời gian bắt đầu phải lớn hơn thời gian hiện tại. Vui lòng chọn thời gian bắt đầu trong tương lai.'
+      } else if (replaceProblems) {
+        next.startsAt = 'Không thể cập nhật danh sách bài tập vì cuộc thi đã bắt đầu. Các lựa chọn hiện tại vẫn được giữ nguyên.'
+      }
     }
 
     if (draft.description.length > 20_000) next.description = 'Mô tả không được vượt quá 20.000 ký tự.'
@@ -415,8 +485,8 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
   }
 
   async function save(publish: boolean) {
-    if (saving) return
-    const nextErrors = validate(publish)
+    if (savingRef.current || createOutcomeUnknown) return
+    const nextErrors = validate(publish, shouldReplaceProblems)
     setErrors(nextErrors)
     setFormError('')
     if (Object.values(nextErrors).some(Boolean)) {
@@ -449,14 +519,11 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
       allowRegistration: draft.settings.allowRegistration,
       showLeaderboard: draft.settings.showLeaderboard,
     }
-    const problemInputs = draft.problems.map((problem) => ({
-      problemId: problem.problemId,
-      maxScore: Number(problem.maxScore),
-    }))
-
+    savingRef.current = true
     setSaving(true)
     let createdId: string | null = null
     let basicDataSaved = false
+    let problemListSaved = !shouldReplaceProblems
     try {
       const saved = contest
         ? await api.update(contest.id, input)
@@ -464,8 +531,10 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
       if (!contest) createdId = saved.id
       basicDataSaved = true
 
-      if ((!contest && problemInputs.length > 0) || (contest && problemsChanged)) {
+      if (shouldReplaceProblems) {
         await api.replaceProblems(saved.id, problemInputs)
+        problemListSaved = true
+        setSavedProblemInputs(problemInputs)
       }
 
       let finalContest = saved
@@ -480,16 +549,30 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
     } catch (cause) {
       const reason = contestErrorMessage(cause, 'Không thể lưu cuộc thi.')
       if (createdId) {
-        setNotice(`Đã tạo bản nháp, nhưng chưa hoàn tất lưu bài tập hoặc xuất bản: ${reason}`)
-        navigate(`/admin/contests/${encodeURIComponent(createdId)}/edit`)
+        const partialSaveMessage = problemListSaved
+          ? `Đã tạo bản nháp và lưu danh sách bài tập cho “${draft.title}”, nhưng chưa thể xuất bản: ${reason}`
+          : `Đã tạo bản nháp “${draft.title}”, nhưng chưa lưu được danh sách bài tập: ${reason}. Các lựa chọn vẫn được giữ để tiếp tục chỉnh sửa.`
+        setNotice(partialSaveMessage)
+        navigate(`/admin/contests/${encodeURIComponent(createdId)}/edit`, {
+          replace: true,
+          state: { pendingContestForm: { contestId: createdId, values: draft } },
+        })
       } else if (basicDataSaved) {
-        setFormError(publish
-          ? `Thông tin đã được lưu, nhưng không thể hoàn tất cập nhật bài tập hoặc xuất bản: ${reason}`
-          : `Thông tin cơ bản đã được lưu, nhưng danh sách bài tập chưa được cập nhật: ${reason}`)
+        setFormError(!problemListSaved
+          ? `Thông tin cuộc thi đã được lưu nhưng danh sách bài tập chưa được cập nhật: ${reason}`
+          : publish
+            ? `Thông tin và danh sách bài tập đã được lưu, nhưng cuộc thi chưa được xuất bản: ${reason}`
+            : `Thông tin cuộc thi đã được lưu, nhưng không thể hoàn tất thao tác: ${reason}`)
       } else {
-        setFormError(reason)
+        if (!contest && hasUncertainCreateOutcome(cause)) {
+          setCreateOutcomeUnknown(true)
+          setFormError('Không xác định được máy chủ đã tạo cuộc thi hay chưa. Để tránh tạo trùng, không thể gửi lại từ màn hình này. Hãy kiểm tra danh sách cuộc thi trước khi thử lại.')
+        } else {
+          setFormError(reason)
+        }
       }
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -533,7 +616,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
 
   return (
     <>
-      <div className={adminStyles.pageHeading}>
+      {/* <div className={adminStyles.pageHeading}>
         <div>
           <p className={adminStyles.eyebrow}>QUẢN LÝ NỘI DUNG</p>
           <h1>{contest ? 'Chỉnh sửa cuộc thi' : 'Tạo cuộc thi mới'}</h1>
@@ -542,19 +625,24 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
           </p>
         </div>
         <button className={adminStyles.buttonSecondary} type="button" onClick={cancel}>← Danh sách cuộc thi</button>
-      </div>
+      </div> */}
 
-      <div className={`${adminStyles.demoNotice} ${styles.formNotice}`} role="note">
+      {/* <div className={`${adminStyles.demoNotice} ${styles.formNotice}`} role="note">
         <Info size={17} aria-hidden="true" />
         <span>Thay đổi được lưu trên Backend. Cuộc thi dùng chung khung giờ tổ chức; thời lượng làm bài riêng chưa được hỗ trợ.</span>
-      </div>
+      </div> */}
 
       {formError && <p className={adminStyles.formMessage} role="alert">{formError}</p>}
+      {createOutcomeUnknown && (
+        <p className={adminStyles.formMessage}>
+          <Link to="/admin/contests">Mở danh sách cuộc thi để kiểm tra</Link>
+        </p>
+      )}
 
       <form onSubmit={submit} noValidate>
         <section id="contest-problems" className={`${adminStyles.panel} ${styles.formSection}`}>
-          <h2>Thông tin cơ bản</h2>
-          <p className={adminStyles.sectionHint}>Tên, mã nhận diện và nội dung giới thiệu cuộc thi.</p>
+          {/* <h2>Thông tin cơ bản</h2>
+          <p className={adminStyles.sectionHint}>Tên, mã nhận diện và nội dung giới thiệu cuộc thi.</p> */}
           <div className={adminStyles.formGrid}>
             <div className={adminStyles.field}>
               <label htmlFor="contest-title">Tên cuộc thi <span className={adminStyles.requiredMark}>*</span></label>
@@ -579,7 +667,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
               {errors.title && <p id="contest-title-error" className={styles.inlineError} role="alert">{errors.title}</p>}
             </div>
             <div className={adminStyles.field}>
-              <label htmlFor="contest-slug">Mã cuộc thi / slug <span className={adminStyles.requiredMark}>*</span></label>
+              <label htmlFor="contest-slug">Slug <span className={adminStyles.requiredMark}>*</span></label>
               <input
                 id="contest-slug"
                 required
@@ -596,7 +684,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
               {errors.slug
                 ? <p id="contest-slug-error" className={styles.inlineError} role="alert">{errors.slug}</p>
                 : <p id="contest-slug-hint" className={adminStyles.fieldHint}>
-                  {slugLocked ? 'Slug không thể thay đổi sau khi xuất bản.' : 'Tự đề xuất từ tên; dùng chữ thường, số và dấu gạch ngang.'}
+                  {slugLocked ? 'Slug không thể thay đổi sau khi xuất bản.' : ''}
                 </p>}
             </div>
             <div className={`${adminStyles.field} ${styles.fieldFull}`}>
@@ -625,8 +713,8 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
         </section>
 
         <section className={`${adminStyles.panel} ${styles.formSection}`}>
-          <h2>Thời gian tổ chức</h2>
-          <p className={adminStyles.sectionHint}>Thời gian hiển thị và quy đổi theo múi giờ Việt Nam (UTC+07:00).</p>
+          {/* <h2>Thời gian tổ chức</h2> */}
+          {/* <p className={adminStyles.sectionHint}></p> */}
           <div className={adminStyles.formGrid}>
             <div className={adminStyles.field}>
               <label htmlFor="contest-startsAt">Thời gian bắt đầu <span className={adminStyles.requiredMark}>*</span></label>
@@ -654,15 +742,15 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
               />
               {errors.endsAt && <p id="contest-endsAt-error" className={styles.inlineError} role="alert">{errors.endsAt}</p>}
             </div>
-            <p className={`${adminStyles.fieldHint} ${styles.fieldFull}`}>
+            {/* <p className={`${adminStyles.fieldHint} ${styles.fieldFull}`}>
               Tất cả thí sinh sử dụng cùng khung giờ từ lúc bắt đầu đến lúc kết thúc.
-            </p>
+            </p> */}
           </div>
         </section>
 
         <section className={`${adminStyles.panel} ${styles.formSection}`}>
-          <h2>Cấu hình cuộc thi</h2>
-          <p className={adminStyles.sectionHint}>Cấu hình được lưu trực tiếp cùng cuộc thi trên hệ thống.</p>
+          {/* <h2>Cấu hình cuộc thi</h2>
+          <p className={adminStyles.sectionHint}>Cấu hình được lưu trực tiếp cùng cuộc thi trên hệ thống.</p> */}
           <div className={styles.settingsGroup}>
             <fieldset className={adminStyles.field}>
               <legend>Chế độ hiển thị</legend>
@@ -709,10 +797,10 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
                 Hiển thị bảng xếp hạng
               </label>
             </div>
-            <div className={styles.rankingRule}>
+            {/* <div className={styles.rankingRule}>
               <Trophy size={18} aria-hidden="true" />
               <span><strong>Cách xếp hạng</strong>Tổng điểm giảm dần, sau đó thời gian tăng dần.</span>
-            </div>
+            </div> */}
           </div>
         </section>
 
@@ -720,7 +808,7 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
           <div className={styles.problemListHeading}>
             <div>
               <h2>Bài tập trong cuộc thi</h2>
-              <p className={adminStyles.sectionHint}>Chọn bài đã xuất bản; thứ tự được dùng làm thứ tự hiển thị.</p>
+              {/* <p className={adminStyles.sectionHint}>Chọn bài đã xuất bản; thứ tự được dùng làm thứ tự hiển thị.</p> */}
             </div>
             <button className={adminStyles.buttonSecondary} type="button" onClick={() => setPickerOpen(true)}>
               <Plus size={16} aria-hidden="true" /> Thêm bài tập
@@ -822,11 +910,11 @@ function ContestForm({ contest }: { contest?: ContestDetail }) {
         <div className={styles.formActions}>
           <button className={adminStyles.buttonQuiet} type="button" onClick={cancel} disabled={saving}>Hủy</button>
           {(contest?.publicationStatus !== 'PUBLISHED') && (
-            <button className={adminStyles.buttonSecondary} type="button" onClick={() => { void save(false) }} disabled={saving}>
+            <button className={adminStyles.buttonSecondary} type="button" onClick={() => { void save(false) }} disabled={saving || createOutcomeUnknown}>
               {saving ? 'Đang lưu…' : 'Lưu bản nháp'}
             </button>
           )}
-          <button className={adminStyles.buttonPrimary} type="submit" disabled={saving}>
+          <button className={adminStyles.buttonPrimary} type="submit" disabled={saving || createOutcomeUnknown}>
             {saving ? 'Đang lưu…' : contest?.publicationStatus === 'PUBLISHED' ? 'Lưu thay đổi' : 'Xuất bản'}
           </button>
         </div>

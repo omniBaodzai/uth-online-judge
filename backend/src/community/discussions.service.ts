@@ -113,11 +113,17 @@ export class DiscussionsService {
     };
   }
 
-  async addComment(id: string, viewer: Viewer, content: string, parentId: string | null = null): Promise<void> {
+  async addComment(
+    id: string,
+    viewer: Viewer,
+    content: string,
+    parentId: string | null = null,
+    idempotencyKey: string | null = null,
+  ): Promise<void> {
     const discussion = await this.require(id);
     if (discussion.isLocked) throw new ForbiddenException(LOCKED);
     if (parentId) await this.assertCanReplyTo(id, parentId);
-    await this.discussions.createComment(id, viewer.id, content, parentId);
+    await this.discussions.createComment(id, viewer.id, content, parentId, idempotencyKey);
   }
 
   async editComment(commentId: string, viewer: Viewer, content: string): Promise<void> {
@@ -197,6 +203,8 @@ export class DiscussionsService {
       return {
         ...rest,
         authorName: 'Người dùng đã xóa',
+        authorUsername: null,
+        avatarUrl: null,
         content: '',
         reactions: emptyReactionSummary(),
         replies,

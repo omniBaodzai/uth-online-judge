@@ -10,8 +10,13 @@ import type {
   AdminProblemEditorial,
   AdminProblemListQuery,
   AdminProblemPage,
+  AdminProblemVisibilityResult,
   AdminTestCase,
 } from './admin.types.js';
+import type {
+  AdminDashboardStatistics,
+  AdminDashboardSubmissionScope,
+} from './admin-dashboard-statistics.types.js';
 
 type ProblemRow = {
   id: string;
@@ -33,6 +38,7 @@ type ProblemRow = {
   score: string | number;
   test_case_revision: number;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  is_hidden: boolean;
   updated_at: Date;
   tags: string[];
   languages: string[];
@@ -72,7 +78,7 @@ const PROBLEM_FIELDS = `
   p.difficulty,
   p.input_description, p.output_description, p.constraints_text,
   p.time_limit_ms, p.memory_limit_mb, p.scoring_enabled, p.score, p.test_case_revision,
-  p.status, p.updated_at,
+  p.status, p.is_hidden, p.updated_at,
   COALESCE((
     SELECT array_agg(t.name ORDER BY t.name)::text[]
     FROM problem_tags pt JOIN tags t ON t.id = pt.tag_id
@@ -93,7 +99,7 @@ export class AdminRepository {
     organizationId: string | null = null,
   ): Promise<AdminProblemPage> {
     const conditions: string[] = ['p.organization_id IS NOT DISTINCT FROM $1::uuid'];
-    const values: Array<string | number | null> = [organizationId];
+    const values: Array<string | number | boolean | null> = [organizationId];
     if (query.search?.trim()) {
       values.push(`%${escapeLike(query.search.trim())}%`);
       conditions.push(`(p.problem_code ILIKE $${values.length} ESCAPE '\\' OR p.title ILIKE $${values.length} ESCAPE '\\')`);
@@ -105,6 +111,10 @@ export class AdminRepository {
     if (query.difficulty) {
       values.push(query.difficulty.toUpperCase());
       conditions.push(`p.difficulty = $${values.length}`);
+    }
+    if (query.visibility) {
+      values.push(query.visibility === 'hidden');
+      conditions.push(`p.is_hidden = $${values.length}`);
     }
     const where = `WHERE ${conditions.join(' AND ')}`;
     const count = await this.database.query<{ total: string }>(
@@ -312,6 +322,40 @@ export class AdminRepository {
     }
   }
 
+  async setProblemVisibility(id: string, isHidden: boolean): Promise<AdminProblemVisibilityResult> {
+    let updatedProblem: { id: string; status: 'PUBLISHED'; is_hidden: boolean } | undefined;
+    try {
+      const updated = await this.database.query<{ id: string; status: 'PUBLISHED'; is_hidden: boolean }>(
+        `UPDATE problems
+         SET is_hidden = $2
+         WHERE id = $1 AND organization_id IS NULL AND status = 'PUBLISHED'
+         RETURNING id, status, is_hidden`,
+        [id, isHidden],
+      );
+      updatedProblem = updated.rows[0];
+    } catch (error) {
+      if (isContestRunningVisibilityError(error)) {
+        const action = isHidden ? 'ẩn' : 'hiện';
+        throw new ConflictException(
+          `Không thể ${action} bài tập vì bài tập đang thuộc một cuộc thi diễn ra. Vui lòng thử lại sau khi cuộc thi kết thúc.`,
+        );
+      }
+      throw error;
+    }
+    if (updatedProblem) {
+      return { id: updatedProblem.id, status: 'published', isHidden: updatedProblem.is_hidden };
+    }
+
+    const existing = await this.database.query<{ status: string }>(
+      `SELECT status
+       FROM problems
+       WHERE id = $1 AND organization_id IS NULL`,
+      [id],
+    );
+    if (!existing.rows[0]) throw new NotFoundException('Không tìm thấy bài tập.');
+    throw new ConflictException('Chỉ bài tập đã xuất bản mới có thể ẩn hoặc hiện khỏi danh sách công khai.');
+  }
+
   async deleteProblem(
     id: string,
     organizationId: string | null = null,
@@ -412,6 +456,92 @@ export class AdminRepository {
       draft: byStatus.get('DRAFT') ?? 0,
       archived: byStatus.get('ARCHIVED') ?? 0,
       recent: recent.items,
+    };
+  }
+
+  async dashboardStatistics(
+    days: 7 | 30 | 90,
+    submissionScope: AdminDashboardSubmissionScope,
+  ): Promise<AdminDashboardStatistics> {
+    const result = await this.database.query<{
+      date: string;
+      submissions_count: string;
+      users_count: string;
+    }>(
+      `WITH bounds AS (
+         SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS today
+       ),
+       calendar AS (
+         SELECT generate_series(
+           bounds.today - ($1::int - 1),
+           bounds.today,
+           INTERVAL '1 day'
+         )::date AS day
+         FROM bounds
+       ),
+       daily_submissions AS (
+         SELECT (submission.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS day,
+                COUNT(DISTINCT submission.id)::text AS count
+         FROM public.submissions submission
+         JOIN public.problems problem ON problem.id = submission.problem_id
+         LEFT JOIN public.contests contest ON contest.id = submission.contest_id
+         CROSS JOIN bounds
+         WHERE submission.submitted_at >=
+                 ((bounds.today - ($1::int - 1))::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+           AND submission.submitted_at <
+                 ((bounds.today + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+           AND (
+             ($2::text = 'GLOBAL'
+               AND problem.status = 'PUBLISHED'
+               AND problem.organization_id IS NULL)
+             OR
+             ($2::text = 'ORGANIZATION'
+               AND COALESCE(contest.organization_id, problem.organization_id) IS NOT NULL)
+           )
+         GROUP BY (submission.submitted_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+       ),
+       daily_users AS (
+         SELECT (user_account.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS day,
+                COUNT(*)::text AS count
+         FROM public.users user_account
+         CROSS JOIN bounds
+         WHERE user_account.created_at >=
+                 ((bounds.today - ($1::int - 1))::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+           AND user_account.created_at <
+                 ((bounds.today + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+         GROUP BY (user_account.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+       )
+       SELECT TO_CHAR(calendar.day, 'YYYY-MM-DD') AS date,
+              COALESCE(daily_submissions.count, '0') AS submissions_count,
+              COALESCE(daily_users.count, '0') AS users_count
+       FROM calendar
+       LEFT JOIN daily_submissions ON daily_submissions.day = calendar.day
+       LEFT JOIN daily_users ON daily_users.day = calendar.day
+       ORDER BY calendar.day ASC`,
+      [days, submissionScope],
+    );
+
+    const submissions = result.rows.map((row) => ({
+      date: row.date,
+      count: Number(row.submissions_count),
+    }));
+    const users = result.rows.map((row) => ({
+      date: row.date,
+      count: Number(row.users_count),
+    }));
+
+    return {
+      timezone: 'Asia/Ho_Chi_Minh',
+      days,
+      submissionScope,
+      submissions: {
+        total: submissions.reduce((total, point) => total + point.count, 0),
+        daily: submissions,
+      },
+      users: {
+        total: users.reduce((total, point) => total + point.count, 0),
+        daily: users,
+      },
     };
   }
 
@@ -786,6 +916,7 @@ function mapProblem(row: ProblemRow): AdminProblem {
     examples: [],
     editorials: [],
     status: row.status.toLowerCase() as AdminProblem['status'],
+    isHidden: row.is_hidden,
     updatedAt: row.updated_at.toISOString(),
   };
 }
@@ -809,6 +940,13 @@ function mapTestCase(row: TestCaseRow): AdminTestCase {
     points: 1,
     position: row.position,
   };
+}
+
+function isContestRunningVisibilityError(error: unknown): boolean {
+  return error instanceof Error &&
+    'code' in error &&
+    error.code === '55000' &&
+    error.message === 'Problem data cannot be changed while its contest is running.';
 }
 
 function uniqueNames(names: string[]): string[] {

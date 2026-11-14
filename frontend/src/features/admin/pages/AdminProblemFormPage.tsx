@@ -268,14 +268,14 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
 
   return (
     <>
-      <div className={styles.pageHeading}>
+      {/* <div className={styles.pageHeading}>
         <div><p className={styles.eyebrow}>NGÂN HÀNG BÀI TẬP</p><h1>{problem ? 'Chỉnh sửa bài tập' : 'Tạo bài tập mới'}</h1><p className={styles.pageSubtitle}>{problem ? `Đang chỉnh sửa ${problem.code}.` : 'Điền thông tin bài tập để lưu lên hệ thống.'}</p></div>
         <Link className={styles.buttonSecondary} to="/admin/problems">← Danh sách bài tập</Link>
-      </div>
+      </div> */}
       <form id="admin-problem-form" onSubmit={(event) => submit(event, 'draft')}>
         <section className={`${styles.panel} ${styles.formSection}`}>
-          <h2>Thông tin cơ bản</h2>
-          <p className={styles.sectionHint}>Tên, mã nhận diện và nội dung chính của đề bài.</p>
+          {/* <h2>Thông tin cơ bản</h2>
+          <p className={styles.sectionHint}>Tên, mã nhận diện và nội dung chính của đề bài.</p> */}
           <div className={styles.formGrid}>
             <div className={styles.field}>
               <label htmlFor="problem-title">Tên bài tập <span className={styles.requiredMark}>*</span></label>
@@ -291,7 +291,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
                 value={draft.code}
                 onChange={(event) => { update('code', event.target.value); setCodeError('') }}
               />
-              {codeError ? <p id="problem-code-error" className={styles.fieldError} role="alert">{codeError}</p> : <p id="problem-code-hint" className={styles.fieldHint}>Chỉ gồm a-z, 0-9 và dấu _ (tối đa 50 ký tự). Ví dụ: uth011, tong_hai_so. Mã bài phải duy nhất.</p>}
+              {codeError ? <p id="problem-code-error" className={styles.fieldError} role="alert">{codeError}</p> : <p id="problem-code-hint" className={styles.fieldHint}></p>}
             </div>
             <div className={`${styles.field} ${styles.formFullWidth}`}>
               <span className={styles.fieldLabel}>Hình ảnh minh họa</span>
@@ -353,8 +353,8 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
         </section>
 
         <section className={`${styles.panel} ${styles.formSection}`}>
-          <h2>Đặc tả đầu vào / đầu ra</h2>
-          <p className={styles.sectionHint}>Thêm mô tả định dạng và quản lý toàn bộ test dùng cho minh họa lẫn chấm điểm.</p>
+          {/* <h2>Đầu vào và đầu ra</h2> */}
+          <p className={styles.sectionHint}></p>
           <div className={styles.formGrid}>
             <MarkdownEditorField
               id="input-description"
@@ -379,8 +379,8 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
         </section>
 
         <section className={`${styles.panel} ${styles.formSection}`}>
-          <h2>Ràng buộc và giới hạn chấm</h2>
-          <p className={styles.sectionHint}>Mọi bài tập đều sử dụng thang điểm cố định 1 điểm cho mỗi test case. Chỉ cần nhập các giới hạn thời gian và bộ nhớ.</p>
+          {/* <h2>Ràng buộc và giới hạn chấm</h2>
+          <p className={styles.sectionHint}>Mọi bài tập đều sử dụng thang điểm cố định 1 điểm cho mỗi test case. Chỉ cần nhập các giới hạn thời gian và bộ nhớ.</p> */}
           <div className={styles.formGrid}>
             <MarkdownEditorField
               id="constraints"
@@ -399,7 +399,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
           <div className={styles.editorialHeading}>
             <div>
               <h2>Lời giải bài tập</h2>
-              <p className={styles.sectionHint}>Không bắt buộc. Chỉ hiển thị sau khi người học có ít nhất một kết quả chấm cuối cùng.</p>
+              <p className={styles.sectionHint}></p>
             </div>
             <button
               className={styles.buttonSecondary}
@@ -418,7 +418,7 @@ function ProblemForm({ problem, initialTestCases, tagOptions, languageOptions }:
             </button>
           </div>
           {draft.editorials.length === 0 ? (
-            <p className={styles.fieldHint}>Bài tập chưa có lời giải. Bạn có thể thêm một lời giải cho mỗi ngôn ngữ.</p>
+            <p className={styles.fieldHint}></p>
           ) : (
             <div className={styles.editorialList}>
               {draft.editorials.map((editorial, index) => {
@@ -618,7 +618,7 @@ function Judge0LanguagePicker({ onAdded }: { onAdded: (language: EnabledLanguage
         </>
       )}
       <p className={styles.fieldHint}>
-        Danh sách được lấy trực tiếp từ Judge0; mỗi mã Judge0 được ánh xạ sang slug ứng dụng lưu trong cơ sở dữ liệu.
+        
       </p>
       {error && (
         <div>

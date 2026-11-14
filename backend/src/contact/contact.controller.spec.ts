@@ -11,13 +11,13 @@ import {
 } from './contact.controller.js';
 
 describe('Contact controllers access controls', () => {
-  it('requires JWT for problem report creation and takes the user from the token', () => {
+  it('requires JWT for problem report creation and takes the user from the token', async () => {
     expect(Reflect.getMetadata(
       GUARDS_METADATA,
       Object.getOwnPropertyDescriptor(ProblemReportsController.prototype, 'create')?.value,
     )).toEqual([JwtAuthGuard]);
     const contact = { createProblemReport: vi.fn() };
-    new ProblemReportsController(contact as never).create(
+    await new ProblemReportsController(contact as never).create(
       'hello',
       { reportType: 'OTHER', content: 'x' },
       { user: { id: 'jwt-user', role: 'STUDENT' } } as never,
@@ -56,5 +56,26 @@ describe('Contact controllers access controls', () => {
       { user: { id: 'admin-id', role: 'ADMIN' } } as never,
     )).toThrow(ForbiddenException);
     expect(contact.createReply).not.toHaveBeenCalled();
+  });
+
+  it('scopes every notification operation to the authenticated user ID', async () => {
+    const contact = {
+      listNotifications: vi.fn(),
+      unreadNotificationCount: vi.fn(),
+      markAllNotificationsRead: vi.fn(),
+      markNotificationRead: vi.fn(),
+    };
+    const controller = new MyNotificationsController(contact as never);
+    const request = { user: { id: 'jwt-owner-id' } } as never;
+
+    await controller.list({ page: 2, pageSize: 20 } as never, request);
+    await controller.unreadCount(request);
+    await controller.markAllRead(request);
+    await controller.markRead('notification-id', request);
+
+    expect(contact.listNotifications).toHaveBeenCalledWith('jwt-owner-id', 2, 20);
+    expect(contact.unreadNotificationCount).toHaveBeenCalledWith('jwt-owner-id');
+    expect(contact.markAllNotificationsRead).toHaveBeenCalledWith('jwt-owner-id');
+    expect(contact.markNotificationRead).toHaveBeenCalledWith('jwt-owner-id', 'notification-id');
   });
 });

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Mail, X } from 'lucide-react'
+import { CheckCheck, Clock3, Eye, Mail, MailPlus, Search, X, type LucideIcon } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { AdminIcon } from '../components/AdminIcons'
+import SubmissionPagination from '../../submissions/components/SubmissionPagination'
+import { submissionPageSizes } from '../../submissions/data'
 import { useAdmin } from '../useAdmin'
 import { formatDateTime } from '../../community/format'
 import { ContactMessageCategoryBadge } from './ContactMessageCategoryBadge'
@@ -25,8 +26,9 @@ import {
 import styles from '../admin.module.css'
 import pageStyles from './AdminContactMessagesPage.module.css'
 
-const pageSizes = [10, 20, 50] as const
-type PageSize = (typeof pageSizes)[number]
+const pageSizes = submissionPageSizes
+type PageSize = 10 | 20 | 50
+const isPageSize = (size: number): size is PageSize => pageSizes.some((option) => option === size)
 
 const statusOptions: Array<{ value: ContactMessageStatus | 'all'; label: string }> = [
   { value: 'all', label: 'Tất cả trạng thái' },
@@ -131,7 +133,7 @@ function ContactMessageDrawer({
           </div>
           <button
             ref={closeRef}
-            className={styles.iconButton}
+            className={`${styles.iconButton} ${pageStyles.detailsButton}`}
             type="button"
             aria-label="Đóng chi tiết tin nhắn"
             onClick={onClose}
@@ -274,8 +276,7 @@ function AdminContactMessagesPage() {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const currentPage = Math.min(page, pageCount)
   const hasFilters = Boolean(search.trim()) || statusFilter !== 'all' || categoryFilter !== 'all'
-  const firstItem = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const lastItem = Math.min(currentPage * pageSize, total)
+  const statisticsLoading = !visibleData && !visibleError
 
   useEffect(() => {
     const controller = new AbortController()
@@ -350,26 +351,20 @@ function AdminContactMessagesPage() {
   }
 
   return (
-    <>
-      <div className={styles.pageHeading}>
-        <div>
-          <p className={styles.eyebrow}>HỖ TRỢ NGƯỜI DÙNG</p>
-          <h1>Quản lý liên hệ</h1>
-          <p className={styles.pageSubtitle}>Tiếp nhận và quản lý các yêu cầu hỗ trợ từ người dùng.</p>
-        </div>
-      </div>
-      <section className={styles.metricGrid} aria-label="Thống kê tin nhắn liên hệ">
-        <Metric label="Tổng tin nhắn" value={counts.total} tone="total" />
-        <Metric label="Tin nhắn mới" value={counts.NEW} tone="new" />
-        <Metric label="Đang xử lý" value={counts.IN_PROGRESS} tone="progress" />
-        <Metric label="Đã xử lý" value={counts.RESOLVED} tone="resolved" />
+    <div className={pageStyles.page}>
+      <section className={pageStyles.metrics} aria-label="Thống kê tin nhắn liên hệ" aria-busy={statisticsLoading}>
+        <Metric label="Tổng tin nhắn" value={visibleData ? counts.total : undefined} loading={statisticsLoading} tone="teal" icon={Mail} />
+        <Metric label="Tin nhắn mới" value={visibleData ? counts.NEW : undefined} loading={statisticsLoading} tone="blue" icon={MailPlus} />
+        <Metric label="Đang xử lý" value={visibleData ? counts.IN_PROGRESS : undefined} loading={statisticsLoading} tone="amber" icon={Clock3} />
+        <Metric label="Đã xử lý" value={visibleData ? counts.RESOLVED : undefined} loading={statisticsLoading} tone="green" icon={CheckCheck} />
       </section>
 
-      <section className={styles.panel} aria-label="Danh sách tin nhắn liên hệ">
-        <div className={styles.toolbar}>
-          <label className={styles.searchField}>
-            <AdminIcon name="search" size={18} />
+      <section className={`${styles.panel} ${pageStyles.messagePanel}`} aria-label="Danh sách tin nhắn liên hệ">
+        <div className={pageStyles.toolbar}>
+          <label className={`${styles.searchField} ${pageStyles.searchField}`}>
+            <Search size={18} aria-hidden="true" />
             <input
+              type="search"
               aria-label="Tìm theo tên, email, tiêu đề hoặc mã bài tập"
               placeholder="Tìm theo tên, email, tiêu đề, mã bài tập..."
               value={search}
@@ -381,6 +376,7 @@ function AdminContactMessagesPage() {
             />
           </label>
           <select
+            className={pageStyles.filterSelect}
             aria-label="Lọc tin nhắn theo trạng thái"
             value={statusFilter}
             onChange={(event) => {
@@ -393,6 +389,7 @@ function AdminContactMessagesPage() {
             ))}
           </select>
           <select
+            className={pageStyles.filterSelect}
             aria-label="Lọc tin nhắn theo loại yêu cầu"
             value={categoryFilter}
             onChange={(event) => {
@@ -404,13 +401,28 @@ function AdminContactMessagesPage() {
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
-          <button className={styles.buttonQuiet} type="button" onClick={clearFilters} disabled={!hasFilters}>
+          <button className={`${styles.buttonQuiet} ${pageStyles.resetButton}`} type="button" onClick={clearFilters} disabled={!hasFilters}>
             Đặt lại
           </button>
         </div>
 
-        <div className={pageStyles.resultsBar} aria-live="polite">
-          Hiển thị <strong>{firstItem}–{lastItem}</strong> trên <strong>{total}</strong> tin nhắn
+        <div className={`${pageStyles.pagination} ${pageStyles.paginationTop}`}>
+          <SubmissionPagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={total}
+            pageSizes={pageSizes}
+            label="tin nhắn"
+            summaryLabel="tin nhắn"
+            showPageSize={false}
+            disabled={loading || Boolean(visibleError)}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              if (!isPageSize(size)) return
+              setPageSize(size)
+              setPage(1)
+            }}
+          />
         </div>
 
         {loading && !visibleData ? (
@@ -469,7 +481,7 @@ function AdminContactMessagesPage() {
                     <td><ContactMessageStatusBadge status={message.status} /></td>
                     <td>
                       <button
-                        className={styles.iconButton}
+                        className={`${styles.iconButton} ${pageStyles.detailsButton}`}
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation()
@@ -477,7 +489,7 @@ function AdminContactMessagesPage() {
                         }}
                         aria-label={`Xem chi tiết tin nhắn của ${message.fullName}`}
                       >
-                        <AdminIcon name="eye" size={15} />
+                        <Eye size={15} aria-hidden="true" />
                         Xem chi tiết
                       </button>
                     </td>
@@ -488,38 +500,22 @@ function AdminContactMessagesPage() {
           </div>
         )}
 
-        <div className={pageStyles.pagination}>
-          <label className={pageStyles.pageSize}>
-            <span>Mỗi trang</span>
-            <select
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value) as PageSize)
-                setPage(1)
-              }}
-            >
-              {pageSizes.map((size) => <option key={size} value={size}>{size}</option>)}
-            </select>
-          </label>
-          <nav className={pageStyles.pageControls} aria-label="Phân trang tin nhắn liên hệ">
-            <button
-              className={styles.buttonSecondary}
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-            >
-              Trang trước
-            </button>
-            <span aria-live="polite">Trang {currentPage} / {pageCount}</span>
-            <button
-              className={styles.buttonSecondary}
-              type="button"
-              disabled={currentPage >= pageCount}
-              onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-            >
-              Trang sau
-            </button>
-          </nav>
+        <div className={`${pageStyles.pagination} ${pageStyles.paginationBottom}`}>
+          <SubmissionPagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={total}
+            pageSizes={pageSizes}
+            label="tin nhắn"
+            summaryLabel="tin nhắn"
+            disabled={loading || Boolean(visibleError)}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              if (!isPageSize(size)) return
+              setPageSize(size)
+              setPage(1)
+            }}
+          />
         </div>
       </section>
 
@@ -532,25 +528,30 @@ function AdminContactMessagesPage() {
           onSave={saveStatus}
         />
       )}
-    </>
+    </div>
   )
 }
 
 function Metric({
   label,
   value,
+  loading,
   tone,
+  icon: Icon,
 }: {
   label: string
-  value: number
-  tone: 'total' | 'new' | 'progress' | 'resolved'
+  value: number | undefined
+  loading: boolean
+  tone: 'teal' | 'blue' | 'amber' | 'green'
+  icon: LucideIcon
 }) {
   return (
-    <article className={styles.metricCard}>
-      <span className={`${styles.metricMark} ${pageStyles[`metric_${tone}`]}`} />
+    <article className={pageStyles.metricCard}>
+      <span className={`${pageStyles.metricIcon} ${pageStyles[`metric_${tone}`]}`}>
+        <Icon size={20} aria-hidden="true" />
+      </span>
       <p>{label}</p>
-      <strong>{value.toLocaleString('vi-VN')}</strong>
-      <small>Từ hệ thống</small>
+      <strong aria-live="polite">{loading ? '…' : value?.toLocaleString('vi-VN') ?? '—'}</strong>
     </article>
   )
 }

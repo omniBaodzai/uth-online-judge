@@ -1,0 +1,377 @@
+.page {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+@media (max-width: 320px) {
+  :global(html):has(.page),
+  :global(body):has(.page) {
+    min-width: 0;
+  }
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metricCard {
+  display: flex;
+  min-height: 148px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: 0 4px 16px rgba(24, 51, 55, .025);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(24, 51, 55, .08);
+}
+
+.metricIcon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.metric_teal .metricIcon {
+  background: #e6f5f4;
+  color: #008689;
+}
+
+.metric_green .metricIcon {
+  background: #eaf7ef;
+  color: #278254;
+}
+
+.metric_slate .metricIcon {
+  background: #edf2f3;
+  color: #63777c;
+}
+
+.metric_amber .metricIcon {
+  background: #fff3e2;
+  color: #a45f14;
+}
+
+.metricLabel {
+  margin-top: 12px;
+  color: #000;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.metricValue {
+  margin-top: auto;
+  padding-top: 4px;
+  color: var(--admin-ink);
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.statsError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f0c7c4;
+  border-radius: 9px;
+  background: #fff7f6;
+  color: #873a35;
+  font-size: 13px;
+}
+
+.createAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.createButton {
+  min-height: 42px;
+  gap: 8px;
+  background: #008689;
+}
+
+.managementPanel {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  transition: box-shadow 180ms ease;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 12px 18px 0;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.tab,
+.activeTab {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.tab {
+  background: transparent;
+  color: var(--admin-ink);
+}
+
+.tab:hover {
+  background: #f1f7f7;
+  color: #006d70;
+}
+
+.activeTab {
+  border-color: #008689;
+  background: #008689;
+  color: #fff;
+  font-weight: 700;
+}
+
+.tab:focus-visible,
+.activeTab:focus-visible,
+.createButton:focus-visible,
+.filterSelect:focus-visible {
+  outline: 3px solid #f4c96b;
+  outline-offset: 2px;
+}
+
+.tabPanel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.sectionContent {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.searchField {
+  min-width: min(280px, 100%);
+  min-height: 42px;
+  flex: 1 1 280px;
+}
+
+.searchField input {
+  min-width: 0;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.filterSelect {
+  min-width: 190px;
+  min-height: 42px;
+  padding: 8px 32px 8px 11px;
+  border: 1px solid #dce6e6;
+  border-radius: 8px;
+  background: white;
+  color: var(--admin-ink);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.filterSelect:focus {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(8, 127, 130, .12);
+  outline: 0;
+}
+
+.helperText {
+  margin: -5px 0 0;
+}
+
+.pagination {
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.tableWrap {
+  min-width: 0;
+  overflow-x: auto;
+  border-color: var(--admin-border);
+}
+
+.table:global(.userTable) {
+  min-width: 820px;
+}
+
+.table:global(.userTable) th {
+  padding: 13px 14px;
+  background: #008689;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+
+.table:global(.userTable) td {
+  padding: 11px 14px;
+  color: var(--admin-ink);
+  line-height: 1.4;
+}
+
+.table td {
+  overflow-wrap: anywhere;
+}
+
+.clickableRow {
+  transition: background-color 140ms ease;
+}
+
+.organizationName a {
+  color: #006d70;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.organizationName a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.slug {
+  color: #52696d;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.rowActions {
+  gap: 6px;
+  max-width: 230px;
+}
+
+.rowActions button {
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1050px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    gap: 14px;
+  }
+
+  .metricCard {
+    min-height: 136px;
+    padding: 15px;
+  }
+
+  .tabPanel {
+    padding: 14px;
+  }
+
+  .tabs {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .tab,
+  .activeTab {
+    flex: 1 1 0;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .searchField,
+  .filterSelect {
+    width: 100%;
+    min-width: 0;
+    flex-basis: 100%;
+  }
+
+  .table:global(.userTable) {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .metricCard {
+    min-height: 128px;
+    padding: 12px;
+  }
+
+  .metricValue {
+    font-size: 24px;
+  }
+
+  .createButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tabs {
+    gap: 4px;
+    padding: 9px 9px 0;
+  }
+
+  .tab,
+  .activeTab {
+    min-height: 46px;
+    font-size: 12px;
+  }
+
+  .tabPanel {
+    padding: 12px;
+  }
+
+  .statsError {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metricCard,
+  .managementPanel,
+  .tab,
+  .activeTab,
+  .createButton,
+  .filterSelect,
+  .clickableRow {
+    transition: none;
+  }
+
+  .metricCard:hover {
+    transform: none;
+  }
+}

@@ -67,6 +67,7 @@ const LIST_BASE_SQL = `
     ) st ON st.problem_id = p.id
     WHERE p.status = 'PUBLISHED'
       AND p.organization_id IS NULL
+      AND p.is_hidden = FALSE
   )`;
 
 type ListRow = {
@@ -196,7 +197,18 @@ export class ProblemsRepository {
 
   async listTags(): Promise<TagSummary[]> {
     const result = await this.database.query<TagSummary>(
-      'SELECT name, slug FROM tags ORDER BY name',
+      `SELECT t.name, t.slug
+       FROM tags t
+       WHERE EXISTS (
+         SELECT 1
+         FROM problem_tags pt
+         JOIN problems p ON p.id = pt.problem_id
+         WHERE pt.tag_id = t.id
+           AND p.status = 'PUBLISHED'
+           AND p.organization_id IS NULL
+           AND p.is_hidden = FALSE
+       )
+       ORDER BY t.name`,
     );
     return result.rows;
   }

@@ -43,6 +43,7 @@ export type AdminProblem = {
   examples: ProblemExample[]
   editorials: AdminProblemEditorial[]
   status: AdminProblemStatus
+  isHidden: boolean
   updatedAt: string
 }
 
@@ -90,7 +91,7 @@ export type AdminDashboard = {
   recent: AdminProblem[]
 }
 
-export type ProblemDraft = Omit<AdminProblem, 'id' | 'updatedAt' | 'examples' | 'testCaseRevision' | 'editorials'> & {
+export type ProblemDraft = Omit<AdminProblem, 'id' | 'updatedAt' | 'examples' | 'testCaseRevision' | 'editorials' | 'isHidden'> & {
   testCases: AdminTestCaseDraft[]
   testCaseRevision: number
   editorials: AdminProblemEditorialDraft[]

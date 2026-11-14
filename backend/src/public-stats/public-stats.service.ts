@@ -29,8 +29,8 @@ export class PublicStatsService {
          WHERE status = 'PUBLISHED' AND organization_id IS NULL)::text AS problems,
         (SELECT COUNT(*)
          FROM submissions s
-         JOIN problems p ON p.id = s.problem_id
-         WHERE p.organization_id IS NULL)::text AS submissions
+         JOIN problems p ON p.id = s.problem_id AND p.status = 'PUBLISHED'
+          AND p.organization_id IS NULL)::text AS submissions
     `);
     const row = result.rows[0];
     if (!row) {

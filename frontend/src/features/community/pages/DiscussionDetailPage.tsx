@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Pagination from '../../../components/ui/Pagination'
 import { ConfirmDialog } from '../../admin/components/ConfirmDialog'
@@ -15,12 +15,18 @@ import {
 import { formatDateTime, totalPages } from '../format'
 import { useToast } from '../../../components/ui/toast-context'
 import { CommentItem, type CommentPaths } from '../CommentItem'
+import { useCommentReply } from '../useCommentReply'
 import { ReactionBar } from '../ReactionBar'
 import { errorMessage, useAsync } from '../useAsync'
 import { communityText } from '../translate'
 import styles from '../community.module.css'
+import {
+  DISCUSSION_COMMENTS_PAGE_SIZE,
+  discussionCommentElementId,
+  locateDiscussionCommentPage,
+} from '../discussion-comment-navigation'
 
-const COMMENT_PAGE_SIZE = 20
+const COMMENT_PAGE_SIZE = DISCUSSION_COMMENTS_PAGE_SIZE
 
 function discussionCommentPaths(discussionId: string): CommentPaths {
   return {
@@ -37,6 +43,9 @@ function DiscussionDetailPage() {
     communityText(t, language, key, vi, en, values)
   const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
   const { id = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const targetCommentId = searchParams.get('commentId')
+  const targetRootCommentId = searchParams.get('rootCommentId')
   const navigate = useNavigate()
   const { request, isReady, isAuthenticated } = useCommunityRequest()
   const { showToast } = useToast()
@@ -47,8 +56,17 @@ function DiscussionDetailPage() {
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [commentPage, setCommentPage] = useState(1)
+  const [commentTargetSearch, setCommentTargetSearch] = useState<{
+    key: string
+    status: 'searching' | 'located' | 'missing' | 'error'
+    page?: number
+    targetFound?: boolean
+    anchorCommentId?: string
+  } | null>(null)
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
   const [commentError, setCommentError] = useState('')
+  const replyController = useCommentReply()
   const commentPaths = discussionCommentPaths(id)
 
   const discussion = useAsync(
@@ -64,6 +82,82 @@ function DiscussionDetailPage() {
       : null,
     [id, commentPage, isReady, isAuthenticated],
   )
+  const targetSearchKey = targetCommentId ? `${id}:${targetCommentId}:${targetRootCommentId ?? ''}` : null
+  const activeCommentTargetSearch = commentTargetSearch?.key === targetSearchKey
+    ? commentTargetSearch
+    : null
+  const commentTargetStatus = targetSearchKey
+    ? activeCommentTargetSearch?.status ?? 'searching'
+    : null
+
+  useEffect(() => {
+    if (!targetSearchKey || !targetCommentId || !isReady) return
+
+    const controller = new AbortController()
+    let active = true
+
+    void locateDiscussionCommentPage(
+      (page, pageSize) =>
+        request<PageResult<DiscussionComment>>(
+          `/discussions/${encodeURIComponent(id)}/comments${buildQuery({ page, pageSize })}`,
+          { signal: controller.signal },
+        ),
+      targetCommentId,
+      targetRootCommentId,
+    ).then((located) => {
+      if (!active) return
+      if (!located) {
+        setCommentTargetSearch({ key: targetSearchKey, status: 'missing' })
+        return
+      }
+      setHighlightedCommentId(null)
+      setCommentPage(located.page)
+      setCommentTargetSearch({
+        key: targetSearchKey,
+        status: 'located',
+        page: located.page,
+        targetFound: located.targetFound,
+        anchorCommentId: located.anchorCommentId,
+      })
+    }).catch(() => {
+      if (active && !controller.signal.aborted) {
+        setCommentTargetSearch({ key: targetSearchKey, status: 'error' })
+      }
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [id, isReady, request, targetCommentId, targetRootCommentId, targetSearchKey])
+
+  const displayedCommentPage = comments.status === 'ready' ? comments.data.page : null
+  useEffect(() => {
+    const search = activeCommentTargetSearch
+    if (
+      !search
+      || search.status !== 'located'
+      || !search.anchorCommentId
+      || comments.status !== 'ready'
+      || displayedCommentPage !== search.page
+    ) {
+      return
+    }
+
+    const target = document.getElementById(discussionCommentElementId(search.anchorCommentId))
+    if (!target) return
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    target.scrollIntoView?.({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' })
+    target.focus({ preventScroll: true })
+
+    if (!search.targetFound || !targetCommentId) return
+    const highlightStartTimeoutId = window.setTimeout(() => setHighlightedCommentId(targetCommentId), 0)
+    const highlightEndTimeoutId = window.setTimeout(() => setHighlightedCommentId(null), 2600)
+    return () => {
+      window.clearTimeout(highlightStartTimeoutId)
+      window.clearTimeout(highlightEndTimeoutId)
+    }
+  }, [activeCommentTargetSearch, comments.status, displayedCommentPage, targetCommentId, targetSearchKey])
 
   async function run(action: () => Promise<void>, onError: (message: string) => void) {
     setBusy(true)
@@ -213,6 +307,19 @@ function DiscussionDetailPage() {
 
         <section className={styles.section} aria-label={text('comments', 'Bình luận', 'Comments')}>
           <h2>{text('commentsCount', 'Bình luận ({{count}})', 'Comments ({{count}})', { count: current.replies.toLocaleString(locale) })}</h2>
+          {commentTargetStatus === 'searching' ? (
+            <p className={styles.commentTargetNotice} role="status">{text('findingNotifiedComment', 'Đang tìm vị trí bình luận…', 'Finding the notified comment…')}</p>
+          ) : null}
+          {commentTargetStatus === 'missing' ? (
+            <p className={styles.commentTargetNotice} role="status">{text('notifiedCommentUnavailable', 'Bình luận không còn khả dụng hoặc chủ đề không chứa bình luận này.', 'This comment is no longer available in this discussion.')}</p>
+          ) : null}
+          {commentTargetStatus === 'error' ? (
+            <p className={`${styles.commentTargetNotice} ${styles.stateError}`} role="alert">{text('notifiedCommentLookupError', 'Không thể tìm vị trí bình luận. Bạn vẫn có thể duyệt các trang bình luận bên dưới.', 'Could not locate the comment. You can still browse the discussion pages below.')}</p>
+          ) : null}
+          {activeCommentTargetSearch?.status === 'located'
+            && !activeCommentTargetSearch.targetFound ? (
+              <p className={styles.commentTargetNotice} role="status">{text('notifiedCommentDeleted', 'Bình luận đã bị xóa; đang hiển thị phần thảo luận gần nhất còn khả dụng.', 'The comment was deleted; showing the nearest available discussion.')}</p>
+            ) : null}
           <div className={styles.card}>
             {comments.status === 'error' ? (
               <div className={`${styles.state} ${styles.stateError}`} role="alert">
@@ -230,6 +337,13 @@ function DiscussionDetailPage() {
                   comment={comment}
                   paths={commentPaths}
                   locked={current.isLocked}
+                  targetCommentId={activeCommentTargetSearch?.anchorCommentId}
+                  highlightedCommentId={
+                    activeCommentTargetSearch?.targetFound
+                      ? highlightedCommentId
+                      : null
+                  }
+                  replyController={replyController}
                   request={request}
                   onChanged={() => {
                     discussion.reload()

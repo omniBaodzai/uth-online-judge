@@ -17,7 +17,7 @@ const lookup = (patch: object = {}) => ({
 });
 const comment = (id: string, patch: object = {}) => ({
   id, authorId: 'u1', authorName: 'u1', content: 'x', discussionId: 'd1', parentId: null,
-  isDeleted: false, createdAt: '', updatedAt: '', ...patch,
+  authorUsername: 'u1', avatarUrl: null, isDeleted: false, createdAt: '', updatedAt: '', ...patch,
 });
 
 const build = (found: object | null = lookup(), target: object | null = discussion) => {
@@ -87,19 +87,19 @@ describe('replies', () => {
   it('creates a reply to a top-level comment', async () => {
     const { service, repository } = build();
     await service.addComment('d1', student, 'ok', 'c1');
-    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'ok', 'c1');
+    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'ok', 'c1', null);
   });
 
   it('creates a reply to another reply while preserving its parent', async () => {
     const { service, repository } = build(lookup({ parentId: 'root' }));
     await service.addComment('d1', student, 'ok', 'c1');
-    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'ok', 'c1');
+    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'ok', 'c1', null);
   });
 
   it('allows a comment author to reply to their own comment', async () => {
     const { service, repository } = build(lookup({ authorId: 'u1' }));
     await service.addComment('d1', student, 'follow-up', 'c1');
-    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'follow-up', 'c1');
+    expect(repository.createComment).toHaveBeenCalledWith('d1', 'u1', 'follow-up', 'c1', null);
   });
 
   it('rejects a parent from another discussion', async () => {
@@ -141,6 +141,8 @@ describe('replies', () => {
     expect(first.replies[0].canDelete).toBe(true);
     expect(first.reactions.mine).toBe('LIKE');
     expect(deleted.content).toBe('');
+    expect(deleted.authorUsername).toBeNull();
+    expect(deleted.avatarUrl).toBeNull();
     expect(deleted.canEdit).toBe(false);
     expect(deleted.canDelete).toBe(false);
     expect(deleted.reactions).toEqual(emptyReactionSummary());

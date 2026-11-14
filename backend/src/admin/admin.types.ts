@@ -1,5 +1,7 @@
 export type AdminProblemStatus = 'draft' | 'published' | 'archived';
 export type AdminDifficulty = 'easy' | 'medium' | 'hard';
+export type AdminProblemVisibility = 'visible' | 'hidden';
+export type AdminProblemVisibilityResult = Pick<AdminProblem, 'id' | 'status' | 'isHidden'>;
 
 export type AdminProblemExample = {
   id: string;
@@ -38,6 +40,7 @@ export type AdminProblem = {
   examples: AdminProblemExample[];
   editorials: AdminProblemEditorial[];
   status: AdminProblemStatus;
+  isHidden: boolean;
   updatedAt: string;
 };
 
@@ -62,6 +65,7 @@ export type AdminProblemListQuery = {
   search?: string;
   status?: AdminProblemStatus;
   difficulty?: AdminDifficulty;
+  visibility?: AdminProblemVisibility;
 };
 
 export type AdminProblemPage = {

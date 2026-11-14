@@ -5,16 +5,26 @@ import { DiscussionsService } from './discussions.service.js';
 import { AdminNewsController, NewsController } from './news.controller.js';
 import { NewsRepository } from './news.repository.js';
 import { NewsService } from './news.service.js';
+import { AdminNewsMediaController, NewsMediaController } from './news-media.controller.js';
+import { NewsMediaService } from './news-media.service.js';
 import { ProblemCommentsController } from './problem-comments.controller.js';
 import { ProblemCommentsRepository } from './problem-comments.repository.js';
 import { ProblemCommentsService } from './problem-comments.service.js';
 import { ReactionsRepository } from './reactions.repository.js';
 
 @Module({
-  controllers: [NewsController, AdminNewsController, DiscussionsController, ProblemCommentsController],
+  controllers: [
+    NewsController,
+    AdminNewsController,
+    AdminNewsMediaController,
+    NewsMediaController,
+    DiscussionsController,
+    ProblemCommentsController,
+  ],
   providers: [
     NewsRepository,
     NewsService,
+    NewsMediaService,
     DiscussionsRepository,
     ReactionsRepository,
     DiscussionsService,

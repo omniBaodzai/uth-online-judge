@@ -1,0 +1,452 @@
+.page {
+  --users-ink: #193437;
+  --users-muted: #687b7e;
+  --users-primary: #008689;
+  min-width: 0;
+  padding-top: 2px;
+  color: var(--users-ink);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.metricCard {
+  min-width: 0;
+  min-height: 145px;
+  padding: 18px 19px;
+  border: 1px solid rgba(211, 226, 226, .94);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 134, 137, .32);
+  box-shadow: 0 12px 28px rgba(28, 63, 66, .08);
+}
+
+.metricIcon {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  margin-bottom: 13px;
+  border-radius: 11px;
+}
+
+.teal {
+  background: #e4f4f2;
+  color: #007a7d;
+}
+
+.green {
+  background: #e9f5ee;
+  color: #28774f;
+}
+
+.amber {
+  background: #fff4df;
+  color: #946000;
+}
+
+.violet {
+  background: #f0ebfb;
+  color: #6243a5;
+}
+
+.metricCard p {
+  margin: 0 0 5px;
+  color: var(--users-muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.metricCard strong {
+  display: block;
+  font-size: clamp(22px, 2.2vw, 29px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.metricSkeleton {
+  display: block;
+  width: 62%;
+  height: 25px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #edf2f2 25%, #f6f9f9 50%, #edf2f2 75%);
+  background-size: 200% 100%;
+  animation: users-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes users-skeleton-shimmer {
+  to { background-position: -200% 0; }
+}
+
+.statsError,
+.listError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #efcdca;
+  border-radius: 10px;
+  background: #fff7f6;
+  color: #783d39;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.statsError {
+  margin-bottom: 14px;
+}
+
+.listError {
+  margin: 0 0 12px;
+}
+
+.statsError button,
+.listError button {
+  min-height: 40px;
+  flex: none;
+  padding: 0 10px;
+  border: 1px solid #e4b7b2;
+  border-radius: 7px;
+  background: #fff;
+  color: #783d39;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.statsError button:hover:not(:disabled),
+.listError button:hover:not(:disabled) {
+  border-color: #d89690;
+  background: #fffdfd;
+}
+
+.statsError button:disabled,
+.listError button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.userPanel {
+  min-width: 0;
+  padding: 16px 20px 20px;
+  border-color: rgba(211, 226, 226, .94);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
+}
+
+.toolbar {
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.searchField {
+  min-width: min(280px, 100%);
+  min-height: 44px;
+  flex: 1 1 320px;
+  border-radius: 9px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.searchField:focus-within {
+  border-color: #6bb2b0;
+  box-shadow: 0 0 0 3px rgba(0, 134, 137, .1);
+}
+
+.toolbar select {
+  min-width: 164px;
+  min-height: 44px;
+  border-radius: 9px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.toolbar select:focus-visible {
+  border-color: #6bb2b0;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(0, 134, 137, .1);
+}
+
+.toolbar > button {
+  min-height: 44px;
+}
+
+.paginationTop {
+  margin: 0 0 12px;
+}
+
+.paginationBottom {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #edf1f1;
+}
+
+.tableWrap {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid #e0e8e8;
+  border-radius: 10px;
+}
+
+.userTable {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.userTable th {
+  padding: 13px 12px;
+  background: #008689;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .025em;
+  white-space: nowrap;
+}
+
+.userTable td {
+  padding: 10px 12px;
+  border-top: 1px solid #edf1f1;
+  vertical-align: middle;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.userTable tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.userTable tbody tr:hover {
+  background: #f8fbfb;
+}
+
+.userName {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.userEmail {
+  overflow-wrap: anywhere;
+}
+
+.selfBadge {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #087f82;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+.actionButton {
+  min-height: 36px;
+  gap: 5px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.emptyState {
+  padding: 36px 12px;
+  color: var(--users-muted);
+  text-align: center;
+}
+
+.emptyState h2 {
+  margin: 0 0 6px;
+  color: var(--users-ink);
+  font-size: 16px;
+}
+
+.emptyState p {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.page :is(button, select, input, .tableWrap):focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .36);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1100px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tableWrap {
+    overflow: visible;
+    border: 0;
+  }
+
+  .userTable,
+  .userTable tbody {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .userTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .userTable tr {
+    display: grid;
+    gap: 8px;
+    padding: 13px;
+    border: 1px solid #e0e8e8;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .userTable td {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 120px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .userTable td::before {
+    content: attr(data-label);
+    color: var(--users-muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .userTable td[data-label='Thao tác'] {
+    grid-template-columns: 1fr;
+    padding-top: 5px;
+  }
+
+  .userTable td[data-label='Thao tác']::before {
+    display: none;
+  }
+
+  .rowActions {
+    flex-wrap: wrap;
+  }
+
+  .actionButton {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 760px) {
+  .userPanel {
+    padding: 14px 12px 16px;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .searchField {
+    flex-basis: 100%;
+  }
+
+  .toolbar select {
+    min-width: 0;
+    flex: 1 1 140px;
+    font-size: 16px;
+  }
+
+  .searchField input {
+    font-size: 16px;
+  }
+
+  .paginationTop,
+  .paginationBottom {
+    margin-right: -2px;
+    margin-left: -2px;
+  }
+}
+
+@media (max-width: 430px) {
+  .metrics {
+    gap: 10px;
+  }
+
+  .metricCard {
+    min-height: 140px;
+    padding: 15px 14px;
+  }
+
+  .metricIcon {
+    margin-bottom: 10px;
+  }
+
+  .metricCard p {
+    font-size: 11px;
+  }
+
+  .statsError,
+  .listError {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .userTable td {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .rowActions {
+    gap: 6px;
+  }
+
+  .actionButton {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page *::before,
+  .page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

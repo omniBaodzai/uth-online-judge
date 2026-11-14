@@ -1,0 +1,481 @@
+.page {
+  --news-primary: #008689;
+  --news-primary-dark: #006f72;
+  --news-ink: #193437;
+  --news-muted: #687b7e;
+  min-width: 0;
+  padding-top: 2px;
+  color: var(--news-ink);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.metricCard {
+  min-width: 0;
+  min-height: 145px;
+  padding: 18px 19px;
+  border: 1px solid rgba(211, 226, 226, .94);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 134, 137, .32);
+  box-shadow: 0 12px 28px rgba(28, 63, 66, .08);
+}
+
+.metricIcon {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  margin-bottom: 13px;
+  border-radius: 11px;
+}
+
+.teal {
+  background: #e4f4f2;
+  color: #007a7d;
+}
+
+.green {
+  background: #e9f5ee;
+  color: #28774f;
+}
+
+.amber {
+  background: #fff4df;
+  color: #946000;
+}
+
+.slate {
+  background: #eef1f4;
+  color: #5e6f79;
+}
+
+.metricCard p {
+  margin: 0 0 5px;
+  color: #000;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+.metricCard strong {
+  display: block;
+  font-size: clamp(22px, 2.2vw, 29px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.metricSkeleton {
+  display: block;
+  width: 62%;
+  height: 25px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #edf2f2 25%, #f6f9f9 50%, #edf2f2 75%);
+  background-size: 200% 100%;
+  animation: news-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes news-skeleton-shimmer {
+  to { background-position: -200% 0; }
+}
+
+.statsError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #efcdca;
+  border-radius: 10px;
+  background: #fff7f6;
+  color: #783d39;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.statsError button {
+  min-height: 40px;
+  flex: none;
+  padding: 0 10px;
+  border: 1px solid #e4b7b2;
+  border-radius: 7px;
+  background: #fff;
+  color: #783d39;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.createRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.createButton {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid var(--news-primary);
+  border-radius: 9px;
+  background: var(--news-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.createButton:hover {
+  transform: translateY(-1px);
+  background: var(--news-primary-dark);
+  box-shadow: 0 5px 12px rgba(0, 104, 107, .18);
+}
+
+.createButton:focus-visible,
+.statsError button:focus-visible,
+.page :is(a, button, select, input, .tableWrap):focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .36);
+  outline-offset: 3px;
+}
+
+.createButton:active {
+  transform: translateY(0);
+}
+
+.newsPanel {
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.searchField {
+  display: flex;
+  min-width: 220px;
+  min-height: 44px;
+  flex: 1 1 320px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid #dce7e7;
+  border-radius: 9px;
+  background: #fff;
+  color: #789092;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.searchField:focus-within {
+  border-color: #6bb2b0;
+  box-shadow: 0 0 0 3px rgba(0, 134, 137, .1);
+}
+
+.searchField input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--news-ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.searchField input::placeholder {
+  color: #819294;
+}
+
+.statusFilter {
+  min-width: 174px;
+}
+
+.statusFilter select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 32px 0 12px;
+  border: 1px solid #dce7e7;
+  border-radius: 9px;
+  background: #fff;
+  color: #425c5e;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.statusFilter select:focus-visible {
+  border-color: #6bb2b0;
+}
+
+.clearButton {
+  min-height: 44px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.paginationTop {
+  margin: 0 0 14px;
+}
+
+.paginationBottom {
+  margin: 14px 0 0;
+}
+
+.loadingState,
+.emptyState {
+  display: grid;
+  min-height: 120px;
+  align-content: center;
+  justify-items: center;
+  padding: 24px 16px;
+  color: var(--news-muted);
+  text-align: center;
+}
+
+.emptyState {
+  border: 1px dashed #d4e1e1;
+  border-radius: 10px;
+  background: #fbfdfd;
+}
+
+.emptyState h2 {
+  margin: 0;
+  color: var(--news-ink);
+  font-size: 15px;
+}
+
+.emptyState p {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.tableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #dce7e7;
+  border-radius: 10px;
+  overscroll-behavior-inline: contain;
+}
+
+.newsTable {
+  width: 100%;
+  min-width: 1060px;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.newsTable th {
+  padding: 13px 14px;
+  background: #008689;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.newsTable thead th:first-child {
+  border-top-left-radius: 9px;
+}
+
+.newsTable thead th:last-child {
+  border-top-right-radius: 9px;
+}
+
+.newsTable td {
+  padding: 13px 14px;
+  border-top: 1px solid #edf1f1;
+  color: #435b5e;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.newsTable tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.newsTable tbody tr:hover {
+  background: #f7fbfa;
+}
+
+.articleTitle {
+  display: block;
+  max-width: 360px;
+  color: var(--news-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.articleTitle:hover {
+  color: var(--news-primary-dark);
+  text-decoration: underline;
+}
+
+.articleSummary {
+  display: -webkit-box;
+  max-width: 360px;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--news-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.statusBadge {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.dateCell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowActions {
+  display: flex;
+  min-width: 224px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actionButton {
+  min-height: 38px;
+  padding: 0 9px;
+  font-size: 11px;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.actionButton:focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .32);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .metrics {
+    gap: 10px;
+  }
+
+  .metricCard {
+    min-height: 132px;
+    padding: 14px;
+  }
+
+  .metricIcon {
+    width: 35px;
+    height: 35px;
+    margin-bottom: 10px;
+  }
+
+  .createRow {
+    margin-bottom: 14px;
+  }
+
+  .createButton {
+    width: 100%;
+  }
+
+  .newsPanel {
+    padding: 14px;
+  }
+
+  .searchField {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+
+  .statusFilter {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .clearButton {
+    flex: none;
+  }
+
+  .actionButton {
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 380px) {
+  .metricCard {
+    min-height: 126px;
+    padding: 12px;
+  }
+
+  .metricCard p {
+    font-size: 11px;
+  }
+
+  .metricCard strong {
+    font-size: 22px;
+  }
+
+  .newsPanel {
+    padding: 12px;
+  }
+
+  .rowActions {
+    min-width: 200px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metricCard,
+  .createButton,
+  .searchField,
+  .statusFilter select,
+  .statusBadge,
+  .actionButton,
+  .newsTable tbody tr,
+  .paginationTop button,
+  .paginationBottom button {
+    transition: none;
+  }
+
+  .metricSkeleton {
+    animation: none;
+  }
+}

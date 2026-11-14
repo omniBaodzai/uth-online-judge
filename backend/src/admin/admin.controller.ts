@@ -17,18 +17,19 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DocumentControllerOperations } from '../swagger/document-controller-operations.decorator.js';
 import type { Request } from 'express';
 import type {} from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { AddJudge0LanguageDto } from './dto/admin-language.dto.js';
-import { AdminProblemDto, AdminProblemStatusDto } from './dto/admin-problem.dto.js';
+import { AdminProblemDto, AdminProblemStatusDto, AdminProblemVisibilityDto } from './dto/admin-problem.dto.js';
 import { AdminTestCaseCollectionDto } from './dto/admin-test-case.dto.js';
 import { ListAdminProblemsQueryDto } from './dto/list-admin-problems-query.dto.js';
 import { AdminRoleGuard } from './admin-role.guard.js';
 import { AdminService } from './admin.service.js';
 import { ProblemIllustrationService, PROBLEM_ILLUSTRATION_MAX_BYTES } from '../problems/problem-illustration.service.js';
+import { AdminDashboardStatisticsQueryDto } from './dto/admin-dashboard-statistics.dto.js';
 
 type AdminRequest = Request & { user: { id: string; role: 'ADMIN' } };
 
@@ -46,6 +47,11 @@ export class AdminController {
   @Get('dashboard')
   dashboard() {
     return this.admin.dashboard();
+  }
+
+  @Get('dashboard/statistics')
+  dashboardStatistics(@Query() query: AdminDashboardStatisticsQueryDto) {
+    return this.admin.dashboardStatistics(query);
   }
 
   @Get('catalog')
@@ -129,6 +135,25 @@ export class AdminController {
   @Patch('problems/:id/status')
   setProblemStatus(@Param('id') id: string, @Body() input: AdminProblemStatusDto) {
     return this.admin.setProblemStatus(id, input.status);
+  }
+
+  @Patch('problems/:id/visibility')
+  @ApiOperation({
+    summary: 'Ẩn hoặc hiện bài tập Global khỏi danh sách bài tập công khai',
+    description: 'Chỉ áp dụng bài Published Global. Người có đường dẫn trực tiếp vẫn xem và nộp bài theo chính sách hiện hành.',
+  })
+  @ApiOkResponse({
+    description: 'Trạng thái hiển thị đã được cập nhật.',
+    schema: {
+      example: {
+        id: '00000000-0000-4000-8000-000000000000',
+        status: 'published',
+        isHidden: true,
+      },
+    },
+  })
+  setProblemVisibility(@Param('id') id: string, @Body() input: AdminProblemVisibilityDto) {
+    return this.admin.setProblemVisibility(id, input.isHidden);
   }
 
   @Delete('problems/:id')

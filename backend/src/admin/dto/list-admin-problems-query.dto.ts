@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import type { AdminDifficulty, AdminProblemStatus } from '../admin.types.js';
+import type { AdminDifficulty, AdminProblemStatus, AdminProblemVisibility } from '../admin.types.js';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ListAdminProblemsQueryDto {
@@ -34,4 +34,9 @@ export class ListAdminProblemsQueryDto {
   @IsOptional()
   @IsIn(['easy', 'medium', 'hard'])
   difficulty?: AdminDifficulty;
+
+  @ApiPropertyOptional({ enum: ['visible', 'hidden'] })
+  @IsOptional()
+  @IsIn(['visible', 'hidden'])
+  visibility?: AdminProblemVisibility;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Newspaper } from 'lucide-react'
 import Pagination from '../../../components/ui/Pagination'
 import { request } from '../../auth/api'
 import {
@@ -11,7 +12,7 @@ import {
 } from '../../community/api'
 import { mapDiscussion, mapNews, type FeedEntryData } from '../../community/feed'
 import { CreateDiscussionButton } from '../../community/CreateDiscussionButton'
-import { formatDate, toDateBlock, totalPages } from '../../community/format'
+import { formatDate, totalPages } from '../../community/format'
 import styles from './CommunityFeed.module.css'
 
 type FeedTab = 'news' | 'discussion'
@@ -167,9 +168,8 @@ function CommunityFeed() {
 function FeedEntry({ item, isDiscussion }: { item: FeedEntryData; isDiscussion: boolean }) {
   const { t, i18n } = useTranslation('home')
   const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
-  const { day, month } = toDateBlock(item.dateTime, locale)
   return (
-    <article className={styles.entry}>
+    <article className={`${styles.entry} ${isDiscussion ? '' : styles.newsEntry}`}>
       {isDiscussion ? (
         <div className={styles.replyBlock} aria-label={t('replyCount', { count: item.replies ?? 0, ns: 'common' })}>
           <strong>{item.replies ?? 0}</strong>
@@ -177,8 +177,7 @@ function FeedEntry({ item, isDiscussion }: { item: FeedEntryData; isDiscussion: 
         </div>
       ) : (
         <div className={styles.dateBlock} aria-hidden="true">
-          <strong>{day}</strong>
-          <span>{month}</span>
+          <Newspaper className={styles.newsIcon} aria-hidden="true" strokeWidth={1.8} />
         </div>
       )}
       <div className={styles.entryBody}>
@@ -187,9 +186,9 @@ function FeedEntry({ item, isDiscussion }: { item: FeedEntryData; isDiscussion: 
             {item.title}
           </Link>
         </h3>
-        <p className={styles.entrySummary}>{item.summary}</p>
+        {isDiscussion ? <p className={styles.entrySummary}>{item.summary}</p> : null}
         <p className={styles.entryMeta}>
-          {item.category ? <span className={styles.category}>{item.category}</span> : null}
+          {isDiscussion && item.category ? <span className={styles.category}>{item.category}</span> : null}
           <span>{item.author}</span>
           <time dateTime={item.dateTime ?? undefined}>{formatDate(item.dateTime, locale)}</time>
           {item.reactions ? <span>{t('reactionCount', { count: item.reactions, ns: 'common' })}</span> : null}

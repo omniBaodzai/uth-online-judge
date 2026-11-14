@@ -355,3 +355,134 @@
     padding: 12px;
   }
 }
+
+.adminDetailPanel {
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.formOpenGrid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.adminDetailPanel .formOpenGrid .list {
+  max-height: 180px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  overflow: auto;
+  padding-right: 8px;
+}
+
+.adminDetailPanel .formOpenGrid .content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+  padding: clamp(14px, 2.4vw, 24px);
+  border-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 98%, var(--color-primary));
+}
+
+.adminDetailForm {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.adminDetailForm > h3,
+.adminDetailForm > .wideFormField,
+.adminDetailForm > .twoCols,
+.adminDetailForm > fieldset,
+.adminDetailForm > .actions,
+.adminDetailForm > .muted {
+  grid-column: 1 / -1;
+}
+
+.adminDetailForm input:not([type='checkbox']),
+.adminDetailForm select,
+.adminDetailForm textarea {
+  box-sizing: border-box;
+  min-height: 44px;
+}
+
+.adminDetailForm textarea {
+  min-height: 96px;
+}
+
+.adminDetailForm fieldset {
+  padding: 16px;
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-primary));
+}
+
+.adminDetailForm .caseEditor {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.adminDetailForm .caseEditor > .twoCols,
+.adminDetailForm .caseEditor > .wideFormField {
+  grid-column: 1 / -1;
+}
+
+.adminDetailForm .optionList {
+  max-height: 320px;
+  overflow: auto;
+  padding: 0 8px 0 0;
+}
+
+.adminDetailForm .optionList li {
+  align-items: flex-start;
+}
+
+.adminDetailForm .optionList label {
+  width: 100%;
+}
+
+.adminDetailForm .actions {
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.adminDetailPanel .primary,
+.adminDetailPanel .secondary,
+.adminDetailPanel .danger {
+  min-height: 44px;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.adminDetailPanel .primary:hover:not(:disabled) {
+  filter: brightness(.94);
+}
+
+.adminDetailPanel .secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+}
+
+.adminDetailPanel .danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #dc2626 7%, var(--color-surface));
+}
+
+.adminDetailPanel .primary:focus-visible,
+.adminDetailPanel .secondary:focus-visible,
+.adminDetailPanel .danger:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+  outline-offset: 2px;
+}
+
+@container (max-width: 600px) {
+  .adminDetailForm,
+  .adminDetailForm .twoCols,
+  .adminDetailForm .caseEditor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adminDetailPanel .primary,
+  .adminDetailPanel .secondary,
+  .adminDetailPanel .danger {
+    transition: none;
+  }
+}

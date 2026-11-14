@@ -10,6 +10,7 @@ type SubmissionPaginationProps = {
   summaryLabel?: string
   additionalSummary?: string
   showPageSize?: boolean
+  disabled?: boolean
   onPageChange: (page: number) => void
   onPageSizeChange: (size: number) => void
 }
@@ -36,6 +37,7 @@ function SubmissionPagination({
   summaryLabel = 'bài nộp',
   additionalSummary,
   showPageSize = true,
+  disabled = false,
   onPageChange,
   onPageSizeChange,
 }: SubmissionPaginationProps) {
@@ -49,7 +51,12 @@ function SubmissionPagination({
     'bài nộp': 'submissionItems',
     'bài nộp của tôi': 'mySubmissionItems',
     'bài tập': 'problemItems',
+    'người dùng': 'userItems',
+    'bài viết': 'newsItems',
     'cuộc thi': 'contestItems',
+    'tổ chức': 'organizationItems',
+    'yêu cầu': 'organizationRequestItems',
+    'tin nhắn': 'contactMessageItems',
     coder: 'coderItems',
     'bài giải tốt': 'bestSolutions',
     'bài tập cuộc thi': 'contestProblems',
@@ -75,7 +82,7 @@ function SubmissionPagination({
           type="button"
           className={styles.button}
           aria-label={t('previousPage')}
-          disabled={currentPage <= 1}
+          disabled={disabled || currentPage <= 1}
           onClick={() => onPageChange(currentPage - 1)}
         >
           ‹
@@ -88,6 +95,7 @@ function SubmissionPagination({
               className={`${styles.button} ${item === currentPage ? styles.active : ''}`}
               aria-current={item === currentPage ? 'page' : undefined}
               aria-label={t('pageNumber', { page: numberFormat.format(item) })}
+              disabled={disabled}
               onClick={() => onPageChange(item)}
             >
               {numberFormat.format(item)}
@@ -100,7 +108,7 @@ function SubmissionPagination({
           type="button"
           className={styles.button}
           aria-label={t('nextPage')}
-          disabled={currentPage >= totalPages}
+          disabled={disabled || currentPage >= totalPages}
           onClick={() => onPageChange(currentPage + 1)}
         >
           ›
@@ -109,7 +117,7 @@ function SubmissionPagination({
       {showPageSize && (
         <label className={styles.size}>
           <span>{t('itemsPerPage')}</span>
-          <select value={pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
+          <select disabled={disabled} value={pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
             {pageSizes.map((size) => (
               <option key={size} value={size}>{numberFormat.format(size)}</option>
             ))}

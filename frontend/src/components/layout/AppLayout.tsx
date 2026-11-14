@@ -6,6 +6,7 @@ import SiteHeader from './SiteHeader'
 import FloatingActions from '../floating/FloatingActions'
 import Breadcrumb from '../navigation/Breadcrumb'
 import BreadcrumbProvider from '../navigation/BreadcrumbProvider'
+import RouteLoadBoundary from './RouteLoadBoundary'
 import styles from './AppLayout.module.css'
 
 function AppLayout() {
@@ -27,7 +28,9 @@ function AppLayout() {
           <Breadcrumb />
         </div>
         <div className={styles.content}>
-          <Outlet />
+          <RouteLoadBoundary>
+            <Outlet />
+          </RouteLoadBoundary>
         </div>
       </BreadcrumbProvider>
       <SiteFooter />

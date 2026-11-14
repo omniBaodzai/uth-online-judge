@@ -34,11 +34,20 @@ type Props = {
   slug: string
   viewer: { id: string; isSystemAdmin: boolean; role: OrganizationMemberRole | null }
   archived: boolean
+  showOwnerNote?: boolean
+  adminDetail?: boolean
   // Gọi sau khi danh sách thay đổi để trang cha cập nhật memberCount.
   onChanged?: () => void
 }
 
-function MemberManager({ slug, viewer, archived, onChanged }: Props) {
+function MemberManager({
+  slug,
+  viewer,
+  archived,
+  showOwnerNote = true,
+  adminDetail = false,
+  onChanged,
+}: Props) {
   const { t } = useTranslation('pages')
   const api = useOrganizationsApi()
   const [q, setQ] = useState('')
@@ -127,12 +136,17 @@ function MemberManager({ slug, viewer, archived, onChanged }: Props) {
   const nameOf = (member: OrganizationMember) => member.fullName || member.username || '—'
 
   return (
-    <section className={styles.card} aria-labelledby="member-manager-title">
+    <section className={`${styles.card} ${adminDetail ? styles.adminDetailManager : ''}`} aria-labelledby="member-manager-title">
       <h2 id="member-manager-title">{t('membersMgmtTitle')}</h2>
       {archived && <p className={styles.note} role="status">{t('membersMgmtArchived')}</p>}
 
       {canAdd && (
-        <form className={styles.memberToolbar} onSubmit={handleAdd}>
+        <form
+          className={`${styles.memberToolbar} ${adminDetail ? styles.adminAddForm : ''}`}
+          onSubmit={handleAdd}
+          aria-labelledby={adminDetail ? 'member-add-title' : undefined}
+        >
+          {adminDetail && <h3 className={styles.adminGroupTitle} id="member-add-title">{t('membersMgmtAddGroup')}</h3>}
           <label>
             <span>{t('membersMgmtIdentifier')}</span>
             <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} maxLength={254} autoComplete="off" />
@@ -150,7 +164,12 @@ function MemberManager({ slug, viewer, archived, onChanged }: Props) {
         </form>
       )}
 
-      <div className={styles.memberToolbar}>
+      <div
+        className={`${styles.memberToolbar} ${adminDetail ? styles.adminDetailFilters : ''}`}
+        role={adminDetail ? 'group' : undefined}
+        aria-labelledby={adminDetail ? 'member-filters-title' : undefined}
+      >
+        {adminDetail && <h3 className={styles.adminGroupTitle} id="member-filters-title">{t('membersMgmtFilterGroup')}</h3>}
         <label>
           <span>{t('membersMgmtSearch')}</span>
           <input type="search" value={q} onChange={(event) => setQ(event.target.value)} maxLength={100} />
@@ -178,66 +197,86 @@ function MemberManager({ slug, viewer, archived, onChanged }: Props) {
         </div>
       )}
 
-      {loading ? (
-        <OrganizationTabState kind="loading" icon={Users} />
-      ) : !data ? (
-        <p className={styles.note} role="alert">{t('membersMgmtLoadFailed')}</p>
-      ) : data.items.length === 0 ? (
-        <p className={styles.empty}>{t('membersMgmtEmpty')}</p>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">{t('organizationTabMembers')}</th>
-                <th scope="col">{t('organizationMemberRoleHeading')}</th>
-                <th scope="col">{t('membersMgmtActions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.map((member) => {
-                const isSelf = member.id === viewer.id
-                const actions = archived
-                  ? { canChangeRole: false, canRemove: false }
-                  : memberActions(viewer, member.role, isSelf)
-                const target: AssignableRole = member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN'
-                return (
-                  <tr key={member.id}>
-                    <td>
-                      <UserAvatar source={member.avatarUrl} username={nameOf(member)} label={nameOf(member)} /> {nameOf(member)}
-                      {isSelf && <small> {t('membersMgmtYou')}</small>}
-                    </td>
-                    <td>{t(roleKeys[member.role])}</td>
-                    <td className={styles.rowActions}>
-                      {actions.canChangeRole && (
-                        <button className={styles.secondaryButton} type="button" disabled={busy}
-                          onClick={() => setPending({ kind: 'role', member, role: target })}>
-                          {t(roleKeys[target])}
-                        </button>
-                      )}
-                      {actions.canRemove && (
-                        <button className={styles.dangerButton} type="button" disabled={busy}
-                          onClick={() => setPending({ kind: 'remove', member })}>
-                          {t('membersMgmtRemove')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div
+        className={adminDetail ? styles.adminMemberList : undefined}
+        role={adminDetail ? 'group' : undefined}
+        aria-labelledby={adminDetail ? 'member-list-title' : undefined}
+      >
+        {adminDetail && <h3 className={styles.adminGroupTitle} id="member-list-title">{t('membersMgmtListGroup')}</h3>}
+        {loading ? (
+          <OrganizationTabState kind="loading" icon={Users} />
+        ) : !data ? (
+          <p className={styles.note} role="alert">{t('membersMgmtLoadFailed')}</p>
+        ) : data.items.length === 0 ? (
+          <p className={styles.empty}>{t('membersMgmtEmpty')}</p>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th scope="col">{t('organizationTabMembers')}</th>
+                  <th scope="col">{t('organizationMemberRoleHeading')}</th>
+                  <th scope="col">{t('membersMgmtActions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((member) => {
+                  const isSelf = member.id === viewer.id
+                  const actions = archived
+                    ? { canChangeRole: false, canRemove: false }
+                    : memberActions(viewer, member.role, isSelf)
+                  const target: AssignableRole = member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN'
+                  return (
+                    <tr key={member.id}>
+                      <td>
+                        {adminDetail ? (
+                          <div className={styles.adminMemberIdentity}>
+                            <UserAvatar source={member.avatarUrl} username={nameOf(member)} label={nameOf(member)} />
+                            <span>{nameOf(member)}{isSelf && <small> {t('membersMgmtYou')}</small>}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <UserAvatar source={member.avatarUrl} username={nameOf(member)} label={nameOf(member)} /> {nameOf(member)}
+                            {isSelf && <small> {t('membersMgmtYou')}</small>}
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        {adminDetail
+                          ? <span className={styles.adminRoleBadge}>{t(roleKeys[member.role])}</span>
+                          : t(roleKeys[member.role])}
+                      </td>
+                      <td className={`${styles.rowActions} ${adminDetail ? styles.adminRowActions : ''}`}>
+                        {actions.canChangeRole && (
+                          <button className={styles.secondaryButton} type="button" disabled={busy}
+                            onClick={() => setPending({ kind: 'role', member, role: target })}>
+                            {t(roleKeys[target])}
+                          </button>
+                        )}
+                        {actions.canRemove && (
+                          <button className={styles.dangerButton} type="button" disabled={busy}
+                            onClick={() => setPending({ kind: 'remove', member })}>
+                            {t('membersMgmtRemove')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {data && data.total > PAGE_SIZE && (
-        <div className={styles.memberToolbar}>
-          <button className={styles.secondaryButton} type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t('membersMgmtPrev')}</button>
-          <span>{t('membersMgmtPage', { page, total: totalPages })}</span>
-          <button className={styles.secondaryButton} type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>{t('membersMgmtNext')}</button>
-        </div>
-      )}
-      <p className={styles.note}>{t('membersMgmtOwnerNote')}</p>
+        {data && data.total > PAGE_SIZE && (
+          <div className={`${styles.memberToolbar} ${adminDetail ? styles.adminMemberPagination : ''}`}>
+            <button className={styles.secondaryButton} type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t('membersMgmtPrev')}</button>
+            <span>{t('membersMgmtPage', { page, total: totalPages })}</span>
+            <button className={styles.secondaryButton} type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>{t('membersMgmtNext')}</button>
+          </div>
+        )}
+      </div>
+      {showOwnerNote && <p className={styles.note}>{t('membersMgmtOwnerNote')}</p>}
     </section>
   )
 }

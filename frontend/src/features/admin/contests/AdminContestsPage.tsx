@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Archive, Eye, Info, RotateCcw } from 'lucide-react'
+import { Activity, Archive, CalendarClock, Eye, Flag, RotateCcw, Trophy, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
 import { submissionPageSizes } from '../../submissions/data'
@@ -28,18 +28,22 @@ type TimeFilter = Exclude<ContestTimeStatus, 'UNPUBLISHED'> | 'all'
 const PAGE_SIZES = submissionPageSizes
 const DEFAULT_PAGE_SIZE = 10
 
-function Metric({ label, value, tone, loading }: {
+type MetricTone = 'teal' | 'green' | 'amber' | 'slate'
+
+function Metric({ label, value, tone, loading, icon: Icon }: {
   label: string
   value: number | undefined
-  tone: string
+  tone: MetricTone
   loading: boolean
+  icon: LucideIcon
 }) {
   return (
-    <article className={adminStyles.metricCard}>
-      <span className={`${adminStyles.metricMark} ${adminStyles[tone]}`} />
+    <article className={styles.contestMetricCard}>
+      <span className={`${styles.metricIcon} ${styles[`metricIcon_${tone}`]}`}>
+        <Icon size={19} aria-hidden="true" />
+      </span>
       <p>{label}</p>
       <strong>{loading || value === undefined ? '—' : value.toLocaleString('vi-VN')}</strong>
-      <small>Từ dữ liệu cuộc thi</small>
     </article>
   )
 }
@@ -303,27 +307,17 @@ function AdminContestsPage() {
 
   return (
     <>
-      <div className={adminStyles.pageHeading}>
-        <div>
-          <p className={adminStyles.eyebrow}>QUẢN LÝ NỘI DUNG</p>
-          <h1>Quản lý cuộc thi</h1>
-          <p className={adminStyles.pageSubtitle}>Theo dõi lịch tổ chức, trạng thái xuất bản và danh sách cuộc thi.</p>
-        </div>
-        <Link className={adminStyles.buttonPrimary} to="/admin/contests/new">
+      <div className={`${adminStyles.metricGrid} ${styles.statsGrid}`}>
+        <Metric label="Tổng cuộc thi" value={overview?.total} tone="teal" loading={overviewLoading} icon={Trophy} />
+        <Metric label="Đang diễn ra" value={overview?.ongoing} tone="green" loading={overviewLoading} icon={Activity} />
+        <Metric label="Sắp diễn ra" value={overview?.upcoming} tone="amber" loading={overviewLoading} icon={CalendarClock} />
+        <Metric label="Đã kết thúc" value={overview?.ended} tone="slate" loading={overviewLoading} icon={Flag} />
+      </div>
+
+      <div className={styles.createRow}>
+        <Link className={styles.createButton} to="/admin/contests/new">
           <AdminIcon name="plus" /> Tạo cuộc thi
         </Link>
-      </div>
-
-      <div className={`${adminStyles.demoNotice} ${styles.demoNotice}`} role="note">
-        <Info size={17} aria-hidden="true" />
-        <span>Dữ liệu cuộc thi và thay đổi được đồng bộ với Backend.</span>
-      </div>
-
-      <div className={`${adminStyles.metricGrid} ${styles.statsGrid}`}>
-        <Metric label="Tổng cuộc thi" value={overview?.total} tone="teal" loading={overviewLoading} />
-        <Metric label="Đang diễn ra" value={overview?.ongoing} tone="green" loading={overviewLoading} />
-        <Metric label="Sắp diễn ra" value={overview?.upcoming} tone="amber" loading={overviewLoading} />
-        <Metric label="Đã kết thúc" value={overview?.ended} tone="slate" loading={overviewLoading} />
       </div>
 
       <section className={adminStyles.panel} aria-label="Danh sách cuộc thi" aria-busy={loading}>
@@ -384,11 +378,6 @@ function AdminContestsPage() {
             </button>
           </p>
         )}
-        <p className={styles.resultsHint} aria-live="polite">
-          {loading
-            ? 'Đang tải danh sách cuộc thi…'
-            : pageData ? `${total} cuộc thi phù hợp` : 'Không có dữ liệu để hiển thị'}
-        </p>
         <div className={styles.paginationTop}>
           <SubmissionPagination {...paginationProps} showPageSize={false} />
         </div>

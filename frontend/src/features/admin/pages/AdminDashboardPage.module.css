@@ -1,0 +1,606 @@
+.dashboard {
+  --dashboard-primary: var(--color-primary, #008689);
+  --dashboard-ink: #193437;
+  --dashboard-muted: #687b7e;
+  min-width: 0;
+  padding-top: 2px;
+  color: var(--dashboard-ink);
+}
+
+.metricGrid {
+  display: grid;
+  grid-auto-rows: 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metricCard {
+  display: flex;
+  min-width: 0;
+  min-height: 166px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20px;
+  border: 1px solid rgba(211, 226, 226, .94);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 134, 137, .32);
+  box-shadow: 0 12px 28px rgba(28, 63, 66, .08);
+}
+
+.metricIcon {
+  display: grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  margin-bottom: 15px;
+  border-radius: 11px;
+}
+
+.metricIcon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.teal {
+  background: color-mix(in srgb, var(--dashboard-primary) 12%, white);
+  color: var(--dashboard-primary);
+}
+
+.blue {
+  background: #eaf2ff;
+  color: #3a6db8;
+}
+
+.violet {
+  background: #f0ecfb;
+  color: #7456ac;
+}
+
+.amber {
+  background: #fff4df;
+  color: #a76a00;
+}
+
+.green {
+  background: #eaf5ec;
+  color: #3d8050;
+}
+
+.rose {
+  background: #f9edf1;
+  color: #a95169;
+}
+
+.metricCard p {
+  margin: 0 0 7px;
+  /* color: var(--dashboard-muted); */
+  color: #000000;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+.metricCard > strong {
+  display: block;
+  font-size: clamp(20px, 2.2vw, 29px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.metricValueSkeleton {
+  display: block;
+  width: 56%;
+  height: 27px;
+  border-radius: 5px;
+  background: #edf2f2;
+}
+
+.metricError {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  color: #783d39;
+  font-size: 12px;
+}
+
+.metricError p {
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.analytics {
+  margin-top: 26px;
+}
+
+.analyticsToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.periodLabel {
+  color: #000;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.periodOptions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #dce8e7;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .86);
+}
+
+.periodButton,
+.periodActive {
+  min-width: 62px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.periodButton:hover {
+  background: #edf6f5;
+  color: #006d70;
+}
+
+.periodActive {
+  background: #008689;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 100, 103, .2);
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chartCard {
+  min-width: 0;
+  padding: 20px 20px 14px;
+  border: 1px solid rgba(211, 226, 226, .94);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(28, 63, 66, .045);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.chartCard:hover {
+  border-color: rgba(0, 134, 137, .28);
+  box-shadow: 0 12px 28px rgba(28, 63, 66, .07);
+}
+
+.chartHeader {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chartHeader h2 {
+  margin: 0;
+  /* color: var(--dashboard-ink); */
+  color: #008689;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.chartHeader p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+  margin: 8px 0 0;
+}
+
+.chartHeader p strong {
+  color: #00777a;
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.035em;
+}
+
+.chartHeader p span {
+  /* color: var(--dashboard-muted); */
+  color: #000;
+  font-size: 11px;
+}
+
+.chartDescription {
+  margin: 0 0 12px;
+  color: var(--dashboard-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  color: #000;
+  font-size: 11px;
+}
+
+.lineLegend,
+.barLegend {
+  display: inline-block;
+  width: 15px;
+  height: 3px;
+  flex: none;
+  border-radius: 999px;
+  background: #008689;
+}
+
+.barLegend {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: #5daeb0;
+}
+
+.scopeControl {
+  display: grid;
+  flex: none;
+  gap: 5px;
+  color: #000;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.scopeControl select {
+  max-width: 150px;
+  min-height: 36px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #dce8e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #23484a;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chartSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 170px;
+  margin-top: 10px;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: #e8eeee;
+  stroke-width: 1;
+}
+
+.axisText {
+  fill: #748689;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.linePath {
+  fill: none;
+  stroke: #008689;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.linePoint {
+  fill: #fff;
+  stroke: #008689;
+  stroke-width: 2;
+  cursor: help;
+  vector-effect: non-scaling-stroke;
+}
+
+.bar {
+  fill: #5daeb0;
+  cursor: help;
+  transition: fill 150ms ease;
+}
+
+.bar:hover,
+.bar:focus {
+  fill: #00777a;
+}
+
+.chartSvg :is(circle, rect):focus-visible {
+  outline: none;
+  stroke: #193437;
+  stroke-width: 3;
+}
+
+.chartEmpty,
+.chartSkeleton {
+  display: flex;
+  min-height: 210px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fbfdfd, #f8fbfb);
+  color: #687b7e;
+  font-size: 13px;
+  text-align: center;
+}
+
+.chartSkeleton {
+  position: relative;
+  overflow: hidden;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 28px 32px;
+  border: 1px solid #edf2f2;
+}
+
+.chartSkeleton span {
+  width: 100%;
+  max-width: 42px;
+  border-radius: 5px 5px 1px 1px;
+  background: #e9f1f0;
+}
+
+.chartSkeleton span:first-child {
+  height: 36%;
+}
+
+.chartSkeleton span:nth-child(2) {
+  height: 62%;
+}
+
+.chartSkeleton span:last-child {
+  height: 46%;
+}
+
+.dataDetails {
+  margin-top: 2px;
+  color: #587072;
+  font-size: 11px;
+}
+
+.dataDetails summary {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.dataDetails table {
+  display: block;
+  max-height: 190px;
+  overflow: auto;
+  border-collapse: collapse;
+}
+
+.dataDetails caption {
+  padding: 7px 0;
+  text-align: left;
+}
+
+.dataDetails th,
+.dataDetails td {
+  padding: 5px 12px 5px 0;
+  border-bottom: 1px solid #edf2f2;
+  text-align: left;
+}
+
+.statisticsError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #efcdca;
+  border-radius: 11px;
+  background: #fff7f6;
+  color: #783d39;
+}
+
+.statisticsError strong {
+  font-size: 13px;
+}
+
+.statisticsError p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.errorState {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #efcdca;
+  border-radius: 11px;
+  background: #fff7f6;
+  color: #783d39;
+}
+
+.errorState strong {
+  font-size: 13px;
+}
+
+.errorState p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.retryButton {
+  display: inline-flex;
+  min-height: 42px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #e4b7b2;
+  border-radius: 8px;
+  background: #fff;
+  color: #783d39;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.retryButton:hover:not(:disabled) {
+  border-color: #d59b95;
+  background: #fff0ee;
+}
+
+.retryButton:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.dashboard :is(button, select, summary, circle, rect):focus-visible {
+  outline: 3px solid rgba(0, 134, 137, .38);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1100px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chartGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .analytics {
+    margin-top: 20px;
+  }
+
+  .analyticsToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .metricGrid {
+    gap: 11px;
+  }
+
+  .metricCard {
+    min-height: 158px;
+    padding: 16px;
+  }
+
+  .chartCard {
+    padding: 16px 13px 10px;
+  }
+
+  .chartHeader {
+    flex-wrap: wrap;
+  }
+
+  .chartSvg {
+    min-height: 150px;
+  }
+}
+
+@media (max-width: 380px) {
+  .metricGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chartHeader {
+    gap: 8px;
+  }
+
+  .scopeControl select {
+    max-width: 135px;
+  }
+
+  .chartSvg {
+    min-height: 138px;
+  }
+
+  .statisticsError {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .periodOptions {
+    width: 100%;
+  }
+
+  .periodButton,
+  .periodActive {
+    flex: 1;
+  }
+}
+
+@media (max-width: 380px) {
+  .metricGrid {
+    gap: 9px;
+  }
+
+  .metricCard {
+    min-height: 150px;
+    padding: 13px;
+  }
+
+  .metricIcon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 12px;
+  }
+
+  .metricCard > strong {
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metricCard,
+  .retryButton,
+  .periodButton,
+  .periodActive,
+  .chartCard,
+  .bar {
+    transition: none;
+  }
+}

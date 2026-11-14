@@ -1,0 +1,35 @@
+.state {
+  display: grid;
+  min-height: min(34vh, 280px);
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.state p {
+  margin: 0;
+}
+
+.state button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary-solid);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.state button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.state button:hover {
+  background: var(--color-primary-solid-hover);
+}

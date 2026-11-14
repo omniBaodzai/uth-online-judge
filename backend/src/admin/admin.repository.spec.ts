@@ -1,6 +1,85 @@
 import { AdminRepository } from './admin.repository.js';
 
 describe('AdminRepository', () => {
+  it.each([
+    [7, 'GLOBAL'],
+    [30, 'ORGANIZATION'],
+    [90, 'GLOBAL'],
+  ] as const)('returns %s days of zero-filled %s dashboard series in Vietnam time', async (days, scope) => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          { date: '2026-11-09', submissions_count: '0', users_count: '1' },
+          { date: '2026-11-10', submissions_count: '3', users_count: '0' },
+        ],
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.dashboardStatistics(days, scope)).resolves.toEqual({
+      timezone: 'Asia/Ho_Chi_Minh',
+      days,
+      submissionScope: scope,
+      submissions: {
+        total: 3,
+        daily: [
+          { date: '2026-11-09', count: 0 },
+          { date: '2026-11-10', count: 3 },
+        ],
+      },
+      users: {
+        total: 1,
+        daily: [
+          { date: '2026-11-09', count: 1 },
+          { date: '2026-11-10', count: 0 },
+        ],
+      },
+    });
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(values).toEqual([days, scope]);
+    expect(sql).toContain("AT TIME ZONE 'Asia/Ho_Chi_Minh'");
+    expect(sql).toContain('generate_series(');
+    expect(sql).toContain("problem.status = 'PUBLISHED'");
+    expect(sql).toContain('problem.organization_id IS NULL');
+    expect(sql).toContain("COALESCE(contest.organization_id, problem.organization_id) IS NOT NULL");
+    expect(sql).toContain('COUNT(DISTINCT submission.id)');
+    expect(sql).not.toMatch(/submission\.(?:status|verdict)\s*=/);
+    expect(sql).toContain("COALESCE(daily_submissions.count, '0')");
+    expect(sql).toContain("COALESCE(daily_users.count, '0')");
+    expect(sql).toContain('submission.submitted_at >=');
+    expect(sql).toContain('user_account.created_at >=');
+  });
+
+  it('uses the selected 30-day window for the chart total', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          { date: '2026-10-12', submissions_count: '1', users_count: '0' },
+          { date: '2026-11-10', submissions_count: '3', users_count: '0' },
+        ],
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.dashboardStatistics(30, 'GLOBAL')).resolves.toMatchObject({
+      days: 30,
+      submissions: {
+        total: 4,
+        daily: [
+          { date: '2026-10-12', count: 1 },
+          { date: '2026-11-10', count: 3 },
+        ],
+      },
+    });
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(values).toEqual([30, 'GLOBAL']);
+    expect(sql).toContain("problem.status = 'PUBLISHED'");
+    expect(sql).toContain('submission.submitted_at >=');
+    expect(sql).toContain('submission.submitted_at <');
+  });
+
   it('uses bound parameters for admin list filters and maps persisted values', async () => {
     const database = {
       query: vi.fn()
@@ -21,6 +100,7 @@ describe('AdminRepository', () => {
             scoring_enabled: true,
             score: '75.50',
             status: 'DRAFT',
+            is_hidden: true,
             updated_at: new Date('2026-01-01T00:00:00.000Z'),
             tags: ['Math'],
             languages: ['C++'],
@@ -36,6 +116,7 @@ describe('AdminRepository', () => {
       search: hostile,
       status: 'draft',
       difficulty: 'easy',
+      visibility: 'hidden',
     });
 
     expect(result).toMatchObject({
@@ -46,6 +127,7 @@ describe('AdminRepository', () => {
         code: 'UTH001',
         difficulty: 'easy',
         status: 'draft',
+        isHidden: true,
         timeLimitSeconds: 1.5,
         score: 75.5,
         scoringEnabled: true,
@@ -55,7 +137,112 @@ describe('AdminRepository', () => {
     });
     const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
     expect(sql).not.toContain('DROP TABLE');
-    expect(values).toEqual([null, `%x\\%'; DROP TABLE problems; --%`, 'DRAFT', 'EASY']);
+    expect(sql).toContain('p.is_hidden = $5');
+    expect(values).toEqual([null, `%x\\%'; DROP TABLE problems; --%`, 'DRAFT', 'EASY', true]);
+  });
+
+  it('changes only the visibility flag of a published global problem', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{ id: 'problem-1', status: 'PUBLISHED', is_hidden: true }],
+        rowCount: 1,
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.setProblemVisibility('problem-1', true)).resolves.toEqual({
+      id: 'problem-1',
+      status: 'published',
+      isHidden: true,
+    });
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toMatch(/UPDATE problems\s+SET is_hidden = \$2/i);
+    expect(sql).toContain("organization_id IS NULL AND status = 'PUBLISHED'");
+    expect(sql).toContain('RETURNING id, status, is_hidden');
+    expect(sql).not.toContain('published_at =');
+    expect(sql).not.toContain('updated_at =');
+    expect(values).toEqual(['problem-1', true]);
+    expect(database.query).toHaveBeenCalledOnce();
+  });
+
+  it('allows idempotent visibility updates and returns the persisted state', async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{ id: 'problem-1', status: 'PUBLISHED', is_hidden: false }],
+        rowCount: 1,
+      }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.setProblemVisibility('problem-1', false)).resolves.toEqual({
+      id: 'problem-1',
+      status: 'published',
+      isHidden: false,
+    });
+    expect(database.query).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    [true, 'ẩn'],
+    [false, 'hiện'],
+  ] as const)('maps only the active-contest trigger to a contextual 409 when %s', async (isHidden, action) => {
+    const triggerError = Object.assign(
+      new Error('Problem data cannot be changed while its contest is running.'),
+      { code: '55000' },
+    );
+    const database = { query: vi.fn().mockRejectedValue(triggerError) };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.setProblemVisibility('problem-1', isHidden))
+      .rejects.toThrow(`Không thể ${action} bài tập vì bài tập đang thuộc một cuộc thi diễn ra. Vui lòng thử lại sau khi cuộc thi kết thúc.`);
+    expect(database.query).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['55000', 'A different database condition.'],
+    ['23505', 'Problem data cannot be changed while its contest is running.'],
+  ])('does not convert unrelated database errors (%s)', async (code, message) => {
+    const databaseError = Object.assign(new Error(message), { code });
+    const database = { query: vi.fn().mockRejectedValue(databaseError) };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.setProblemVisibility('problem-1', true))
+      .rejects.toBe(databaseError);
+  });
+
+  it('rejects non-published problems and hides organization problem existence from the global API', async () => {
+    const database = {
+      query: vi.fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ status: 'DRAFT' }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.setProblemVisibility('draft-problem', true))
+      .rejects.toThrow(/chỉ bài tập đã xuất bản/i);
+    await expect(repository.setProblemVisibility('organization-problem', true))
+      .rejects.toThrow(/không tìm thấy bài tập/i);
+
+    expect(database.query.mock.calls[0]?.[0]).toContain("status = 'PUBLISHED'");
+    expect(database.query.mock.calls[0]?.[0]).toContain('organization_id IS NULL');
+    expect(database.query.mock.calls[1]?.[0]).toContain('organization_id IS NULL');
+    expect(database.query.mock.calls[3]?.[0]).toContain('organization_id IS NULL');
+  });
+
+  it('returns not found when the requested global problem does not exist', async () => {
+    const database = {
+      query: vi.fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+    };
+    const repository = new AdminRepository(database as never);
+
+    await expect(repository.setProblemVisibility('missing-problem', true))
+      .rejects.toThrow(/không tìm thấy bài tập/i);
+    expect(database.query).toHaveBeenCalledTimes(2);
   });
 
   it('rechecks organization manager membership after locking the organization row', async () => {

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { resolveAvatarUrl } from '../../auth/api'
 import RankingTable from '../../leaderboard/components/RankingTable'
 import styles from '../../leaderboard/pages/LeaderboardPage.module.css'
 import SubmissionPagination from '../../submissions/components/SubmissionPagination'
-import { getContributorsPage } from '../data'
+import { useContributorsData } from '../useContributorsData'
 
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
@@ -13,10 +14,7 @@ function ContributorsPage() {
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [page, setPage] = useState(1)
-  const { items, total } = useMemo(
-    () => getContributorsPage({ page, pageSize: PAGE_SIZE, q: debouncedQuery }),
-    [page, debouncedQuery],
-  )
+  const { data, loading, error } = useContributorsData({ page, pageSize: PAGE_SIZE, q: debouncedQuery })
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS)
@@ -26,11 +24,11 @@ function ContributorsPage() {
   const paginationProps = {
     currentPage: page,
     pageSize: PAGE_SIZE,
-    totalItems: total,
+    totalItems: data?.total ?? 0,
     pageSizes: [PAGE_SIZE],
-    label: t('coderPaginationLabel'),
-    summaryLabel: t('coderPaginationLabel'),
-    additionalSummary: debouncedQuery ? t('coderTotalSummary', { count: total }) : undefined,
+    label: t('contributorsPaginationLabel'),
+    summaryLabel: t('contributorsPaginationLabel'),
+    additionalSummary: debouncedQuery && data ? t('contributorsTotalSummary', { count: data.totalContributors }) : undefined,
     showPageSize: false,
     onPageChange: setPage,
     onPageSizeChange: () => undefined,
@@ -65,29 +63,45 @@ function ContributorsPage() {
         </form>
 
         <section className={styles.card} aria-label={t('contributorsTitle')}>
-          <div className={styles.topPagination}>
-            <SubmissionPagination {...paginationProps} />
-          </div>
-          {items.length === 0 ? (
+          {data ? (
+            <div className={styles.topPagination}>
+              <SubmissionPagination {...paginationProps} />
+            </div>
+          ) : null}
+          {error ? (
+            <p className={styles.error} role="alert">
+              {t('contributorsLoadError')}
+            </p>
+          ) : null}
+          {loading && !data ? (
+            <p className={styles.state} role="status">
+              {t('loadingLeaderboard')}
+            </p>
+          ) : null}
+          {!loading && !error && data?.items.length === 0 ? (
             <p className={styles.state}>{debouncedQuery ? t('noMatchingCoders') : t('noCoders')}</p>
-          ) : (
+          ) : !error && data?.items.length ? (
             <RankingTable
-              rows={items.map((item) => ({
-                id: item.id,
+              rows={data.items.map((item) => ({
+                id: item.userId,
                 rank: item.rank,
-                points: item.points,
                 displayName: item.displayName,
-                handle: item.username,
-                avatarSource: item.avatarUrl,
-                count: item.contributedProblems,
+                handle: item.username ?? item.userId.slice(0, 8),
+                avatarSource: resolveAvatarUrl(item.avatarUrl),
+                count: item.contributionCount,
+                profileUsername: item.username,
+                latestContributionAt: item.latestContributionAt,
               }))}
               ariaLabel={t('contributorsList')}
               countHeading={t('contributedHeading')}
+              latestContributionHeading={t('latestContributionHeading')}
             />
-          )}
-          <div className={styles.footer}>
-            <SubmissionPagination {...paginationProps} />
-          </div>
+          ) : null}
+          {data ? (
+            <div className={styles.footer}>
+              <SubmissionPagination {...paginationProps} />
+            </div>
+          ) : null}
         </section>
       </div>
     </main>

@@ -1,0 +1,325 @@
+.detailPage {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 18px;
+}
+
+.actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.actionButton {
+  box-sizing: border-box;
+  display: inline-flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.actionButton svg {
+  flex: 0 0 auto;
+}
+
+.actionButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--admin-primary) 38%, transparent);
+  outline-offset: 2px;
+}
+
+.actionButton:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.actionButton:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.primaryAction {
+  background: var(--admin-primary);
+  color: #fff;
+}
+
+.primaryAction:hover:not(:disabled) {
+  background: var(--admin-primary-dark);
+}
+
+.secondaryAction {
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+}
+
+.secondaryAction:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--admin-primary) 28%, var(--admin-border));
+  background: #f5fafa;
+}
+
+.dangerAction {
+  background: #b43c3c;
+  color: #fff;
+}
+
+.dangerAction:hover:not(:disabled) {
+  background: #963030;
+}
+
+.archivedNotice,
+.errorMessage {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 10px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.archivedNotice {
+  border-color: #e9d8a6;
+  background: #fff9e9;
+  color: #725919;
+}
+
+.errorMessage {
+  border-color: #e8b9b9;
+  background: #fff4f4;
+  color: #8d2929;
+}
+
+.overviewGrid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.card,
+.stateCard {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface);
+  box-shadow: 0 4px 18px rgba(24, 51, 55, .045);
+}
+
+.cardTitle {
+  margin: 0 0 14px;
+  color: var(--admin-ink);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.detailList {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+
+.detailList > div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(112px, .7fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid color-mix(in srgb, var(--admin-border) 72%, transparent);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.detailList dt {
+  color: var(--admin-muted);
+  font-weight: 550;
+}
+
+.detailList dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--admin-ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detailList a,
+.linkAnchor {
+  color: var(--admin-primary-dark);
+  overflow-wrap: anywhere;
+  text-underline-offset: 3px;
+}
+
+.wideField {
+  grid-column: 1 / -1;
+}
+
+.detailList > .descriptionField {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.descriptionField dd {
+  line-height: 1.65;
+}
+
+.ownerList {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.visibilityList {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.visibilityList > div {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.emptyState {
+  margin: 0;
+  color: var(--admin-muted);
+  line-height: 1.55;
+}
+
+.links {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.linkRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--admin-surface) 86%, var(--admin-bg));
+}
+
+.linkRow > a {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--admin-primary-dark);
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.linkRow > a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.linkRow > a svg {
+  flex: 0 0 auto;
+}
+
+.copyButton {
+  flex: 0 0 auto;
+}
+
+.copyMessage {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.stateCard {
+  display: grid;
+  gap: 18px;
+}
+
+.stateHeading h1 {
+  margin: 0;
+  color: var(--admin-ink);
+  font-size: 22px;
+}
+
+.stateHeading p {
+  margin: 8px 0 0;
+  color: var(--admin-muted);
+  line-height: 1.55;
+}
+
+@media (min-width: 900px) {
+  .infoGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .overviewGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .organizationCard,
+  .linksCard,
+  .historyCard {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .card,
+  .stateCard {
+    padding: 17px 16px;
+    border-radius: 12px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .actionButton {
+    width: 100%;
+  }
+
+  .detailList > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .visibilityList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .linkRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actionButton {
+    transition: none;
+  }
+}

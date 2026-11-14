@@ -50,46 +50,51 @@ describe('deleteComment', () => {
   const build = (soft: number, removed: { parentId: string | null }[]) => {
     const query = vi
       .fn()
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rowCount: soft, rows: [] })
       .mockResolvedValueOnce({ rowCount: removed.length, rows: removed })
       .mockResolvedValue({ rowCount: 0, rows: [] });
-    return { query, repository: new DiscussionsRepository({ query } as never) };
+    const client = { query, release: vi.fn() };
+    return { query, repository: new DiscussionsRepository({ connect: vi.fn().mockResolvedValue(client) } as never) };
   };
 
   it('soft-deletes a comment that has replies and never hard-deletes it', async () => {
     const { query, repository } = build(1, []);
     await repository.deleteComment('c1');
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(String(query.mock.calls[0][0])).toMatch(/SET deleted_at = NOW\(\), content = ''/);
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(String(query.mock.calls[1][0])).toMatch(/SET deleted_at = NOW\(\), content = ''/);
+    expect(query.mock.calls.at(-1)?.[0]).toBe('COMMIT');
   });
 
   it('hard-deletes a leaf only when it has no replies', async () => {
     const { query, repository } = build(0, [{ parentId: null }]);
     await repository.deleteComment('c1');
-    expect(String(query.mock.calls[1][0])).toMatch(/DELETE FROM[\s\S]*NOT EXISTS[\s\S]*r\.parent_id = c\.id/);
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(String(query.mock.calls[2][0])).toMatch(/DELETE FROM[\s\S]*NOT EXISTS[\s\S]*r\.parent_id = c\.id/);
+    expect(query).toHaveBeenCalledTimes(4);
   });
 
   it('cleans up a soft-deleted parent left without replies', async () => {
     const { query, repository } = build(0, [{ parentId: 'p1' }]);
     await repository.deleteComment('r1');
-    expect(query).toHaveBeenCalledTimes(3);
-    const cleanup = String(query.mock.calls[2][0]);
+    expect(query).toHaveBeenCalledTimes(5);
+    const cleanup = String(query.mock.calls[3][0]);
     expect(cleanup).toMatch(/p\.deleted_at IS NOT NULL[\s\S]*NOT EXISTS/);
-    expect(query.mock.calls[2][1]).toEqual(['p1']);
+    expect(query.mock.calls[3][1]).toEqual(['p1']);
   });
 
   it('cleans up soft-deleted ancestors across nested replies', async () => {
     const query = vi
       .fn()
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rowCount: 0, rows: [] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ parentId: 'p2' }] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ parentId: 'p1' }] })
       .mockResolvedValueOnce({ rowCount: 0, rows: [] });
-    await new DiscussionsRepository({ query } as never).deleteComment('leaf');
-    expect(query).toHaveBeenCalledTimes(4);
-    expect(query.mock.calls[2][1]).toEqual(['p2']);
-    expect(query.mock.calls[3][1]).toEqual(['p1']);
+    const client = { query, release: vi.fn() };
+    await new DiscussionsRepository({ connect: vi.fn().mockResolvedValue(client) } as never).deleteComment('leaf');
+    expect(query).toHaveBeenCalledTimes(6);
+    expect(query.mock.calls[3][1]).toEqual(['p2']);
+    expect(query.mock.calls[4][1]).toEqual(['p1']);
   });
 
   it('loads descendants recursively when listing replies', async () => {

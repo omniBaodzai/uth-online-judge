@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation } from 'react-router-dom'
+import { FullscreenLoader } from '../../../components/ui/Loading'
 import { useAuth } from '../useAuth'
 import { buildLoginPath } from '../return-path'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { t } = useTranslation('auth')
+  const { t: tCommon } = useTranslation('common')
   const { user, isLoading, initializationError, retrySession } = useAuth()
   const location = useLocation()
   const shouldRedirect = !isLoading && !user && !initializationError
@@ -15,6 +17,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (shouldRedirect) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`
     return <Navigate to={buildLoginPath(returnTo)} replace />
+  }
+
+  if (isLoading) {
+    return <FullscreenLoader label={tCommon('checkingSession')} />
   }
 
   if (!isLoading && initializationError) {

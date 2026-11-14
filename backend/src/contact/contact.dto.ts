@@ -1,5 +1,4 @@
 import { Transform, Type } from 'class-transformer';
-import { BadRequestException } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
@@ -8,11 +7,11 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  isUUID,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
+export { validateIdempotencyKey } from '../common/idempotency-key.js';
 import { CleanText, PaginationQueryDto } from '../community/dto/pagination.dto.js';
 
 export const CONTACT_MESSAGE_STATUSES = ['NEW', 'IN_PROGRESS', 'RESOLVED'] as const;
@@ -117,13 +116,4 @@ export class ListNotificationsQueryDto {
   @Min(1)
   @Max(50)
   pageSize: number = 20;
-}
-
-export function validateIdempotencyKey(value: string | undefined): string | null {
-  if (value === undefined || value.trim() === '') return null;
-  const key = value.trim();
-  if (!isUUID(key, '4')) {
-    throw new BadRequestException('Idempotency-Key phải là UUID v4.');
-  }
-  return key;
 }

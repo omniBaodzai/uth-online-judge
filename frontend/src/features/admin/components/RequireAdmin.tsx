@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { FullscreenLoader } from '../../../components/ui/Loading'
 import { useAuth } from '../../auth/useAuth'
 import styles from '../admin.module.css'
 
@@ -8,7 +9,7 @@ export function RequireAdmin({ children }: { children?: ReactNode }) {
   const location = useLocation()
 
   if (isLoading) {
-    return <main className={styles.routeMessage} aria-live="polite">Đang kiểm tra quyền quản trị…</main>
+    return <FullscreenLoader label="Đang kiểm tra quyền quản trị…" />
   }
   if (initializationError) {
     return (

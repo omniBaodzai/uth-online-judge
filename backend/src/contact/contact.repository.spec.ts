@@ -95,6 +95,22 @@ describe('ContactRepository', () => {
     expect(calls[0]).toBe('BEGIN');
     expect(calls.at(-1)).toBe('COMMIT');
     expect(calls).toContainEqual(expect.stringContaining('INSERT INTO public.notifications'));
+    const notificationInsert = client.query.mock.calls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO public.notifications'),
+    );
+    expect(notificationInsert?.[1]).toEqual([
+      'owner-id',
+      'admin-id',
+      'CONTACT_REPLY',
+      'Admin đã phản hồi yêu cầu của bạn',
+      'Yêu cầu "Need help" đã được quản trị viên phản hồi.',
+      'reply-id',
+      'CONTACT_REPLY',
+      'reply-id',
+      'CONTACT_MESSAGE',
+      'message-id',
+      { contactMessageId: 'message-id' },
+    ]);
     expect(client.release).toHaveBeenCalledOnce();
   });
 
@@ -152,5 +168,97 @@ describe('ContactRepository', () => {
       idempotencyKey: '550e8400-e29b-41d4-a716-446655440000',
     })).resolves.toEqual({ reply: existing, created: false });
     expect(client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO public.notifications'))).toBe(false);
+  });
+
+  it('lists generalized notifications while preserving legacy contactMessageId and recipient scoping', async () => {
+    const contactNotification = {
+      id: 'notification-id',
+      type: 'CONTACT_REPLY',
+      title: 'Admin đã phản hồi',
+      content: 'Đã có phản hồi.',
+      contactMessageId: 'message-id',
+      actorUserId: 'admin-id',
+      actorName: 'Admin',
+      sourceType: 'CONTACT_REPLY',
+      sourceId: 'reply-id',
+      targetType: 'CONTACT_MESSAGE',
+      targetId: 'message-id',
+      targetAvailable: true,
+      metadata: { contactMessageId: 'message-id' },
+      isRead: false,
+      createdAt: '2026-11-02T00:00:00.000Z',
+      readAt: null,
+    };
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [contactNotification] })
+      .mockResolvedValueOnce({ rows: [{ total: 1, unreadCount: 1 }] });
+    const repository = new ContactRepository({ query } as unknown as Pool);
+
+    await expect(repository.listNotifications('owner-id', 1, 10)).resolves.toMatchObject({
+      items: [contactNotification],
+      total: 1,
+      unreadCount: 1,
+      page: 1,
+      pageSize: 10,
+    });
+    expect(query.mock.calls[0]?.[0]).toContain('LEFT JOIN public.contact_replies');
+    expect(query.mock.calls[0]?.[0]).toContain('LEFT JOIN public.users');
+    expect(query.mock.calls[0]?.[0]).toContain('n.recipient_user_id = $1');
+    expect(query.mock.calls[0]?.[1]).toEqual(['owner-id', 10, 0]);
+    expect(query.mock.calls[1]?.[0]).toContain('WHERE recipient_user_id = $1');
+    expect(query.mock.calls[1]?.[1]).toEqual(['owner-id']);
+  });
+
+  it('reports problem reply targets unavailable after deletion or loss of public access', async () => {
+    const problemNotification = {
+      id: 'problem-notification',
+      type: 'PROBLEM_REPLY',
+      title: 'Có phản hồi mới',
+      content: 'Người dùng đã trả lời bình luận của bạn.',
+      contactMessageId: '',
+      actorUserId: 'actor-id',
+      actorName: 'Người dùng',
+      sourceType: 'PROBLEM_COMMENT',
+      sourceId: 'reply-id',
+      targetType: 'PROBLEM_COMMENT',
+      targetId: null,
+      targetAvailable: false,
+      metadata: {
+        problemCode: 'khobau',
+        commentId: 'reply-id',
+        rootCommentId: 'root-id',
+      },
+      isRead: false,
+      createdAt: '2026-11-02T00:00:00.000Z',
+      readAt: null,
+    };
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [problemNotification] })
+      .mockResolvedValueOnce({ rows: [{ total: 1, unreadCount: 1 }] });
+    const repository = new ContactRepository({ query } as unknown as Pool);
+
+    await expect(repository.listNotifications('recipient-id', 1, 10)).resolves.toMatchObject({
+      items: [problemNotification],
+    });
+    const sql = query.mock.calls[0]?.[0] as string;
+    expect(sql).toContain("WHEN n.target_type = 'PROBLEM_COMMENT'");
+    expect(sql).toContain('c.deleted_at IS NULL');
+    expect(sql).toContain("p.status = 'PUBLISHED'");
+    expect(sql).toContain('p.organization_id IS NULL');
+    expect(sql).toContain('n.recipient_user_id = $1');
+  });
+
+  it('only updates notification read state for the requested recipient', async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 2, rows: [] });
+    const repository = new ContactRepository({ query } as unknown as Pool);
+
+    await expect(repository.markNotificationRead('owner-id', 'notification-id')).resolves.toBe(true);
+    await expect(repository.markAllNotificationsRead('owner-id')).resolves.toBe(2);
+    expect(query.mock.calls[0]?.[0]).toContain('WHERE id = $1 AND recipient_user_id = $2');
+    expect(query.mock.calls[0]?.[1]).toEqual(['notification-id', 'owner-id']);
+    expect(query.mock.calls[1]?.[0]).toContain('WHERE recipient_user_id = $1 AND is_read = FALSE');
+    expect(query.mock.calls[1]?.[1]).toEqual(['owner-id']);
   });
 });

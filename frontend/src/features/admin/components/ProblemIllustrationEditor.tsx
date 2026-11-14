@@ -65,7 +65,7 @@ function ProblemIllustrationEditor({
     <div className={styles.editor}>
       <div className={styles.sources}>
         <div className={styles.urlField}>
-          <label htmlFor="illustration-url">URL hình ảnh</label>
+          <label htmlFor="illustration-url"></label>
           <input
             id="illustration-url"
             type="text"
@@ -79,7 +79,7 @@ function ProblemIllustrationEditor({
               onChange({ illustrationUrl: event.target.value || null })
             }}
           />
-          <p>Chỉ chấp nhận URL HTTP(S) hoặc ảnh tải lên hệ thống.</p>
+          {/* <p>Chỉ chấp nhận URL HTTP(S) hoặc ảnh tải lên hệ thống.</p> */}
         </div>
         <label className={styles.uploadButton}>
           <input

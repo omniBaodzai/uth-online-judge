@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -19,6 +20,7 @@ import type { Request } from 'express';
 import { AdminRoleGuard } from '../admin/admin-role.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard.js';
+import { validateIdempotencyKey } from '../common/idempotency-key.js';
 import type { Viewer } from './community.utils.js';
 import {
   CommentInputDto,
@@ -98,8 +100,19 @@ export class DiscussionsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
-  async addComment(@Param('id', ParseUUIDPipe) id: string, @Body() input: CreateCommentDto, @Req() request: UserRequest) {
-    await this.discussions.addComment(id, request.user, input.content, input.parentId ?? null);
+  async addComment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: CreateCommentDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() request: UserRequest,
+  ) {
+    await this.discussions.addComment(
+      id,
+      request.user,
+      input.content,
+      input.parentId ?? null,
+      validateIdempotencyKey(idempotencyKey),
+    );
   }
 
   // Cảm xúc: người dùng luôn lấy từ token, không nhận userId từ client.

@@ -18,18 +18,23 @@ function getRegisteredControllers(rootModule: Function): Function[] {
   const controllers = new Set<Function>();
 
   const visit = (reference: ModuleReference): void => {
-    if (typeof reference === 'object' && reference !== null && reference.forwardRef) {
+    if (
+      typeof reference === 'object' &&
+      reference !== null &&
+      reference.forwardRef
+    ) {
       visit(reference.forwardRef());
       return;
     }
 
-    const moduleType = typeof reference === 'function' ? reference : reference.module;
+    const moduleType =
+      typeof reference === 'function' ? reference : reference.module;
     if (!moduleType || visited.has(moduleType)) return;
     visited.add(moduleType);
 
     const dynamicControllers =
       typeof reference === 'object' && reference !== null
-        ? reference.controllers ?? []
+        ? (reference.controllers ?? [])
         : [];
     for (const controller of [
       ...(Reflect.getMetadata('controllers', moduleType) ?? []),
@@ -40,7 +45,7 @@ function getRegisteredControllers(rootModule: Function): Function[] {
 
     const dynamicImports =
       typeof reference === 'object' && reference !== null
-        ? reference.imports ?? []
+        ? (reference.imports ?? [])
         : [];
     const imports = [
       ...(Reflect.getMetadata('imports', moduleType) ?? []),
@@ -107,17 +112,23 @@ describe('OpenAPI contract', () => {
 
     expect(new Set(registered).size).toBe(registered.length);
     expect(new Set(operations).size).toBe(operations.length);
-    expect(registered).toHaveLength(171);
+    expect(registered).toHaveLength(177);
+    expect(registered).toContain('GET /contributors');
+    expect(registered).toContain('GET /admin/dashboard/statistics');
+    expect(registered).toContain('POST /ai-assistant/chat');
     expect([...operations].sort()).toEqual([...registered].sort());
 
     for (const [path, item] of Object.entries(document.paths)) {
-      const pathParameters = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]);
+      const pathParameters = [...path.matchAll(/\{([^}]+)\}/g)].map(
+        (match) => match[1],
+      );
       for (const [method, operation] of Object.entries(item)) {
         if (!httpVerbs.includes(method)) continue;
-        const parameterNames = (operation.parameters ?? []).flatMap((parameter) =>
-          'name' in parameter && 'in' in parameter && parameter.in === 'path'
-            ? [parameter.name]
-            : [],
+        const parameterNames = (operation.parameters ?? []).flatMap(
+          (parameter) =>
+            'name' in parameter && 'in' in parameter && parameter.in === 'path'
+              ? [parameter.name]
+              : [],
         );
         expect(parameterNames, `${method.toUpperCase()} ${path}`).toEqual(
           expect.arrayContaining(pathParameters),
@@ -127,7 +138,8 @@ describe('OpenAPI contract', () => {
   });
 
   it('documents every operation with Vietnamese summary, description, and tag', () => {
-    const vietnamese = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;
+    const vietnamese =
+      /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;
     for (const [path, item] of Object.entries(document.paths)) {
       for (const [method, operation] of Object.entries(item)) {
         if (!httpVerbs.includes(method)) continue;
@@ -135,17 +147,29 @@ describe('OpenAPI contract', () => {
           Object.keys(operation.responses ?? {}).length,
           `${method.toUpperCase()} ${path}`,
         ).toBeGreaterThan(0);
-        expect(operation.summary, `${method.toUpperCase()} ${path}`).toMatch(vietnamese);
-        expect(operation.description, `${method.toUpperCase()} ${path}`).toMatch(vietnamese);
-        expect(operation.description, `${method.toUpperCase()} ${path}`).not.toContain('******');
-        expect(operation.tags?.length, `${method.toUpperCase()} ${path}`).toBeGreaterThan(0);
+        expect(operation.summary, `${method.toUpperCase()} ${path}`).toMatch(
+          vietnamese,
+        );
+        expect(
+          operation.description,
+          `${method.toUpperCase()} ${path}`,
+        ).toMatch(vietnamese);
+        expect(
+          operation.description,
+          `${method.toUpperCase()} ${path}`,
+        ).not.toContain('******');
+        expect(
+          operation.tags?.length,
+          `${method.toUpperCase()} ${path}`,
+        ).toBeGreaterThan(0);
       }
     }
   });
 
   it('documents Organization leaderboard scope and access conditions', () => {
     const description =
-      document.paths['/organizations/{slug}/leaderboard']?.get?.description ?? '';
+      document.paths['/organizations/{slug}/leaderboard']?.get?.description ??
+      '';
     expect(description).toContain('thành viên hiện tại');
     expect(description).toContain('sau khi contest kết thúc');
     expect(description).toContain('Global Contest không được tính');
@@ -160,6 +184,13 @@ describe('OpenAPI contract', () => {
     });
     expect(document.paths['/problems']?.get?.security).toBeUndefined();
     expect(document.paths['/news']?.get?.security).toBeUndefined();
+    expect(document.paths['/news/media/{id}']?.get?.security).toBeUndefined();
+    expect(document.paths['/admin/news/media']?.post?.security).toContainEqual({
+      bearer: [],
+    });
+    expect(
+      document.paths['/admin/news/media/{id}']?.get?.security,
+    ).toContainEqual({ bearer: [] });
     expect(document.paths['/auth/refresh']?.post?.security).toContainEqual({
       uth_refresh_token: [],
     });
@@ -170,14 +201,35 @@ describe('OpenAPI contract', () => {
     expect(document.paths['/auth/me/change-password']?.post?.security).toEqual([
       { bearer: [] },
     ]);
+    expect(document.paths['/ai-assistant/chat']?.post?.security).toEqual([
+      { bearer: [] },
+      {},
+    ]);
   });
 
   it('reflects the controller HTTP status codes', () => {
-    expect(document.paths['/auth/register']?.post?.responses).toHaveProperty('201');
-    expect(document.paths['/demo-queue/uppercase']?.post?.responses).toHaveProperty('202');
-    expect(document.paths['/auth/me/change-password']?.post?.responses).toHaveProperty('204');
-    expect(document.paths['/admin/problems/illustrations']?.post?.responses).toHaveProperty('201');
-    expect(document.paths['/organizations/{slug}/contests/{contestId}/publish']?.post?.responses).toHaveProperty('200');
+    expect(document.paths['/auth/register']?.post?.responses).toHaveProperty(
+      '201',
+    );
+    expect(
+      document.paths['/demo-queue/uppercase']?.post?.responses,
+    ).toHaveProperty('202');
+    expect(
+      document.paths['/auth/me/change-password']?.post?.responses,
+    ).toHaveProperty('204');
+    expect(
+      document.paths['/admin/problems/illustrations']?.post?.responses,
+    ).toHaveProperty('201');
+    expect(
+      document.paths['/organizations/{slug}/contests/{contestId}/publish']?.post
+        ?.responses,
+    ).toHaveProperty('200');
+    expect(
+      document.paths['/ai-assistant/chat']?.post?.responses,
+    ).toHaveProperty('200');
+    expect(
+      document.paths['/ai-assistant/chat']?.post?.responses,
+    ).not.toHaveProperty('201');
   });
 
   it('exposes DTO properties and multipart file schemas', () => {
@@ -215,8 +267,9 @@ describe('OpenAPI contract', () => {
       ]),
     );
     expect(
-      document.paths['/auth/register']?.post?.requestBody?.content?.['application/json']
-        ?.examples?.example,
+      document.paths['/auth/register']?.post?.requestBody?.content?.[
+        'application/json'
+      ]?.examples?.example,
     ).toMatchObject({
       value: {
         username: 'example_student',
@@ -225,8 +278,9 @@ describe('OpenAPI contract', () => {
       },
     });
     expect(
-      document.paths['/submissions']?.post?.responses?.['201']?.content?.['application/json']
-        ?.schema,
+      document.paths['/submissions']?.post?.responses?.['201']?.content?.[
+        'application/json'
+      ]?.schema,
     ).toMatchObject({
       example: {
         id: '00000000-0000-4000-8000-000000000000',
@@ -249,8 +303,9 @@ describe('OpenAPI contract', () => {
       memoryLimitMb: 256,
     });
     expect(
-      document.paths['/organizations/{slug}/leaderboard']?.get?.responses?.['200']
-        ?.content?.['application/json']?.schema,
+      document.paths['/organizations/{slug}/leaderboard']?.get?.responses?.[
+        '200'
+      ]?.content?.['application/json']?.schema,
     ).toMatchObject({
       example: {
         items: [
@@ -263,7 +318,9 @@ describe('OpenAPI contract', () => {
         pageSize: 20,
       },
     });
-    expect(document.paths['/organizations/{slug}/leaderboard']?.get?.parameters).toEqual(
+    expect(
+      document.paths['/organizations/{slug}/leaderboard']?.get?.parameters,
+    ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: 'page',
@@ -298,7 +355,20 @@ describe('OpenAPI contract', () => {
         },
       },
     });
-    expect(document.paths['/admin/problems/illustrations']?.post?.requestBody).toMatchObject({
+    expect(
+      document.paths['/admin/problems/illustrations']?.post?.requestBody,
+    ).toMatchObject({
+      content: {
+        'multipart/form-data': {
+          schema: {
+            properties: { image: { type: 'string', format: 'binary' } },
+          },
+        },
+      },
+    });
+    expect(
+      document.paths['/admin/news/media']?.post?.requestBody,
+    ).toMatchObject({
       content: {
         'multipart/form-data': {
           schema: {

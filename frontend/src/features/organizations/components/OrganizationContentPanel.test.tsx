@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import OrganizationContentPanel from './OrganizationContentPanel'
+import styles from './OrganizationContentPanel.module.css'
 import {
   getOrganizationContest,
   getOrganizationProblem,
@@ -107,7 +108,7 @@ afterEach(async () => {
   container.remove()
 })
 
-async function renderPanel(section: 'problems' | 'contests') {
+async function renderPanel(section: 'problems' | 'contests', adminDetail = false) {
   await act(async () => {
     root.render(
       <MemoryRouter>
@@ -116,6 +117,7 @@ async function renderPanel(section: 'problems' | 'contests') {
           section={section}
           canManage
           archived={false}
+          adminDetail={adminDetail}
         />
       </MemoryRouter>,
     )
@@ -162,6 +164,21 @@ describe('OrganizationContentPanel create interactions', () => {
     expectForm('organizationContentCreateProblem')
   })
 
+  it('uses the Admin detail problem-form layout without changing the existing fields', async () => {
+    await renderPanel('problems', true)
+    await flushEffects()
+    clickButton('organizationContentCreateProblem')
+
+    const form = container.querySelector('form')
+    expect(form?.classList.contains(styles.adminDetailForm)).toBe(true)
+    expect(container.querySelector(`.${styles.formOpenGrid}`)).not.toBeNull()
+    expect(container.textContent).toContain('organizationContentStatement')
+    expect(container.textContent).toContain('organizationContentTestCases')
+    expect(container.textContent).toContain('organizationContentEditorials')
+    expect(container.querySelectorAll('textarea').length).toBeGreaterThan(3)
+    expect(mocks.api).not.toHaveBeenCalled()
+  })
+
   it('opens, cancels, and reopens the contest form when the organization has no contests', async () => {
     await renderPanel('contests')
     await flushEffects()
@@ -174,6 +191,28 @@ describe('OrganizationContentPanel create interactions', () => {
 
     clickButton('organizationContentCreateContest')
     expectForm('organizationContentCreateContest')
+  })
+
+  it('uses the Admin detail contest-form layout and preserves date and problem selection controls', async () => {
+    vi.mocked(listOrganizationContestProblemOptions).mockResolvedValue([{
+      id: 'hidden-global-problem',
+      code: 'GLOBAL_1',
+      title: 'Hidden published Global problem',
+      organizationName: null,
+    }] as never)
+    await renderPanel('contests', true)
+    await flushEffects()
+    clickButton('organizationContentCreateContest')
+    await flushEffects()
+
+    const form = container.querySelector('form')
+    expect(form?.classList.contains(styles.adminDetailForm)).toBe(true)
+    expect(container.querySelector(`.${styles.formOpenGrid}`)).not.toBeNull()
+    expect(container.querySelectorAll('input[type="datetime-local"]')).toHaveLength(2)
+    expect(container.textContent).toContain('organizationContentContestProblems')
+    expect(container.textContent).toContain('Hidden published Global problem')
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(1)
+    expect(mocks.api).not.toHaveBeenCalled()
   })
 
   it('keeps the problem form available while the initial list request is loading', async () => {

@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException, ConflictException } from '@nestj
 import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { DATABASE_POOL } from '../databases/database.module.js';
+import { insertNotification } from '../notifications/notification-writer.js';
 import { escapeLikePattern } from '../submissions/global-submissions.js';
 import type {
   ContactMessageCategory,
@@ -58,10 +59,18 @@ export type ContactMessagePage = {
 
 export type NotificationRecord = {
   id: string;
-  type: 'CONTACT_REPLY';
+  type: 'CONTACT_REPLY' | 'DISCUSSION_COMMENT' | 'DISCUSSION_REPLY' | 'PROBLEM_REPLY';
   title: string;
   content: string;
   contactMessageId: string;
+  actorUserId: string | null;
+  actorName: string | null;
+  sourceType: 'CONTACT_REPLY' | 'DISCUSSION_COMMENT' | 'PROBLEM_COMMENT';
+  sourceId: string;
+  targetType: 'CONTACT_MESSAGE' | 'DISCUSSION_COMMENT' | 'PROBLEM_COMMENT';
+  targetId: string | null;
+  targetAvailable: boolean;
+  metadata: Record<string, string>;
   isRead: boolean;
   createdAt: string;
   readAt: string | null;
@@ -362,13 +371,19 @@ export class ContactRepository {
       if (input.senderRole === 'ADMIN' && contactMessage.userId) {
         const title = 'Admin đã phản hồi yêu cầu của bạn';
         const content = `Yêu cầu "${contactMessage.subject}" đã được quản trị viên phản hồi.`;
-        await client.query(
-          `INSERT INTO public.notifications
-             (recipient_user_id, type, title, content, reference_id)
-           VALUES ($1, 'CONTACT_REPLY', $2, $3, $4)
-           ON CONFLICT (recipient_user_id, type, reference_id) DO NOTHING`,
-          [contactMessage.userId, title, content, inserted.reply.id],
-        );
+        await insertNotification(client, {
+          recipientUserId: contactMessage.userId,
+          actorUserId: input.senderUserId,
+          type: 'CONTACT_REPLY',
+          title,
+          content,
+          referenceId: inserted.reply.id,
+          sourceType: 'CONTACT_REPLY',
+          sourceId: inserted.reply.id,
+          targetType: 'CONTACT_MESSAGE',
+          targetId: input.contactMessageId,
+          metadata: { contactMessageId: input.contactMessageId },
+        });
       }
 
       await client.query('COMMIT');
@@ -389,12 +404,45 @@ export class ContactRepository {
     const [items, counts] = await Promise.all([
       this.pool.query<NotificationRecord>(
         `SELECT n.id, n.type, n.title, n.content,
-                r.contact_message_id AS "contactMessageId",
+                COALESCE(n.metadata ->> 'contactMessageId', r.contact_message_id::text, '') AS "contactMessageId",
+                n.actor_user_id AS "actorUserId",
+                CASE WHEN u.id IS NULL THEN NULL
+                     WHEN u.is_active = FALSE THEN 'Người dùng không còn hoạt động'
+                     ELSE COALESCE(NULLIF(u.full_name, ''), NULLIF(u.username, ''), 'Người dùng')
+                END AS "actorName",
+                n.source_type AS "sourceType",
+                n.source_id AS "sourceId",
+                n.target_type AS "targetType",
+                n.target_id AS "targetId",
+                CASE
+                  WHEN n.target_id IS NULL THEN FALSE
+                  WHEN n.target_type = 'CONTACT_MESSAGE' THEN EXISTS (
+                    SELECT 1 FROM public.contact_messages m WHERE m.id = n.target_id
+                  )
+                  WHEN n.target_type = 'DISCUSSION_COMMENT' THEN EXISTS (
+                    SELECT 1
+                    FROM public.discussion_comments c
+                    JOIN public.discussions d ON d.id = c.discussion_id
+                    WHERE c.id = n.target_id AND c.deleted_at IS NULL
+                  )
+                  WHEN n.target_type = 'PROBLEM_COMMENT' THEN EXISTS (
+                    SELECT 1
+                    FROM public.problem_comments c
+                    JOIN public.problems p ON p.id = c.problem_id
+                    WHERE c.id = n.target_id
+                      AND c.deleted_at IS NULL
+                      AND p.status = 'PUBLISHED'
+                      AND p.organization_id IS NULL
+                  )
+                  ELSE FALSE
+                END AS "targetAvailable",
+                n.metadata,
                 n.is_read AS "isRead",
                 n.created_at AS "createdAt",
                 n.read_at AS "readAt"
          FROM public.notifications n
-         JOIN public.contact_replies r ON r.id = n.reference_id
+         LEFT JOIN public.contact_replies r ON r.id = n.reference_id
+         LEFT JOIN public.users u ON u.id = n.actor_user_id
          WHERE n.recipient_user_id = $1
          ORDER BY n.created_at DESC, n.id DESC
          LIMIT $2 OFFSET $3`,

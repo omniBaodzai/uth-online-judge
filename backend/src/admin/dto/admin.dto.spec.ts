@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { AdminProblemDto } from './admin-problem.dto.js';
+import { AdminProblemDto, AdminProblemVisibilityDto } from './admin-problem.dto.js';
 import { AdminTestCaseDto } from './admin-test-case.dto.js';
 
 describe('Admin DTOs', () => {
@@ -12,6 +12,20 @@ describe('Admin DTOs', () => {
 
   it.each(['uth011', 'tong_hai_so', 'bai_tap_01', 'a'.repeat(50)])('accepts problem code %s', async (code) => {
     await expect(validate(plainToInstance(AdminProblemDto, { ...base, code }))).resolves.toHaveLength(0);
+  });
+
+  it.each([true, false])('accepts visibility value %s with strict whitelist validation', async (isHidden) => {
+    const dto = plainToInstance(AdminProblemVisibilityDto, { isHidden });
+    await expect(validate(dto, { whitelist: true, forbidNonWhitelisted: true })).resolves.toHaveLength(0);
+  });
+
+  it('rejects non-boolean visibility values and unexpected properties', async () => {
+    const invalidValue = plainToInstance(AdminProblemVisibilityDto, { isHidden: 'true' });
+    expect((await validate(invalidValue)).map((error) => error.property)).toContain('isHidden');
+
+    const invalidShape = plainToInstance(AdminProblemVisibilityDto, { isHidden: true, status: 'archived' });
+    expect((await validate(invalidShape, { whitelist: true, forbidNonWhitelisted: true }))
+      .map((error) => error.property)).toContain('status');
   });
 
   it.each(['UTH011', 'bài_tập', 'bai tap', 'bai-tap', '', 'a'.repeat(51)])('rejects problem code "%s"', async (code) => {

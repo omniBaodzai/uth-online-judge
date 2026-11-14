@@ -87,12 +87,33 @@ describe('NewsRepository', () => {
   });
 
   it('creates articles as DRAFT and maps duplicate slugs to a conflict', async () => {
-    const { query, repository } = makeRepository([{ id: 'new' }]);
-    await repository.create('admin-1', { title: 't', slug: 's', category: 'c', summary: 'x', content: 'y' });
-    expect(query.mock.calls[0][0]).toContain("'DRAFT'");
-    expect(query.mock.calls[0][1]).toEqual(['t', 's', 'x', 'y', 'c', 'admin-1']);
+    const clientQuery = vi.fn().mockImplementation((sql: string) =>
+      Promise.resolve(sql.includes('INSERT INTO public.news_articles') ? { rows: [{ id: 'new' }] } : { rows: [] }),
+    );
+    const client = { query: clientQuery, release: vi.fn() };
+    const repository = new NewsRepository({ connect: vi.fn().mockResolvedValue(client) } as never);
+    await repository.create('admin-1', {
+      title: 't',
+      slug: 's',
+      category: 'c',
+      summary: 'x',
+      content: 'y',
+      contentFormat: 'markdown',
+      contentJson: null,
+    });
+    expect(clientQuery.mock.calls[1][0]).toContain("'DRAFT'");
+    expect(clientQuery.mock.calls[1][1]).toEqual(['t', 's', 'x', 'y', 'c', 'admin-1', 'markdown', null]);
+    expect(clientQuery).toHaveBeenCalledWith('COMMIT');
 
-    const failing = new NewsRepository({ query: vi.fn().mockRejectedValue({ code: '23505' }) } as never);
+    const failingClient = {
+      query: vi.fn().mockImplementation((sql: string) =>
+        sql === 'BEGIN'
+          ? Promise.resolve({ rows: [] })
+          : Promise.reject({ code: '23505' }),
+      ),
+      release: vi.fn(),
+    };
+    const failing = new NewsRepository({ connect: vi.fn().mockResolvedValue(failingClient) } as never);
     await expect(
       failing.create('admin-1', { title: 't', slug: 's', category: 'c', summary: 'x', content: 'y' }),
     ).rejects.toBeInstanceOf(ConflictException);
@@ -245,7 +266,7 @@ describe('DiscussionsService ownership and moderation', () => {
   it('blocks comments on locked threads and missing discussions', async () => {
     const { repository, service } = build(record());
     await service.addComment('d1', other, 'Xin chào');
-    expect(repository.createComment).toHaveBeenCalledWith('d1', 'other', 'Xin chào', null);
+    expect(repository.createComment).toHaveBeenCalledWith('d1', 'other', 'Xin chào', null, null);
 
     const locked = build(record({ isLocked: true }));
     await expect(locked.service.addComment('d1', other, 'x')).rejects.toBeInstanceOf(ForbiddenException);

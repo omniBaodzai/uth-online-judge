@@ -34,18 +34,21 @@ export class ApiError extends Error {
   readonly status: number
   readonly submissionId?: string
   readonly retryAfterSeconds?: number
+  readonly code?: string
 
   constructor(
     message: string,
     status: number,
     submissionId?: string,
     retryAfterSeconds?: number,
+    code?: string,
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.submissionId = submissionId
     this.retryAfterSeconds = retryAfterSeconds
+    this.code = code
   }
 }
 
@@ -269,6 +272,50 @@ export async function requestProtected<T>(
   }
 }
 
+export async function requestProtectedBlob(
+  path: string,
+  accessToken: string,
+  onRefresh: (nextAccessToken: string) => void,
+  init: RequestInit = {},
+): Promise<Blob> {
+  const send = async (token: string): Promise<Blob> => {
+    let response: Response
+    try {
+      response = await fetch(`${apiBaseUrl}${path}`, {
+        ...init,
+        credentials: 'include',
+        headers: withAuthorization(init.headers, token),
+      })
+    } catch {
+      throw new ApiError(
+        'Không thể hoàn tất yêu cầu đến máy chủ. Hãy kiểm tra kết nối mạng hoặc cấu hình CORS của máy chủ.',
+        0,
+      )
+    }
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { message?: string | string[] }
+        | null
+      const message = Array.isArray(body?.message)
+        ? body.message.join(' ')
+        : body?.message || 'Không thể tải ảnh tin tức. Vui lòng thử lại.'
+      throw new ApiError(message, response.status)
+    }
+    return response.blob()
+  }
+
+  try {
+    return await send(accessToken)
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error
+
+    const refreshed = await refresh()
+    onRefresh(refreshed.accessToken)
+    return send(refreshed.accessToken)
+  }
+}
+
 function withAuthorization(headers: HeadersInit | undefined, accessToken: string): Headers {
   const nextHeaders = new Headers(headers)
   nextHeaders.set('Authorization', ['Bearer', accessToken].join(' '))
@@ -296,16 +343,31 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as
-      | { message?: string | string[]; submissionId?: string; retryAfterSeconds?: number }
+      | {
+          message?: string | string[]
+          submissionId?: string
+          retryAfterSeconds?: number
+          code?: string
+        }
       | null
     const message = Array.isArray(body?.message)
       ? body.message.join(' ')
       : body?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'
+    const retryAfterHeader = Number(response.headers.get('Retry-After'))
+    const retryAfterSeconds =
+      typeof body?.retryAfterSeconds === 'number' &&
+      Number.isFinite(body.retryAfterSeconds) &&
+      body.retryAfterSeconds > 0
+        ? body.retryAfterSeconds
+        : Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+          ? retryAfterHeader
+          : undefined
     throw new ApiError(
       message,
       response.status,
       typeof body?.submissionId === 'string' ? body.submissionId : undefined,
-      typeof body?.retryAfterSeconds === 'number' ? body.retryAfterSeconds : undefined,
+      retryAfterSeconds,
+      typeof body?.code === 'string' ? body.code : undefined,
     )
   }
 

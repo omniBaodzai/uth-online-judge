@@ -301,7 +301,11 @@ describe('SubmissionsRepository', () => {
     });
 
     const [sql, values] = client.query.mock.calls[2];
+    const publishedProblemLockSql = client.query.mock.calls[1][0] as string;
     const snapshotSql = client.query.mock.calls[3][0] as string;
+    expect(publishedProblemLockSql).toContain("status = 'PUBLISHED'");
+    expect(publishedProblemLockSql).toContain('organization_id IS NULL');
+    expect(publishedProblemLockSql).not.toContain('is_hidden');
     expect(sql).toContain('INSERT INTO submissions');
     expect(sql).toContain('scoring_enabled');
     expect(sql).toContain('COUNT(*) FROM problem_test_cases');

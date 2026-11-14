@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FullscreenLoader } from '../../../components/ui/Loading'
 import { useAuth } from '../../auth/useAuth'
 import { RequireAuth } from '../../auth/components/RequireAuth'
 import ProfileExperience from '../components/ProfileExperience'
@@ -18,7 +19,7 @@ function ProfilePage() {
   return (
     <div className={styles.page}>
       <RequireAuth>
-        {loading ? <p className={styles.feedback} aria-live="polite">{t('loadingProfile')}</p> : null}
+        {loading ? <FullscreenLoader label={t('loadingProfile')} /> : null}
         {error ? <p className={styles.feedback} role="alert">{error}</p> : null}
         {profile && user ? (
           <ProfileExperience
