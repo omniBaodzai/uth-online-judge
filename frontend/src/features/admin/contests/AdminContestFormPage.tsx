@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { ArrowDown, ArrowUp, BookOpen, Check, Info, Plus, Search, Trash2, Trophy } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, Check, Plus, Search, Trash2 } from 'lucide-react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import type { AdminProblem } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'

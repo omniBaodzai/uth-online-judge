@@ -27,7 +27,6 @@ function TestCaseCollectionEditor({ cases, onChange, disabled = false }: Props) 
   const [importNotice, setImportNotice] = useState('')
   const folderInput = useRef<HTMLInputElement>(null)
   const filesInput = useRef<HTMLInputElement>(null)
-  const publicCount = cases.filter((testCase) => testCase.kind === 'sample').length
   const supportsFolderSelection = typeof document !== 'undefined'
     && 'webkitdirectory' in document.createElement('input')
 
