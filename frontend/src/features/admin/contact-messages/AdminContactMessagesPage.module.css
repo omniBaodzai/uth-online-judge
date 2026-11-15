@@ -168,6 +168,7 @@
 }
 
 .messageTable tbody tr {
+  cursor: pointer;
   transition: background-color 140ms ease;
 }
 
@@ -468,14 +469,6 @@
   display: flex;
   justify-content: flex-end;
   gap: 9px;
-}
-
-.detailHeading {
-  align-items: flex-end;
-}
-
-.detailHeading > button {
-  flex: none;
 }
 
 .detailGrid {
@@ -897,15 +890,6 @@
 
   .metricCard strong {
     font-size: 24px;
-  }
-
-  .detailHeading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .detailHeading > button {
-    width: 100%;
   }
 
   .senderDetails {

@@ -17,6 +17,7 @@ describe('PasswordResetService', () => {
     invalidateOtp: ReturnType<typeof vi.fn>;
     verifyOtp: ReturnType<typeof vi.fn>;
     consumeResetToken: ReturnType<typeof vi.fn>;
+    setInitialPassword: ReturnType<typeof vi.fn>;
     completePasswordSetup: ReturnType<typeof vi.fn>;
   };
   let email: { sendOtp: ReturnType<typeof vi.fn> };
@@ -33,6 +34,7 @@ describe('PasswordResetService', () => {
       invalidateOtp: vi.fn().mockResolvedValue(undefined),
       verifyOtp: vi.fn().mockResolvedValue(true),
       consumeResetToken: vi.fn().mockResolvedValue(true),
+      setInitialPassword: vi.fn().mockResolvedValue('UPDATED'),
       completePasswordSetup: vi.fn().mockResolvedValue(1),
     };
     email = { sendOtp: vi.fn().mockResolvedValue(undefined) };
@@ -205,6 +207,54 @@ describe('PasswordResetService', () => {
     );
   });
 
+  it('sets the first password for an eligible OAuth account and preserves the current refresh session', async () => {
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+
+    await service.setInitialPassword(
+      'user-id',
+      'new-secure-password',
+      'current-refresh-hash',
+    );
+
+    expect(repository.findPasswordSetupAccount).toHaveBeenCalledWith('user-id');
+    expect(bcrypt.hash).toHaveBeenCalledWith('new-secure-password', 12);
+    expect(repository.setInitialPassword).toHaveBeenCalledWith(
+      'user-id',
+      'new-password-hash',
+      'current-refresh-hash',
+    );
+  });
+
+  it('rejects accounts with an existing password and prevents a concurrent overwrite', async () => {
+    await expect(service.setInitialPassword(
+      'user-id',
+      'new-secure-password',
+      'current-refresh-hash',
+    ))
+      .rejects.toMatchObject({ status: HttpStatus.CONFLICT });
+    expect(bcrypt.hash).not.toHaveBeenCalled();
+
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+    repository.setInitialPassword.mockResolvedValue('INELIGIBLE_ACCOUNT');
+    await expect(service.setInitialPassword(
+      'user-id',
+      'new-secure-password',
+      'current-refresh-hash',
+    ))
+      .rejects.toMatchObject({ status: HttpStatus.CONFLICT });
+  });
+
+  it('rejects invalid refresh sessions before reporting a successful password setup', async () => {
+    repository.findPasswordSetupAccount.mockResolvedValue(account);
+    repository.setInitialPassword.mockResolvedValue('INVALID_REFRESH_SESSION');
+
+    await expect(service.setInitialPassword(
+      'user-id',
+      'new-secure-password',
+      'current-refresh-hash',
+    )).rejects.toMatchObject({ status: HttpStatus.UNAUTHORIZED });
+  });
+
   it('rejects setup requests for accounts with no eligible OAuth-only state', async () => {
     await expect(service.requestPasswordSetupOtp('user-id', '192.0.2.7'))
       .rejects.toMatchObject({ status: HttpStatus.CONFLICT });
@@ -262,6 +312,8 @@ describe('PasswordResetService', () => {
 
   it('enforces bcrypt byte limits before hashing', async () => {
     await expect(service.resetPassword('a'.repeat(43), 'é'.repeat(37)))
+      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.setInitialPassword('user-id', 'é'.repeat(37), 'refresh-hash'))
       .rejects.toBeInstanceOf(BadRequestException);
     expect(bcrypt.hash).not.toHaveBeenCalled();
   });

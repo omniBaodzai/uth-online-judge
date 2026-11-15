@@ -76,7 +76,7 @@ function AdminLoginPage() {
           </button>
           {message && <p id="admin-login-error" className={styles.formMessage} role="alert">{message}</p>}
         </form>
-        <Link className={styles.backLink} to="/">← Quay lại trang học viên</Link>
+        <Link className={styles.backLink} to="/">Quay lại trang học viên</Link>
       </section>
     </main>
   )

@@ -56,20 +56,37 @@
 }
 
 .greetingBubble {
+  box-sizing: border-box;
   position: absolute;
-  right: calc(100% - 8px);
+  z-index: 1;
+  right: calc(100% + 6px);
   bottom: 42px;
-  width: max-content;
-  max-width: min(250px, calc(100vw - 150px));
-  padding: 9px 12px;
+  display: block;
+  width: fit-content;
+  min-width: 160px;
+  min-height: 76px;
+  max-width: min(280px, calc(100vw - 106px));
+  overflow-wrap: anywhere;
+  padding: 10px 14px;
   border: 1px solid var(--color-border);
   border-radius: 14px 14px 4px 14px;
   background: var(--color-surface);
   box-shadow: 0 8px 22px rgba(4, 28, 35, 0.16);
   color: var(--color-ink);
-  font-size: 13px;
-  line-height: 1.4;
-  pointer-events: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.greetingBubble:hover {
+  border-color: var(--color-primary);
+}
+
+.greetingBubble:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 .panel {
@@ -483,7 +500,11 @@
   }
 
   .greetingBubble {
-    display: none;
+    bottom: 18px;
+    width: min(240px, calc(100vw - 150px));
+    min-height: 92px;
+    padding: 8px 10px;
+    font-size: 12px;
   }
 
   .panel {
@@ -513,6 +534,7 @@
   .launcher,
   .robotImage,
   .panel,
+  .greetingBubble,
   .spinner,
   .quickQuestion,
   .sendButton {

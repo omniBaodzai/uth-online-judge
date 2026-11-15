@@ -1,14 +1,17 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import { MessageCircle, Send, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import assistantImage from "../../assets/assistant.webp";
 import { ApiError, request as publicRequest } from "../auth/api";
 import { useAuth } from "../auth/useAuth";
@@ -19,6 +22,15 @@ import styles from "./AiAssistantWidget.module.css";
 const MAX_MESSAGE_LENGTH = 3_000;
 const REQUEST_TIMEOUT_MS = 65_000;
 const PANEL_ID = "uth-ai-assistant-panel";
+const TYPEWRITER_DELAY_MS = 42;
+const SENTENCE_PAUSE_MS = 450;
+const SPEECH_AUTO_HIDE_MS = 12_000;
+const WELCOME_AUTO_HIDE_MS = 60_000;
+const NUDGE_MIN_DELAY_MS = 7 * 60 * 1_000;
+const NUDGE_MAX_DELAY_MS = 10 * 60 * 1_000;
+const NUDGE_RETRY_DELAY_MS = 60 * 1_000;
+const NEXT_NUDGE_AT_KEY = "uth-ai-assistant-next-nudge-at";
+const LAST_NUDGE_INDEX_KEY = "uth-ai-assistant-last-nudge-index";
 
 const quickQuestionKeys = [
   "aiAssistantQuestionSubmit",
@@ -27,12 +39,80 @@ const quickQuestionKeys = [
   "aiAssistantQuestionLeaderboard",
 ] as const;
 
+const proactiveMessageKeys = [
+  "aiAssistantNudge1",
+  "aiAssistantNudge2",
+  "aiAssistantNudge3",
+  "aiAssistantNudge4",
+  "aiAssistantNudge5",
+  "aiAssistantNudge6",
+  "aiAssistantNudge7",
+] as const;
+
 type ChatMessage = {
   id: number;
   role: "user" | "assistant";
   text: string;
   scope?: AiAssistantScope;
 };
+
+type AssistantSpeech = {
+  id: number;
+  kind: "welcome" | "nudge";
+  sentences: string[];
+};
+
+function getVietnameseGreetingPeriod(): "Morning" | "Afternoon" | "Evening" {
+  const hourPart = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    hourCycle: "h23",
+  })
+    .formatToParts(new Date())
+    .find((part) => part.type === "hour")?.value;
+  const hour = Number(hourPart ?? "0");
+
+  if (hour >= 5 && hour < 12) return "Morning";
+  if (hour >= 12 && hour < 18) return "Afternoon";
+  return "Evening";
+}
+
+function isTaskRoute(pathname: string): boolean {
+  return (
+    /^\/problems\/[^/]+(?:\/|$)/.test(pathname) ||
+    /^\/contests\/[^/]+(?:\/|$)/.test(pathname) ||
+    /^\/organizations\/[^/]+\/(?:problems|contests)(?:\/|$)/.test(pathname)
+  );
+}
+
+function isTextEntryFocused(): boolean {
+  const activeElement = document.activeElement;
+  if (!(activeElement instanceof HTMLElement)) return false;
+
+  return (
+    activeElement.matches(
+      'input, textarea, select, [role="textbox"], [contenteditable="true"]',
+    ) ||
+    activeElement.isContentEditable ||
+    Boolean(activeElement.closest(".monaco-editor"))
+  );
+}
+
+function subscribeToReducedMotion(onChange: () => void) {
+  if (typeof window === "undefined" || !window.matchMedia) return () => {};
+  const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
+}
+
+function getReducedMotionPreference() {
+  return (
+    typeof window !== "undefined" &&
+    Boolean(
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    )
+  );
+}
 
 function getErrorKey(error: unknown, didTimeout: boolean): string {
   if (didTimeout) return "aiAssistantErrorTimeout";
@@ -92,9 +172,19 @@ function renderAnswer(answer: string) {
 
 export function AiAssistantWidget() {
   const { t } = useTranslation("common");
-  const { accessToken, isAuthenticated, request, user } = useAuth();
+  const { accessToken, isAuthenticated, isLoading, request, user } = useAuth();
+  const { pathname } = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [showGreeting, setShowGreeting] = useState(true);
+  const [speech, setSpeech] = useState<AssistantSpeech | null>(null);
+  const [speechOutput, setSpeechOutput] = useState<{
+    id: number;
+    text: string;
+  } | null>(null);
+  const reducedMotion = useSyncExternalStore(
+    subscribeToReducedMotion,
+    getReducedMotionPreference,
+    () => false,
+  );
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationContext, setConversationContext] = useState<string | null>(
@@ -116,8 +206,207 @@ export function AiAssistantWidget() {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isSendingRef = useRef(false);
   const currentUserIdRef = useRef(user?.id ?? null);
+  const nextSpeechIdRef = useRef(0);
+  const typewriterTimerRef = useRef<number | null>(null);
+  const autoHideTimerRef = useRef<number | null>(null);
+  const welcomeTimerRef = useRef<number | null>(null);
+  const welcomeDeadlineRef = useRef<number | null>(null);
+  const nudgeTimerRef = useRef<number | null>(null);
+  const nextNudgeAtRef = useRef<number | null>(null);
+  const speechRef = useRef(speech);
+  const previousPathnameRef = useRef(pathname);
+  const pendingWelcomeRef = useRef(true);
+  const isOpenRef = useRef(isOpen);
+  const pathnameRef = useRef(pathname);
+  const translateRef = useRef(t);
+  const armNudgeTimerRef = useRef<() => void>(() => {});
+  const scheduleNextNudgeRef = useRef<() => void>(() => {});
+  const dismissSpeechRef = useRef<() => void>(() => {});
   const userId = user?.id ?? null;
   const isNearLimit = draft.length >= MAX_MESSAGE_LENGTH - 300;
+  const speechText =
+    speech === null
+      ? ""
+      : reducedMotion
+        ? speech.sentences.join(" ")
+        : speechOutput !== null && speechOutput.id === speech.id
+          ? speechOutput.text
+          : "";
+
+  const clearNudgeTimer = useCallback(() => {
+    if (nudgeTimerRef.current !== null) {
+      window.clearTimeout(nudgeTimerRef.current);
+      nudgeTimerRef.current = null;
+    }
+  }, []);
+
+  const clearSpeechTimers = useCallback(() => {
+    if (typewriterTimerRef.current !== null) {
+      window.clearTimeout(typewriterTimerRef.current);
+      typewriterTimerRef.current = null;
+    }
+    if (autoHideTimerRef.current !== null) {
+      window.clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+    if (welcomeTimerRef.current !== null) {
+      window.clearTimeout(welcomeTimerRef.current);
+      welcomeTimerRef.current = null;
+    }
+    welcomeDeadlineRef.current = null;
+  }, []);
+
+  const isNudgeEligible = useCallback(() => {
+    return (
+      document.visibilityState === "visible" &&
+      !isOpenRef.current &&
+      !speechRef.current &&
+      !isTaskRoute(pathnameRef.current) &&
+      !isTextEntryFocused()
+    );
+  }, []);
+
+  const storeNextNudgeAt = useCallback((timestamp: number) => {
+    nextNudgeAtRef.current = timestamp;
+    window.sessionStorage.setItem(NEXT_NUDGE_AT_KEY, String(timestamp));
+  }, []);
+
+  const armNudgeTimer = useCallback(() => {
+    clearNudgeTimer();
+    if (!isNudgeEligible()) return;
+
+    let nextNudgeAt = nextNudgeAtRef.current;
+    if (nextNudgeAt === null) {
+      const savedTimestamp = Number(
+        window.sessionStorage.getItem(NEXT_NUDGE_AT_KEY),
+      );
+      nextNudgeAt =
+        Number.isFinite(savedTimestamp) && savedTimestamp > 0
+          ? savedTimestamp
+          : Date.now() +
+            NUDGE_MIN_DELAY_MS +
+            Math.floor(
+              Math.random() *
+                (NUDGE_MAX_DELAY_MS - NUDGE_MIN_DELAY_MS + 1),
+            );
+      storeNextNudgeAt(nextNudgeAt);
+    }
+
+    if (nextNudgeAt <= Date.now()) {
+      nextNudgeAt = Date.now() + NUDGE_RETRY_DELAY_MS;
+      storeNextNudgeAt(nextNudgeAt);
+    }
+
+    nudgeTimerRef.current = window.setTimeout(() => {
+      nudgeTimerRef.current = null;
+      if (!isNudgeEligible()) {
+        if (
+          document.visibilityState === "visible" &&
+          !isOpenRef.current &&
+          !speechRef.current &&
+          !isTaskRoute(pathnameRef.current)
+        ) {
+          storeNextNudgeAt(Date.now() + NUDGE_RETRY_DELAY_MS);
+          armNudgeTimerRef.current();
+        }
+        return;
+      }
+
+      const storedLastIndex = Number(
+        window.sessionStorage.getItem(LAST_NUDGE_INDEX_KEY),
+      );
+      const lastIndex =
+        Number.isInteger(storedLastIndex) &&
+        storedLastIndex >= 0 &&
+        storedLastIndex < proactiveMessageKeys.length
+          ? storedLastIndex
+          : null;
+      const choices = proactiveMessageKeys
+        .map((key, index) => ({ key, index }))
+        .filter(({ index }) => index !== lastIndex);
+      const choice =
+        choices[
+          Math.floor(Math.random() * choices.length)
+        ] ?? choices[0];
+      if (!choice) return;
+      window.sessionStorage.setItem(
+        LAST_NUDGE_INDEX_KEY,
+        String(choice.index),
+      );
+      nextNudgeAtRef.current = null;
+      window.sessionStorage.removeItem(NEXT_NUDGE_AT_KEY);
+      setSpeech({
+        id: nextSpeechIdRef.current++,
+        kind: "nudge",
+        sentences: [translateRef.current(choice.key)],
+      });
+    }, Math.max(0, nextNudgeAt - Date.now()));
+  }, [clearNudgeTimer, isNudgeEligible, storeNextNudgeAt]);
+
+  const scheduleNextNudge = useCallback(() => {
+    const delay =
+      NUDGE_MIN_DELAY_MS +
+      Math.floor(
+        Math.random() * (NUDGE_MAX_DELAY_MS - NUDGE_MIN_DELAY_MS + 1),
+      );
+    storeNextNudgeAt(Date.now() + delay);
+    armNudgeTimer();
+  }, [armNudgeTimer, storeNextNudgeAt]);
+
+  const dismissSpeech = useCallback(() => {
+    const hadSpeech = speechRef.current !== null;
+    clearSpeechTimers();
+    setSpeech(null);
+    if (hadSpeech) scheduleNextNudgeRef.current();
+  }, [clearSpeechTimers]);
+
+  const startWelcome = useCallback(() => {
+    clearNudgeTimer();
+    clearSpeechTimers();
+    setSpeechOutput(null);
+    const username =
+      isAuthenticated && user?.username?.trim()
+        ? user.username.trim()
+        : null;
+    const period = getVietnameseGreetingPeriod();
+    setSpeech({
+      id: nextSpeechIdRef.current++,
+      kind: "welcome",
+      sentences: [
+        translateRef.current(
+          username
+            ? `aiAssistantGreeting${period}`
+            : `aiAssistantGreetingGuest${period}`,
+          username ? { username } : undefined,
+        ),
+        translateRef.current("aiAssistantGreetingFollowup"),
+      ],
+    });
+    welcomeDeadlineRef.current = Date.now() + WELCOME_AUTO_HIDE_MS;
+  }, [clearNudgeTimer, clearSpeechTimers, isAuthenticated, user]);
+
+  function openAssistant() {
+    dismissSpeechRef.current();
+    setIsOpen(true);
+  }
+
+  useLayoutEffect(() => {
+    speechRef.current = speech;
+    isOpenRef.current = isOpen;
+    pathnameRef.current = pathname;
+    translateRef.current = t;
+    armNudgeTimerRef.current = armNudgeTimer;
+    scheduleNextNudgeRef.current = scheduleNextNudge;
+    dismissSpeechRef.current = dismissSpeech;
+  }, [
+    armNudgeTimer,
+    dismissSpeech,
+    isOpen,
+    pathname,
+    scheduleNextNudge,
+    speech,
+    t,
+  ]);
 
   useLayoutEffect(() => {
     if (currentUserIdRef.current === userId) return;
@@ -145,6 +434,159 @@ export function AiAssistantWidget() {
   );
 
   useEffect(() => {
+    const savedTimestamp = Number(
+      window.sessionStorage.getItem(NEXT_NUDGE_AT_KEY),
+    );
+    if (Number.isFinite(savedTimestamp) && savedTimestamp > 0) {
+      nextNudgeAtRef.current = savedTimestamp;
+    } else {
+      scheduleNextNudgeRef.current();
+    }
+    return clearNudgeTimer;
+  }, [clearNudgeTimer]);
+
+  useEffect(() => {
+    if (speech || isOpen || isTaskRoute(pathname)) {
+      clearNudgeTimer();
+      return;
+    }
+    armNudgeTimerRef.current();
+    return clearNudgeTimer;
+  }, [clearNudgeTimer, isOpen, pathname, speech]);
+
+  useEffect(() => {
+    if (speech?.kind === "nudge" && isTaskRoute(pathname)) {
+      dismissSpeechRef.current();
+    }
+  }, [pathname, speech]);
+
+  useEffect(() => {
+    const previousPathname = previousPathnameRef.current;
+    previousPathnameRef.current = pathname;
+    if (previousPathname !== pathname && pathname === "/") {
+      pendingWelcomeRef.current = true;
+    }
+    if (!pendingWelcomeRef.current || isLoading) return;
+    pendingWelcomeRef.current = false;
+    // oxlint-disable-next-line react/set-state-in-effect -- Route changes start the next timed greeting.
+    if (!isOpen) startWelcome();
+  }, [isLoading, isOpen, pathname, startWelcome]);
+
+  useEffect(() => {
+    if (speech?.kind !== "welcome" || welcomeDeadlineRef.current === null) {
+      return;
+    }
+    const deadline = welcomeDeadlineRef.current;
+    const timer = window.setTimeout(() => {
+      if (welcomeDeadlineRef.current !== deadline) return;
+      welcomeTimerRef.current = null;
+      dismissSpeechRef.current();
+    }, Math.max(0, deadline - Date.now()));
+    welcomeTimerRef.current = timer;
+    return () => {
+      window.clearTimeout(timer);
+      if (welcomeTimerRef.current === timer) welcomeTimerRef.current = null;
+    };
+  }, [speech]);
+
+  useEffect(() => {
+    if (!speech || isOpen) return;
+    if (reducedMotion) {
+      if (speech.kind === "welcome") return;
+      autoHideTimerRef.current = window.setTimeout(
+        () => dismissSpeechRef.current(),
+        SPEECH_AUTO_HIDE_MS,
+      );
+      return () => {
+        if (autoHideTimerRef.current !== null) {
+          window.clearTimeout(autoHideTimerRef.current);
+          autoHideTimerRef.current = null;
+        }
+      };
+    }
+
+    const sentenceCharacters = speech.sentences.map((sentence) =>
+      Array.from(sentence),
+    );
+    let sentenceIndex = 0;
+    let characterIndex = 0;
+    let cancelled = false;
+
+    const typeNextCharacter = () => {
+      if (cancelled) return;
+      const currentSentence = sentenceCharacters[sentenceIndex];
+      if (characterIndex < currentSentence.length) {
+        const character = currentSentence[characterIndex++];
+        setSpeechOutput((current) => ({
+          id: speech.id,
+          text: current?.id === speech.id ? current.text + character : character,
+        }));
+        typewriterTimerRef.current = window.setTimeout(
+          typeNextCharacter,
+          TYPEWRITER_DELAY_MS,
+        );
+        return;
+      }
+
+      if (sentenceIndex + 1 < sentenceCharacters.length) {
+        typewriterTimerRef.current = window.setTimeout(() => {
+          sentenceIndex += 1;
+          characterIndex = 0;
+          setSpeechOutput((current) => ({
+            id: speech.id,
+            text: current?.id === speech.id ? `${current.text} ` : " ",
+          }));
+          typeNextCharacter();
+        }, SENTENCE_PAUSE_MS);
+        return;
+      }
+
+      if (speech.kind === "nudge") {
+        autoHideTimerRef.current = window.setTimeout(
+          () => dismissSpeechRef.current(),
+          SPEECH_AUTO_HIDE_MS,
+        );
+      }
+    };
+
+    typewriterTimerRef.current = window.setTimeout(
+      typeNextCharacter,
+      TYPEWRITER_DELAY_MS,
+    );
+
+    return () => {
+      cancelled = true;
+      if (typewriterTimerRef.current !== null) {
+        window.clearTimeout(typewriterTimerRef.current);
+        typewriterTimerRef.current = null;
+      }
+      if (autoHideTimerRef.current !== null) {
+        window.clearTimeout(autoHideTimerRef.current);
+        autoHideTimerRef.current = null;
+      }
+    };
+  }, [isOpen, reducedMotion, speech]);
+
+  useEffect(() => {
+    const updateNudgeTimer = () => armNudgeTimerRef.current();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") clearNudgeTimer();
+      else updateNudgeTimer();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("focusin", updateNudgeTimer);
+    document.addEventListener("focusout", updateNudgeTimer);
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+      document.removeEventListener("focusin", updateNudgeTimer);
+      document.removeEventListener("focusout", updateNudgeTimer);
+    };
+  }, [armNudgeTimer, clearNudgeTimer]);
+
+  useEffect(() => {
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
@@ -154,7 +596,6 @@ export function AiAssistantWidget() {
     function closeOnEscape(event: globalThis.KeyboardEvent) {
       if (event.key !== "Escape") return;
       setIsOpen(false);
-      setShowGreeting(false);
       launcherRef.current?.focus();
     }
 
@@ -165,7 +606,6 @@ export function AiAssistantWidget() {
         !panelRef.current?.contains(event.target)
       ) {
         setIsOpen(false);
-        setShowGreeting(false);
       }
     }
 
@@ -298,8 +738,8 @@ export function AiAssistantWidget() {
           aria-label={t(isOpen ? "aiAssistantClose" : "aiAssistantOpen")}
           className={`${styles.launcher} ${isOpen ? styles.launcherOpen : ""}`}
           onClick={() => {
-            setShowGreeting(false);
-            setIsOpen((open) => !open);
+            if (isOpen) setIsOpen(false);
+            else openAssistant();
           }}
           ref={launcherRef}
           title={t(isOpen ? "aiAssistantClose" : "aiAssistantOpen")}
@@ -307,10 +747,20 @@ export function AiAssistantWidget() {
         >
           <img alt="" className={styles.robotImage} src={assistantImage} />
         </button>
-        {!isOpen && showGreeting && (
-          <span aria-hidden="true" className={styles.greetingBubble}>
-            {t("aiAssistantGreetingBubble")}
-          </span>
+        {!isOpen && speech && (
+          <button
+            aria-controls={PANEL_ID}
+            aria-expanded={false}
+            aria-label={t("aiAssistantOpen")}
+            className={styles.greetingBubble}
+            data-testid="assistant-greeting-bubble"
+            onClick={openAssistant}
+            type="button"
+          >
+            <span aria-hidden="true" data-testid="assistant-greeting-text">
+              {speechText}
+            </span>
+          </button>
         )}
       </div>
 
@@ -352,7 +802,6 @@ export function AiAssistantWidget() {
                   className={styles.iconButton}
                   onClick={() => {
                     setIsOpen(false);
-                    setShowGreeting(false);
                     launcherRef.current?.focus();
                   }}
                   title={t("aiAssistantClose")}

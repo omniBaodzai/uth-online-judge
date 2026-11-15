@@ -10,6 +10,7 @@ import { VerifyResetOtpDto } from './verify-reset-otp.dto.js';
 import { ResetPasswordDto } from './reset-password.dto.js';
 import { VerifyPasswordSetupOtpDto } from './verify-password-setup-otp.dto.js';
 import { CompletePasswordSetupDto } from './complete-password-setup.dto.js';
+import { SetInitialPasswordDto } from './set-initial-password.dto.js';
 
 describe('authentication DTO validation', () => {
   it('validates password-reset email, OTP, and reset-token payloads', () => {
@@ -54,6 +55,26 @@ describe('authentication DTO validation', () => {
       newPassword: 'a-secure-password',
     });
     expect(validateSync(complete, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
+  });
+
+  it('accepts only a first-password payload with the existing password limits', () => {
+    const valid = plainToInstance(SetInitialPasswordDto, {
+      newPassword: 'a-secure-password',
+    });
+    expect(validateSync(valid, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
+
+    for (const newPassword of ['short', 'a'.repeat(73)]) {
+      const invalid = plainToInstance(SetInitialPasswordDto, { newPassword });
+      expect(validateSync(invalid, { whitelist: true, forbidNonWhitelisted: true }).length)
+        .toBeGreaterThan(0);
+    }
+
+    const withUserId = plainToInstance(SetInitialPasswordDto, {
+      newPassword: 'a-secure-password',
+      userId: 'attacker-chosen-id',
+    });
+    expect(validateSync(withUserId, { whitelist: true, forbidNonWhitelisted: true }).length)
+      .toBeGreaterThan(0);
   });
 
   it('accepts a valid email, username, and password', () => {

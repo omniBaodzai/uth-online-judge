@@ -211,6 +211,22 @@ export async function completePasswordSetupWithRefresh(
   )
 }
 
+export async function setInitialPasswordWithRefresh(
+  input: { newPassword: string },
+  accessToken: string,
+  onRefresh: (nextAccessToken: string) => void,
+): Promise<{ accessToken: string; expiresIn: number }> {
+  return requestProtected<{ accessToken: string; expiresIn: number }>(
+    '/auth/me/password-setup',
+    accessToken,
+    onRefresh,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
+}
+
 export async function uploadCoverWithRefresh(
   file: File,
   crop: {

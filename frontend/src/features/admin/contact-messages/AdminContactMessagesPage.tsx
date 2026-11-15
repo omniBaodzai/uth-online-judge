@@ -453,7 +453,7 @@ function AdminContactMessagesPage() {
               </thead>
               <tbody>
                 {messages.map((message, index) => (
-                  <tr key={message.id}>
+                  <tr key={message.id} onClick={() => openMessageDetails(message)}>
                     <td className={pageStyles.numberCell}>
                       {(currentPage - 1) * pageSize + index + 1}
                     </td>
@@ -461,7 +461,10 @@ function AdminContactMessagesPage() {
                       <strong className={pageStyles.senderName}>{message.username ?? message.fullName}</strong>
                       <span className={pageStyles.senderEmail}>{message.email}</span>
                     </td>
-                    <td className={pageStyles.subjectCell}>
+                    <td
+                      className={pageStyles.subjectCell}
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <ContactMessageCategoryBadge category={message.category} />
                       <button
                         type="button"

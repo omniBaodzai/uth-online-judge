@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import {
   AuthController,
@@ -170,6 +170,65 @@ describe('password reset endpoints', () => {
 });
 
 describe('password setup endpoints', () => {
+  it('rejects a missing refresh cookie before invoking password setup', async () => {
+    const auth = { issueAccessToken: vi.fn() };
+    const passwordReset = { setInitialPassword: vi.fn() };
+    const controller = new AuthController(
+      auth as never,
+      passwordReset as never,
+      {} as never,
+      {} as never,
+    );
+    const request = {
+      user: { id: 'jwt-user-id', role: 'STUDENT' },
+      headers: { cookie: '' },
+    } as never;
+
+    await expect(controller.setInitialPassword(request, {
+      newPassword: 'new-secure-password',
+    } as never)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(passwordReset.setInitialPassword).not.toHaveBeenCalled();
+    expect(auth.issueAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('sets the first password using the JWT user, refresh-session policy, and a fresh access token', async () => {
+    const auth = {
+      issueAccessToken: vi.fn().mockResolvedValue({
+        accessToken: 'fresh-access-token',
+        expiresIn: 900,
+      }),
+    };
+    const passwordReset = {
+      setInitialPassword: vi.fn().mockResolvedValue(undefined),
+    };
+    const controller = new AuthController(
+      auth as never,
+      passwordReset as never,
+      {} as never,
+      {} as never,
+    );
+    const request = {
+      user: { id: 'jwt-user-id', role: 'STUDENT' },
+      headers: { cookie: `${REFRESH_COOKIE_NAME}=current-refresh-token` },
+    } as never;
+
+    expect(guardsOf(AuthController.prototype, 'setInitialPassword'))
+      .toContain(JwtAuthGuard);
+    await expect(controller.setInitialPassword(request, {
+      newPassword: 'new-secure-password',
+    } as never)).resolves.toEqual({
+      accessToken: 'fresh-access-token',
+      expiresIn: 900,
+    });
+
+    expect(passwordReset.setInitialPassword).toHaveBeenCalledWith(
+      'jwt-user-id',
+      'new-secure-password',
+      hashRefreshToken('current-refresh-token'),
+    );
+    expect(auth.issueAccessToken).toHaveBeenCalledWith('jwt-user-id');
+  });
+
   it('requires JWT authentication and always targets the JWT subject', async () => {
     const auth = {
       getPasswordStatus: vi.fn().mockResolvedValue({ hasPassword: false }),
@@ -183,6 +242,7 @@ describe('password setup endpoints', () => {
         transactionId: 'transaction-id',
       }),
       verifyPasswordSetupOtp: vi.fn().mockResolvedValue({ setupToken: 'setup-token' }),
+      setInitialPassword: vi.fn().mockResolvedValue(undefined),
       completePasswordSetup: vi.fn().mockResolvedValue(undefined),
     };
     const controller = new AuthController(

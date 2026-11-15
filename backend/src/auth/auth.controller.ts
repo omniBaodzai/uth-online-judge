@@ -50,6 +50,7 @@ import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { VerifyPasswordSetupOtpDto } from './dto/verify-password-setup-otp.dto.js';
 import { CompletePasswordSetupDto } from './dto/complete-password-setup.dto.js';
+import { SetInitialPasswordDto } from './dto/set-initial-password.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { PasswordResetService } from './password-reset.service.js';
 import {
@@ -472,6 +473,34 @@ export class AuthController {
   @ApiOperation({ summary: 'Kiểm tra tài khoản hiện tại đã có mật khẩu hay chưa' })
   async getPasswordStatus(@Req() request: AuthenticatedRequest) {
     return this.auth.getPasswordStatus(request.user.id);
+  }
+
+  @Post('me/password-setup')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiCookieAuth(REFRESH_COOKIE_NAME)
+  @ApiOperation({
+    summary: 'Thiết lập mật khẩu lần đầu cho tài khoản OAuth',
+    description:
+      'Yêu cầu access token Bearer và refresh cookie HttpOnly hợp lệ thuộc cùng tài khoản. Chỉ tài khoản đang hoạt động chưa có mật khẩu mới đủ điều kiện.',
+  })
+  async setInitialPassword(
+    @Req() request: AuthenticatedRequest,
+    @Body() input: SetInitialPasswordDto,
+  ) {
+    const refreshToken = readRefreshCookie(request);
+    if (!refreshToken) {
+      throw new UnauthorizedException(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
+    }
+    await this.passwordReset.setInitialPassword(
+      request.user.id,
+      input.newPassword,
+      hashRefreshToken(refreshToken),
+    );
+    return this.auth.issueAccessToken(request.user.id);
   }
 
   @Post('me/password-setup/otp')

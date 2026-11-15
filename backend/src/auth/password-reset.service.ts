@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
@@ -217,6 +218,40 @@ export class PasswordResetService {
     if (updated === null) {
       throw new BadRequestException(
         'Yêu cầu thiết lập mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng xác minh email lại.',
+      );
+    }
+  }
+
+  async setInitialPassword(
+    userId: string,
+    newPassword: string,
+    currentRefreshTokenHash: string,
+  ): Promise<void> {
+    if (Buffer.byteLength(newPassword, 'utf8') > 72) {
+      throw new BadRequestException('Mật khẩu không được vượt quá 72 byte.');
+    }
+
+    const account = await this.repository.findPasswordSetupAccount(userId);
+    if (!account) {
+      throw new ConflictException(
+        'Tài khoản đã có mật khẩu hoặc không đủ điều kiện thiết lập mật khẩu.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
+    const result = await this.repository.setInitialPassword(
+      userId,
+      passwordHash,
+      currentRefreshTokenHash,
+    );
+    if (result === 'INVALID_REFRESH_SESSION') {
+      throw new UnauthorizedException(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      );
+    }
+    if (result !== 'UPDATED') {
+      throw new ConflictException(
+        'Tài khoản đã có mật khẩu hoặc không đủ điều kiện thiết lập mật khẩu.',
       );
     }
   }

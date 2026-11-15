@@ -46,8 +46,8 @@ export function passwordResetEmailHtml(
     ? 'Xác minh thiết lập mật khẩu'
     : 'Xác nhận đặt lại mật khẩu';
   const explanation = isSetup
-    ? 'Chúng tôi đã nhận được yêu cầu thiết lập mật khẩu đăng nhập bằng email cho tài khoản UTH Online Judge của bạn.'
-    : 'Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản UTH Online Judge của bạn.';
+    ? 'Chúng tôi đã nhận được yêu cầu thiết lập mật khẩu đăng nhập bằng email cho tài khoản của bạn.'
+    : '';
   const destination = isSetup
     ? 'Nhập mã này vào cửa sổ thiết lập mật khẩu để tiếp tục.'
     : 'Nhập mã này vào trang Quên mật khẩu để tiếp tục.';
@@ -67,8 +67,7 @@ export function passwordResetEmailHtml(
     style="max-width:560px;width:100%;margin:auto;background:#ffffff;border-radius:12px;">
     <tr>
       <td style="padding:32px 28px;text-align:center;">
-        <h2 style="color:#008b8c;margin:0 0 8px;">UTH Online Judge</h2>
-        <p style="font-size:12px;color:#789092;margin:0;">HỆ THỐNG LUYỆN TẬP LẬP TRÌNH</p>
+        <h2 style="color:#008689;margin:0 0 8px;">UTH ONLINE JUDGE</h2>
         <hr style="border:0;border-top:1px solid #e5eeee;margin:28px 0;">
         <h2 style="font-size:23px;margin:0 0 14px;">${heading}</h2>
         <p style="font-size:14px;line-height:1.7;color:#526b70;">

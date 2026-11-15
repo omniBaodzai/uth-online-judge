@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { ArrowLeft, Send } from 'lucide-react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Send } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 import { useAdmin } from '../useAdmin'
 import styles from '../admin.module.css'
 import { formatDateTime } from '../../community/format'
@@ -8,10 +8,7 @@ import { ContactMessageCategoryBadge } from './ContactMessageCategoryBadge'
 import { reportTypeLabels } from './report-type-labels'
 import { ContactMessageStatusBadge } from './ContactMessageStatusBadge'
 import { ContactConversation } from '../../contact/components/ContactConversation'
-import type {
-  ContactMessageRouteState,
-  ContactMessageStatus,
-} from './contact-messages.types'
+import type { ContactMessageStatus } from './contact-messages.types'
 import {
   getAdminContactMessage,
   getContactApiErrorMessage,
@@ -33,9 +30,6 @@ const statusOptions: Array<{ value: ContactMessageStatus; label: string }> = [
 
 function AdminContactMessageDetailPage() {
   const { messageId = '' } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const routeState = location.state as ContactMessageRouteState | null
   const { request, setNotice } = useAdmin()
   const [loaded, setLoaded] = useState<{
     messageId: string
@@ -92,12 +86,6 @@ function AdminContactMessageDetailPage() {
   const selectedStatus = status?.messageId === messageId
     ? status.value
     : message?.status ?? 'NEW'
-
-  function returnToList() {
-    navigate('/admin/contact-messages', {
-      state: { listState: routeState?.listState },
-    })
-  }
 
   async function saveStatus() {
     if (!message || isSavingStatus) return
@@ -195,41 +183,17 @@ function AdminContactMessageDetailPage() {
 
   if (loading || loadError || !message) {
     return (
-      <>
-        <div className={styles.pageHeading}>
-          <div>
-            <p className={styles.eyebrow}>HỖ TRỢ NGƯỜI DÙNG</p>
-            <h1>{loadError ? 'Không thể tải yêu cầu' : loading ? 'Đang tải yêu cầu...' : 'Không tìm thấy yêu cầu'}</h1>
-          </div>
-          <button className={styles.buttonSecondary} type="button" onClick={returnToList}>
-            <ArrowLeft size={16} aria-hidden="true" />
-            Quay lại danh sách
-          </button>
-        </div>
-        <section className={`${styles.panel} ${pageStyles.notFound}`} role={loadError ? 'alert' : 'status'}>
-          <h2>{loadError ? 'Không thể tải yêu cầu' : loading ? 'Đang tải yêu cầu...' : 'Không tìm thấy yêu cầu'}</h2>
-          <p>{loadError || (loading
-            ? 'Vui lòng chờ trong giây lát.'
-            : 'Yêu cầu này không tồn tại hoặc bạn không có quyền xem.')}</p>
-        </section>
-      </>
+      <section className={`${styles.panel} ${pageStyles.notFound}`} role={loadError ? 'alert' : 'status'}>
+        <h2>{loadError ? 'Không thể tải yêu cầu' : loading ? 'Đang tải yêu cầu...' : 'Không tìm thấy yêu cầu'}</h2>
+        <p>{loadError || (loading
+          ? 'Vui lòng chờ trong giây lát.'
+          : 'Yêu cầu này không tồn tại hoặc bạn không có quyền xem.')}</p>
+      </section>
     )
   }
 
   return (
     <>
-      <div className={`${styles.pageHeading} ${pageStyles.detailHeading}`}>
-        <div>
-          <p className={styles.eyebrow}>HỖ TRỢ NGƯỜI DÙNG</p>
-          <h1>Chi tiết yêu cầu</h1>
-          <p className={styles.pageSubtitle}>Xem nội dung, cập nhật trạng thái và soạn phản hồi.</p>
-        </div>
-        <button className={styles.buttonSecondary} type="button" onClick={returnToList}>
-          <ArrowLeft size={16} aria-hidden="true" />
-          Quay lại danh sách
-        </button>
-      </div>
-
       <div className={pageStyles.detailGrid}>
         <section className={`${styles.panel} ${pageStyles.messagePanel}`} aria-labelledby="request-information-title">
           <div className={styles.panelHeading}>

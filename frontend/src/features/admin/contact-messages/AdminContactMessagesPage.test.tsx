@@ -7,6 +7,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../../i18n'
 import AdminContactMessagesPage from './AdminContactMessagesPage'
+import AdminContactMessageDetailPage from './AdminContactMessageDetailPage'
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -107,6 +108,23 @@ async function renderPage() {
           <Routes>
             <Route path="/admin/contact-messages" element={<AdminContactMessagesPage />} />
             <Route path="/admin/contact-messages/:messageId" element={<p data-testid="detail-route">Chi tiết yêu cầu</p>} />
+          </Routes>
+        </MemoryRouter>
+      </I18nextProvider>,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  await settleUpdates()
+}
+
+async function renderDetailPage() {
+  await act(async () => {
+    root.render(
+      <I18nextProvider i18n={i18n}>
+        <MemoryRouter initialEntries={['/admin/contact-messages/contact-1']}>
+          <LocationProbe />
+          <Routes>
+            <Route path="/admin/contact-messages/:messageId" element={<AdminContactMessageDetailPage />} />
           </Routes>
         </MemoryRouter>
       </I18nextProvider>,
@@ -263,6 +281,53 @@ describe('AdminContactMessagesPage', () => {
       pageSize: 20,
     })
     expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['STT', 'td:nth-child(1)'],
+    ['người gửi', 'td:nth-child(2)'],
+    ['ngày gửi', 'td:nth-child(4)'],
+    ['trạng thái', 'td:nth-child(5)'],
+    ['vùng trống của hàng', undefined],
+  ])('opens the detail route when clicking %s in a data row', async (_label, selector) => {
+    await renderPage()
+
+    const row = container.querySelector('tbody tr')!
+    const target = selector ? row.querySelector(selector)! : row
+    await act(async () => target.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    const location = JSON.parse(container.querySelector('[data-testid="location"]')?.textContent ?? '{}')
+    expect(location.pathname).toBe('/admin/contact-messages/contact-1')
+  })
+
+  it('keeps title-cell interactions separate from row navigation', async () => {
+    await renderPage()
+
+    const subjectButton = container.querySelector<HTMLButtonElement>('[title="Cần hỗ trợ tài khoản"]')
+    const subjectCell = subjectButton?.closest('td')
+    expect(subjectCell).not.toBeNull()
+    await act(async () => subjectCell!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(JSON.parse(container.querySelector('[data-testid="location"]')?.textContent ?? '{}').pathname)
+      .toBe('/admin/contact-messages')
+
+    await act(async () => {
+      subjectButton?.click()
+    })
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="Đóng chi tiết tin nhắn"]')).not.toBeNull()
+    expect(JSON.parse(container.querySelector('[data-testid="location"]')?.textContent ?? '{}').pathname)
+      .toBe('/admin/contact-messages')
+  })
+
+  it('removes the detail intro while keeping request cards and status controls', async () => {
+    await renderDetailPage()
+
+    expect(container.querySelector('h1')).toBeNull()
+    expect(container.textContent).not.toContain('HỖ TRỢ NGƯỜI DÙNG')
+    expect(container.textContent).not.toContain('Xem nội dung, cập nhật trạng thái và soạn phản hồi.')
+    expect(container.textContent).not.toContain('Quay lại danh sách')
+    expect(container.querySelector('#request-information-title')?.textContent).toBe('Thông tin yêu cầu')
+    expect(container.querySelector('#status-title')?.textContent).toBe('Trạng thái yêu cầu')
+    expect(container.querySelector<HTMLSelectElement>('#detail-contact-status')?.value).toBe('NEW')
   })
 
   it('announces loading and error states, and renders the filtered empty state', async () => {

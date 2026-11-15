@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 
 import type { ReactNode } from "react";
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../auth/api";
 import assistantImage from "../../assets/assistant.webp";
@@ -11,8 +11,12 @@ import FloatingActions from "../../components/floating/FloatingActions";
 import { AiAssistantWidget } from "./AiAssistantWidget";
 import i18n from "../../i18n";
 
+const NUDGE_RETRY_DELAY_MS = 60 * 1_000;
+const WELCOME_AUTO_HIDE_MS = 60 * 1_000;
+const TYPEWRITER_DELAY_MS = 42;
+
 const mocks = vi.hoisted(() => ({
-  user: null as null | { id: string },
+  user: null as null | { id: string; username?: string | null },
   accessToken: null as string | null,
   isAuthenticated: false,
   isLoading: false,
@@ -37,14 +41,44 @@ vi.mock("../../components/floating/ScrollControls", () => ({
 let root: Root;
 let container: HTMLDivElement;
 
+function RouteTestControls() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button type="button" data-testid="go-home" onClick={() => navigate("/")}>
+        Go home
+      </button>
+      <button
+        type="button"
+        data-testid="go-task"
+        onClick={() => navigate("/problems/UTH101/submit")}
+      >
+        Go to task
+      </button>
+      <button
+        type="button"
+        data-testid="go-news"
+        onClick={() => navigate("/news")}
+      >
+        Go to news
+      </button>
+    </>
+  );
+}
+
 beforeEach(async () => {
   await i18n.changeLanguage("vi");
   vi.clearAllMocks();
+  window.sessionStorage.clear();
   mocks.user = null;
   mocks.accessToken = null;
   mocks.isAuthenticated = false;
   mocks.isLoading = false;
   mocks.initializationError = null;
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value: "visible",
+  });
   mocks.request.mockResolvedValue({
     scope: "IN_SCOPE",
     answer: "Mở /problems để xem bài tập.",
@@ -65,14 +99,42 @@ afterEach(async () => {
   vi.useRealTimers();
   await act(async () => root.unmount());
   container.remove();
+  vi.restoreAllMocks();
 });
 
-async function render(element: ReactNode = <AiAssistantWidget />) {
+async function render(
+  element: ReactNode = <AiAssistantWidget />,
+  options: {
+    initialPath?: string;
+    includeRouteControls?: boolean;
+    includeInput?: boolean;
+    strictMode?: boolean;
+  } = {},
+) {
+  const tree = (
+    <MemoryRouter initialEntries={[options.initialPath ?? "/problems"]}>
+      {element}
+      {options.includeRouteControls && <RouteTestControls />}
+      {options.includeInput && <input aria-label="Page input" />}
+    </MemoryRouter>
+  );
   await act(async () => {
-    root.render(
-      <MemoryRouter initialEntries={["/problems"]}>{element}</MemoryRouter>,
-    );
+    root.render(options.strictMode ? <StrictMode>{tree}</StrictMode> : tree);
   });
+}
+
+async function advanceTime(milliseconds: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(milliseconds);
+  });
+}
+
+async function finishSpeech() {
+  await advanceTime(5_000);
+  return (
+    container.querySelector('[data-testid="assistant-greeting-text"]')
+      ?.textContent ?? ""
+  );
 }
 
 function buttonByLabel(label: string): HTMLButtonElement | null {
@@ -98,6 +160,15 @@ async function openWidget() {
   return launcher;
 }
 
+async function dismissGreeting() {
+  const greeting = container.querySelector<HTMLButtonElement>(
+    '[data-testid="assistant-greeting-bubble"]',
+  );
+  if (!greeting) return;
+  await act(async () => greeting.click());
+  await act(async () => buttonByLabel("Đóng UTH AI Assistant")?.click());
+}
+
 function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(
     HTMLTextAreaElement.prototype,
@@ -107,8 +178,8 @@ function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
   textarea.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function authenticate(id = "user-1") {
-  mocks.user = { id };
+function authenticate(id = "user-1", username: string | null = "student") {
+  mocks.user = { id, username };
   mocks.accessToken = "test-access-token";
   mocks.isAuthenticated = true;
 }
@@ -620,16 +691,398 @@ describe("AiAssistantWidget", () => {
     delete document.documentElement.dataset.theme;
   });
 
-  it("shows the greeting bubble only until the robot is first opened", async () => {
-    await render(<FloatingActions />);
-    expect(document.body.textContent).toContain("Xin chào! Bạn cần hỗ trợ gì?");
-    await act(async () => i18n.changeLanguage("en"));
-    expect(document.body.textContent).toContain("Hello! How can I help?");
-    await act(async () => i18n.changeLanguage("vi"));
-    await openWidget();
-    await act(async () => buttonByLabel("Đóng UTH AI Assistant")?.click());
-    expect(document.body.textContent).not.toContain(
-      "Xin chào! Bạn cần hỗ trợ gì?",
+  it.each([
+    ["04:59", "2026-01-01T21:59:00.000Z", "Chào buổi tối, bạn nhé!"],
+    ["05:00", "2026-01-01T22:00:00.000Z", "Chào buổi sáng, bạn nhé!"],
+    ["11:59", "2026-01-01T04:59:00.000Z", "Chào buổi sáng, bạn nhé!"],
+    ["12:00", "2026-01-01T05:00:00.000Z", "Chào buổi chiều, bạn nhé!"],
+    ["17:59", "2026-01-01T10:59:00.000Z", "Chào buổi chiều, bạn nhé!"],
+    ["18:00", "2026-01-01T11:00:00.000Z", "Chào buổi tối, bạn nhé!"],
+  ])("uses Vietnam local time at %s", async (_label, utcTime, greeting) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(utcTime));
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+
+    expect(await finishSpeech()).toContain(greeting);
+  });
+
+  it("greets an authenticated user by username and uses a generic greeting for guests or null usernames", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    authenticate("user-1", "lan");
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+    expect(await finishSpeech()).toContain("Chào buổi sáng, lan!");
+
+    await act(async () => root.unmount());
+    container.remove();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    mocks.user = null;
+    mocks.isAuthenticated = false;
+    window.sessionStorage.clear();
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+    expect(await finishSpeech()).toContain("Chào buổi sáng, bạn nhé!");
+
+    await act(async () => root.unmount());
+    container.remove();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    authenticate("user-2", null);
+    window.sessionStorage.clear();
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+    expect(await finishSpeech()).toContain("Chào buổi sáng, bạn nhé!");
+  });
+
+  it("waits for AuthContext session restoration before showing a personalized greeting", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    mocks.isLoading = true;
+    authenticate("user-1", "linh");
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+
+    mocks.isLoading = false;
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+    expect(await finishSpeech()).toContain("Chào buổi sáng, linh!");
+  });
+
+  it("types each sentence in order with a 450ms pause and does not call the AI API", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    authenticate("user-1", "An");
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+
+    const text = () =>
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent ?? "";
+    expect(text()).toBe("");
+    await advanceTime(42);
+    expect(text()).toBe("C");
+
+    const firstSentence = "Chào buổi sáng, An!";
+    await advanceTime((firstSentence.length - 1) * 42);
+    expect(text()).toBe(firstSentence);
+    await advanceTime(42);
+    await advanceTime(449);
+    expect(text()).toBe(firstSentence);
+    await advanceTime(1);
+    expect(text()).toMatch(/^Chào buổi sáng, An! M/);
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect(mocks.publicRequest).not.toHaveBeenCalled();
+  });
+
+  it("opens the assistant from the greeting button without sending a question", async () => {
+    vi.useFakeTimers();
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+
+    const greetingBubble = container.querySelector<HTMLButtonElement>(
+      '[data-testid="assistant-greeting-bubble"]',
     );
+    expect(greetingBubble?.tagName).toBe("BUTTON");
+    await act(async () => greetingBubble?.click());
+
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect(mocks.publicRequest).not.toHaveBeenCalled();
+  });
+
+  it("replays the initial greeting after a reload on any route, ignoring the legacy session flag", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    window.sessionStorage.setItem("uth-ai-assistant-welcome-shown", "1");
+    await render(<AiAssistantWidget />, {
+      initialPath: "/problems",
+    });
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    await advanceTime(TYPEWRITER_DELAY_MS);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent,
+    ).toBe("C");
+
+    await act(async () => root.unmount());
+    container.remove();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await render(<AiAssistantWidget />, { initialPath: "/problems" });
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent,
+    ).toBe("");
+    await advanceTime(TYPEWRITER_DELAY_MS);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent,
+    ).toBe("C");
+  });
+
+  it("keeps the original deadline and typewriter state while navigating away from home", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    await render(<AiAssistantWidget />, {
+      initialPath: "/",
+      includeRouteControls: true,
+    });
+    await advanceTime(20_000);
+    const textBeforeNavigation =
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent;
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[data-testid="go-task"]')?.click(),
+    );
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent,
+    ).toBe(textBeforeNavigation);
+
+    await advanceTime(39_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    await advanceTime(1_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+  });
+
+  it("restarts the greeting for a real return to home and resets its 60-second deadline", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    await render(<AiAssistantWidget />, {
+      initialPath: "/problems",
+      includeRouteControls: true,
+    });
+    await advanceTime(WELCOME_AUTO_HIDE_MS);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[data-testid="go-home"]')?.click(),
+    );
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent,
+    ).toBe("");
+    await advanceTime(TYPEWRITER_DELAY_MS);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent,
+    ).toBe("C");
+
+    await advanceTime(WELCOME_AUTO_HIDE_MS - TYPEWRITER_DELAY_MS - 1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    await advanceTime(1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+  });
+
+  it("does not reset the welcome deadline on rerender or AuthContext updates", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    authenticate("user-1", "lan");
+    await render(<AiAssistantWidget />, { initialPath: "/problems" });
+    await advanceTime(20_000);
+    authenticate("user-1", "lan-updated");
+    await render(<AiAssistantWidget />, { initialPath: "/problems" });
+    await advanceTime(39_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    await advanceTime(1_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+  });
+
+  it.each([0, 0.99999])(
+    "shows a proactive message after a randomized delay within range",
+    async (randomValue) => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(randomValue);
+    await render(<AiAssistantWidget />, { initialPath: "/news" });
+    await dismissGreeting();
+    const remainingDelay =
+      Number(window.sessionStorage.getItem("uth-ai-assistant-next-nudge-at")) -
+      Date.now();
+    expect(remainingDelay).toBeGreaterThanOrEqual(7 * 60 * 1_000);
+    expect(remainingDelay).toBeLessThanOrEqual(10 * 60 * 1_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+
+    await advanceTime(remainingDelay - 1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+    await advanceTime(1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    },
+  );
+
+  it("does not repeat the same proactive message consecutively and waits before the next one", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    await render(<AiAssistantWidget />, { initialPath: "/news" });
+    await dismissGreeting();
+    await advanceTime(7 * 60 * 1_000);
+    const firstMessage = await finishSpeech();
+    expect(firstMessage).not.toBe("");
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="assistant-greeting-bubble"]',
+      )?.click();
+    });
+    await act(async () => buttonByLabel("Đóng UTH AI Assistant")?.click());
+    await advanceTime(7 * 60 * 1_000);
+    const secondMessage = await finishSpeech();
+    expect(secondMessage).not.toBe(firstMessage);
+  });
+
+  it("pauses proactive messages while the chatbot is open and the tab is hidden", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    await render(<AiAssistantWidget />, { initialPath: "/news" });
+    await openWidget();
+    await advanceTime(10 * 60 * 1_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+    await act(async () => buttonByLabel("Đóng UTH AI Assistant")?.click());
+    await advanceTime(NUDGE_RETRY_DELAY_MS - 1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+    await advanceTime(1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="assistant-greeting-bubble"]',
+      )?.click();
+    });
+    await act(async () => buttonByLabel("Đóng UTH AI Assistant")?.click());
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await advanceTime(10 * 60 * 1_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await advanceTime(NUDGE_RETRY_DELAY_MS);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+  });
+
+  it("defers proactive messages on task routes and while a text editor is focused", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    await render(<AiAssistantWidget />, {
+      initialPath: "/problems/UTH101/submit",
+      includeRouteControls: true,
+      includeInput: true,
+    });
+    await advanceTime(10 * 60 * 1_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-testid="go-news"]')?.click());
+    await advanceTime(NUDGE_RETRY_DELAY_MS);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="assistant-greeting-bubble"]',
+      )?.click();
+    });
+    await act(async () => {
+      buttonByLabel("Đóng UTH AI Assistant")?.click();
+      container.querySelector<HTMLInputElement>('[aria-label="Page input"]')?.focus();
+    });
+    await advanceTime(10 * 60 * 1_000);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
+    await act(async () =>
+      container.querySelector<HTMLInputElement>('[aria-label="Page input"]')?.blur(),
+    );
+    await advanceTime(NUDGE_RETRY_DELAY_MS);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+  });
+
+  it("shows all speech immediately with reduced motion and cleans up timers on unmount", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T22:00:00.000Z"));
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    vi.spyOn(window, "matchMedia").mockReturnValue(mediaQuery);
+    Object.defineProperty(mediaQuery, "matches", {
+      configurable: true,
+      value: true,
+    });
+    await render(<AiAssistantWidget />, {
+      initialPath: "/",
+      strictMode: true,
+    });
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-text"]')
+        ?.textContent,
+    ).toBe("Chào buổi sáng, bạn nhé! Mình có thể giúp gì cho bạn?");
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect(mocks.publicRequest).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("auto-hides the welcome speech after 60 seconds and keeps the mobile greeting control available", async () => {
+    vi.useFakeTimers();
+    await render(<AiAssistantWidget />, { initialPath: "/" });
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    await advanceTime(WELCOME_AUTO_HIDE_MS - 1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).not.toBeNull();
+    await advanceTime(1);
+    expect(
+      container.querySelector('[data-testid="assistant-greeting-bubble"]'),
+    ).toBeNull();
   });
 });

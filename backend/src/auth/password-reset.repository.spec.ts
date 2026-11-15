@@ -197,6 +197,159 @@ describe('PasswordResetRepository', () => {
     expect(query.mock.calls[0]?.[1]).toEqual(['user-id']);
   });
 
+  it('sets a password only once for an active OAuth account and revokes other refresh sessions', async () => {
+    const client = createClient([
+      { rows: [] },
+      { rows: [{ id: 'user-id' }] },
+      { rows: [{ token_hash: 'current-refresh-hash' }] },
+      { rowCount: 1, rows: [{ id: 'user-id' }] },
+      { rowCount: 2, rows: [] },
+      { rows: [] },
+    ]);
+    const repository = new PasswordResetRepository({
+      connect: vi.fn().mockResolvedValue(client),
+    } as never);
+
+    await expect(repository.setInitialPassword(
+      'user-id',
+      'new-password-hash',
+      'current-refresh-hash',
+    )).resolves.toBe('UPDATED');
+
+    const accountSql = String(client.query.mock.calls[1]?.[0]);
+    expect(accountSql).toContain('is_active = TRUE');
+    expect(accountSql).toContain('password_hash IS NULL');
+    expect(accountSql).toContain('(google_id IS NOT NULL OR github_id IS NOT NULL)');
+    expect(accountSql).toContain('FOR UPDATE');
+    const sessionSql = String(client.query.mock.calls[2]?.[0]);
+    expect(sessionSql).toContain('token_hash = $1');
+    expect(sessionSql).toContain('user_id = $2');
+    expect(sessionSql).toContain('revoked_at IS NULL');
+    expect(sessionSql).toContain('expires_at > clock_timestamp()');
+    expect(sessionSql).toContain('FOR UPDATE');
+    expect(client.query.mock.calls[2]?.[1]).toEqual([
+      'current-refresh-hash',
+      'user-id',
+    ]);
+    const updateSql = String(client.query.mock.calls[3]?.[0]);
+    expect(updateSql).toContain('auth_version = auth_version + 1');
+    expect(updateSql).toContain('password_hash IS NULL');
+    expect(updateSql).toContain('RETURNING id');
+    expect(client.query.mock.calls[4]?.[0]).toContain('token_hash <> $2');
+    expect(client.query.mock.calls[4]?.[1]).toEqual([
+      'user-id',
+      'current-refresh-hash',
+    ]);
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('rejects missing, expired, revoked, unknown, or other-user refresh sessions without writes', async () => {
+    const client = createClient([
+      { rows: [] },
+      { rows: [{ id: 'user-id' }] },
+      { rows: [] },
+      { rows: [] },
+    ]);
+    const repository = new PasswordResetRepository({
+      connect: vi.fn().mockResolvedValue(client),
+    } as never);
+
+    await expect(repository.setInitialPassword(
+      'user-id',
+      'new-password-hash',
+      'unmatched-refresh-hash',
+    )).resolves.toBe('INVALID_REFRESH_SESSION');
+
+    const sessionSql = String(client.query.mock.calls[2]?.[0]);
+    expect(sessionSql).toContain('user_id = $2');
+    expect(sessionSql).toContain('revoked_at IS NULL');
+    expect(sessionSql).toContain('expires_at > clock_timestamp()');
+    expect(client.query.mock.calls[2]?.[1]).toEqual([
+      'unmatched-refresh-hash',
+      'user-id',
+    ]);
+    expect(client.query.mock.calls[3]?.[0]).toBe('ROLLBACK');
+    expect(client.query.mock.calls.some(([sql]) =>
+      String(sql).includes('UPDATE public.users'),
+    )).toBe(false);
+    expect(client.query.mock.calls.some(([sql]) =>
+      String(sql).includes('UPDATE public.refresh_tokens'),
+    )).toBe(false);
+  });
+
+  it('does not overwrite an existing password or revoke sessions when another request won the race', async () => {
+    const client = createClient([
+      { rows: [] },
+      { rows: [] },
+      { rows: [] },
+    ]);
+    const repository = new PasswordResetRepository({
+      connect: vi.fn().mockResolvedValue(client),
+    } as never);
+
+    await expect(repository.setInitialPassword(
+      'user-id',
+      'new-password-hash',
+      'current-refresh-hash',
+    )).resolves.toBe('INELIGIBLE_ACCOUNT');
+
+    expect(client.query.mock.calls[1]?.[0]).toContain('password_hash IS NULL');
+    expect(client.query.mock.calls[1]?.[0]).toContain(
+      '(google_id IS NOT NULL OR github_id IS NOT NULL)',
+    );
+    expect(client.query.mock.calls[2]?.[0]).toBe('ROLLBACK');
+    expect(client.query.mock.calls.some(([sql]) =>
+      String(sql).includes('UPDATE public.refresh_tokens'),
+    )).toBe(false);
+    expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it('allows only one of two concurrent initial-password requests to update the account', async () => {
+    const firstClient = createClient([
+      { rows: [] },
+      { rows: [{ id: 'user-id' }] },
+      { rows: [{ token_hash: 'current-refresh-hash' }] },
+      { rowCount: 1, rows: [{ id: 'user-id' }] },
+      { rowCount: 2, rows: [] },
+      { rows: [] },
+    ]);
+    const secondClient = createClient([
+      { rows: [] },
+      { rows: [] },
+      { rows: [] },
+    ]);
+    const repository = new PasswordResetRepository({
+      connect: vi.fn()
+        .mockResolvedValueOnce(firstClient)
+        .mockResolvedValueOnce(secondClient),
+    } as never);
+
+    const results = await Promise.all([
+      repository.setInitialPassword(
+        'user-id',
+        'first-password-hash',
+        'current-refresh-hash',
+      ),
+      repository.setInitialPassword(
+        'user-id',
+        'second-password-hash',
+        'current-refresh-hash',
+      ),
+    ]);
+
+    expect(results).toEqual(['UPDATED', 'INELIGIBLE_ACCOUNT']);
+    expect(firstClient.query.mock.calls[1]?.[0]).toContain('FOR UPDATE');
+    expect(secondClient.query.mock.calls[1]?.[0]).toContain('FOR UPDATE');
+    expect(firstClient.query.mock.calls.some(([sql]) =>
+      String(sql).includes('UPDATE public.users'),
+    )).toBe(true);
+    expect(secondClient.query.mock.calls.some(([sql]) =>
+      String(sql).includes('UPDATE public.users'),
+    )).toBe(false);
+    expect(secondClient.query.mock.calls.at(-1)?.[0]).toBe('ROLLBACK');
+  });
+
   it('requires password setup OTP verification to match purpose, user, and transaction', async () => {
     const client = createClient([
       { rows: [] },

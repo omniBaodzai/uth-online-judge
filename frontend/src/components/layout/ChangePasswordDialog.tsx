@@ -28,12 +28,11 @@ function utf8ByteLength(value: string): number {
 
 function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps) {
   const { t } = useTranslation('auth')
-  const { changePassword, completePasswordSetup, request } = useAuth()
+  const { changePassword, setInitialPassword, request } = useAuth()
   const dialogRef = useRef<HTMLDivElement>(null)
   const currentPasswordRef = useRef<HTMLInputElement>(null)
   const newPasswordRef = useRef<HTMLInputElement>(null)
   const suppressPasswordSetupAutofocus = useRef(false)
-  const otpRef = useRef<HTMLInputElement>(null)
   const [values, setValues] = useState<PasswordValues>({
     currentPassword: '',
     newPassword: '',
@@ -46,11 +45,6 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
   const [hasPassword, setHasPassword] = useState<boolean | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
   const [statusAttempt, setStatusAttempt] = useState(0)
-  const [setupStep, setSetupStep] = useState<'password' | 'otp'>('password')
-  const [transactionId, setTransactionId] = useState('')
-  const [setupToken, setSetupToken] = useState('')
-  const [otp, setOtp] = useState('')
-  const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const [newPasswordMeterVisible, setNewPasswordMeterVisible] = useState(false)
   const [newPasswordFocused, setNewPasswordFocused] = useState(false)
 
@@ -87,24 +81,14 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
 
   useEffect(() => {
     if (hasPassword === true) currentPasswordRef.current?.focus()
-    else if (hasPassword === false && setupStep === 'password') {
+    else if (hasPassword === false) {
       const input = newPasswordRef.current
       if (input && document.activeElement !== input) {
         suppressPasswordSetupAutofocus.current = true
         input.focus()
       }
     }
-    else if (hasPassword === false && setupStep === 'otp') otpRef.current?.focus()
-  }, [hasPassword, setupStep])
-
-  useEffect(() => {
-    if (cooldownSeconds <= 0) return
-    const timer = window.setTimeout(
-      () => setCooldownSeconds((current) => Math.max(0, current - 1)),
-      1000,
-    )
-    return () => window.clearTimeout(timer)
-  }, [cooldownSeconds])
+  }, [hasPassword])
 
   function close() {
     if (!isSubmitting) onClose()
@@ -186,11 +170,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
     if (isSubmitting || hasPassword === null) return
 
     setRequestError('')
-    const validationErrors = hasPassword
-      ? validateChange()
-      : setupStep === 'password'
-        ? validateSetup()
-        : {}
+    const validationErrors = hasPassword ? validateChange() : validateSetup()
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
@@ -202,37 +182,10 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
           currentPassword: values.currentPassword,
           newPassword: values.newPassword,
         })
-        completed = true
-      } else if (setupStep === 'password') {
-        const response = await request<{
-          transactionId: string
-          retryAfterSeconds: number
-        }>('/auth/me/password-setup/otp', { method: 'POST' })
-        setTransactionId(response.transactionId)
-        setCooldownSeconds(response.retryAfterSeconds)
-        setSetupToken('')
-        setOtp('')
-        setSetupStep('otp')
-      } else if (setupToken) {
-        await completePasswordSetup({ setupToken, newPassword: values.newPassword })
-        completed = true
-      } else if (transactionId) {
-        const result = await request<{ setupToken: string }>(
-          '/auth/me/password-setup/verify-otp',
-          {
-            method: 'POST',
-            body: JSON.stringify({ transactionId, otp }),
-          },
-        )
-        setSetupToken(result.setupToken)
-        await completePasswordSetup({
-          setupToken: result.setupToken,
-          newPassword: values.newPassword,
-        })
-        completed = true
       } else {
-        setRequestError(t('invalidVerificationTransaction'))
+        await setInitialPassword({ newPassword: values.newPassword })
       }
+      completed = true
     } catch (error) {
       if (error instanceof ApiError) setRequestError(error.message)
       else {
@@ -246,30 +199,6 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
       setIsSubmitting(false)
     }
     if (completed) onSuccess()
-  }
-
-  async function resendOtp() {
-    if (isSubmitting || cooldownSeconds > 0) return
-    setIsSubmitting(true)
-    setRequestError('')
-    try {
-      const response = await request<{
-        transactionId: string
-        retryAfterSeconds: number
-      }>('/auth/me/password-setup/otp', { method: 'POST' })
-      setTransactionId(response.transactionId)
-      setSetupToken('')
-      setOtp('')
-      setCooldownSeconds(response.retryAfterSeconds)
-    } catch (error) {
-      setRequestError(
-        error instanceof Error
-          ? error.message
-          : t('resendOtpFailed'),
-      )
-    } finally {
-      setIsSubmitting(false)
-    }
   }
 
   function renderPasswordField(field: PasswordField, autoComplete: string) {
@@ -447,7 +376,7 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                 </button>
               </div>
             </>
-          ) : setupStep === 'password' ? (
+          ) : (
             <>
               {renderPasswordField('newPassword', 'new-password')}
               {renderPasswordField('confirmPassword', 'new-password')}
@@ -466,74 +395,9 @@ function ChangePasswordDialog({ onClose, onSuccess }: ChangePasswordDialogProps)
                   {isSubmitting ? (
                     <>
                       <span className={styles.spinner} aria-hidden="true" />
-                      {t('sendingCode')}
+                      {t('processing')}
                     </>
-                  ) : t('continueEmailVerification')}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className={styles.passwordHint}>
-                {t('otpInstruction')}
-              </p>
-              <div className={styles.field}>
-                <label htmlFor="password-setup-otp">{t('otpLabel')} <span aria-hidden="true">*</span></label>
-                <div className={`${styles.inputWrap} ${requestError ? styles.inputInvalid : ''}`}>
-                  <input
-                    ref={otpRef}
-                    id="password-setup-otp"
-                    name="otp"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    value={otp}
-                    aria-label={t('otpGroupLabel')}
-                    aria-invalid={Boolean(requestError)}
-                    onChange={(event) => {
-                      setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
-                      setRequestError('')
-                    }}
-                    disabled={isSubmitting || Boolean(setupToken)}
-                  />
-                </div>
-              </div>
-              <p className={styles.statusMessage} role="status" aria-live="polite">
-                {cooldownSeconds > 0
-                  ? t('resendOtpCooldown', { count: cooldownSeconds })
-                  : t('resendOtpAvailable')}
-              </p>
-              {requestError && <p className={styles.requestError} role="alert">{requestError}</p>}
-              <div className={styles.actions}>
-                <button
-                  className={styles.cancelButton}
-                  type="button"
-                  onClick={close}
-                  disabled={isSubmitting}
-                >
-                  {t('cancel', { ns: 'common' })}
-                </button>
-                <button
-                  className={styles.cancelButton}
-                  type="button"
-                  onClick={() => void resendOtp()}
-                  disabled={isSubmitting || cooldownSeconds > 0}
-                >
-                  {t('resendOtp')}
-                </button>
-                <button
-                  className={styles.submitButton}
-                  type="submit"
-                  disabled={isSubmitting || (!setupToken && otp.length !== 6)}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className={styles.spinner} aria-hidden="true" />
-                      {t('verifyingCode')}
-                    </>
-                  ) : setupToken ? t('retryPasswordSetup') : t('verifyAndSetup')}
+                  ) : t('passwordChangeTitle')}
                 </button>
               </div>
             </>

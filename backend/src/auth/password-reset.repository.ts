@@ -128,6 +128,79 @@ export class PasswordResetRepository {
     return result.rows[0] ?? null;
   }
 
+  async setInitialPassword(
+    userId: string,
+    passwordHash: string,
+    currentRefreshTokenHash: string,
+  ): Promise<'UPDATED' | 'INELIGIBLE_ACCOUNT' | 'INVALID_REFRESH_SESSION'> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const account = await client.query<{ id: string }>(
+        `SELECT id
+         FROM public.users
+         WHERE id = $1
+           AND is_active = TRUE
+           AND password_hash IS NULL
+           AND (google_id IS NOT NULL OR github_id IS NOT NULL)
+         FOR UPDATE`,
+        [userId],
+      );
+      if (!account.rows[0]) {
+        await client.query('ROLLBACK');
+        return 'INELIGIBLE_ACCOUNT';
+      }
+
+      const session = await client.query<{ token_hash: string }>(
+        `SELECT token_hash
+         FROM public.refresh_tokens
+         WHERE token_hash = $1
+           AND user_id = $2
+           AND revoked_at IS NULL
+           AND expires_at > clock_timestamp()
+         FOR UPDATE`,
+        [currentRefreshTokenHash, userId],
+      );
+      if (!session.rows[0]) {
+        await client.query('ROLLBACK');
+        return 'INVALID_REFRESH_SESSION';
+      }
+
+      const updated = await client.query(
+        `UPDATE public.users
+         SET password_hash = $2,
+             auth_version = auth_version + 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+           AND is_active = TRUE
+           AND password_hash IS NULL
+           AND (google_id IS NOT NULL OR github_id IS NOT NULL)
+         RETURNING id`,
+        [userId, passwordHash],
+      );
+      if (updated.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        return 'INELIGIBLE_ACCOUNT';
+      }
+
+      await client.query(
+        `UPDATE public.refresh_tokens
+         SET revoked_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1
+           AND revoked_at IS NULL
+           AND token_hash <> $2`,
+        [userId, currentRefreshTokenHash],
+      );
+      await client.query('COMMIT');
+      return 'UPDATED';
+    } catch (error) {
+      await rollback(client);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async storeOtp(
     userId: string,
     emailHash: string,
