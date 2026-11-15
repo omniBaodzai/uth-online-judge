@@ -10,18 +10,6 @@ import styles from './LeaderboardPage.module.css'
 const PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
 
-function formatPerformance(
-  percentile: number | null,
-  comparableProblems: number,
-  t: (key: 'notEnoughData' | 'topPercent', options?: Record<string, number>) => string,
-): string {
-  if (percentile === null || comparableProblems === 0) return t('notEnoughData')
-  return t('topPercent', {
-    percentile: Math.max(1, Math.ceil(percentile * 100)),
-    count: comparableProblems,
-  })
-}
-
 function LeaderboardPage() {
   const { t } = useTranslation('pages')
   const { user } = useAuth()
@@ -104,9 +92,6 @@ function LeaderboardPage() {
                 avatarSource: resolveAvatarUrl(entry.avatarUrl),
                 count: entry.solvedCount,
                 profileUsername: entry.username,
-                detail: entry.comparableProblems > 0
-                  ? formatPerformance(entry.performancePercentile, entry.comparableProblems, t)
-                  : null,
                 isViewer: entry.userId === user?.id,
               }))}
               ariaLabel={t('rankingList')}

@@ -14,7 +14,6 @@ export interface RankingRow {
   avatarSource?: string | null
   count: number
   profileUsername?: string | null
-  detail?: string | null
   isViewer?: boolean
   latestContributionAt?: string | null
 }
@@ -60,7 +59,6 @@ function RankingTable({ rows, ariaLabel, countHeading, latestContributionHeading
                 <span className={styles.identity}>
                   <strong>{row.displayName}</strong>
                   <span>@{row.handle}</span>
-                  {row.detail ? <span className={styles.performance}>{row.detail}</span> : null}
                 </span>
               </span>
               <span className={styles.solvedCount}>{row.count}</span>

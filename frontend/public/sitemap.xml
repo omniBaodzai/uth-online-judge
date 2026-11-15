@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://uthoj.online/</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/problems</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/submissions</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/contests</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/contact</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/organizations</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/leaderboard</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/contributors</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/news</loc>
+  </url>
+  <url>
+    <loc>https://uthoj.online/discussions</loc>
+  </url>
+</urlset>

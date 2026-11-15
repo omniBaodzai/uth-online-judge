@@ -341,11 +341,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.performance strong {
-  font-size: 12px;
-  line-height: 1.35;
-}
-
 .achievement {
   color: #52686b;
   font-size: 12px;
